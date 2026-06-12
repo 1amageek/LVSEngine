@@ -18,10 +18,20 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../SignoffToolSupport"),
+        .package(path: "../semiconductor-layout"),
     ],
     targets: [
         .target(name: "LVSCore"),
-        .target(name: "LVSPureSwift", dependencies: ["LVSCore"]),
+        .target(
+            name: "LVSPureSwift",
+            dependencies: [
+                "LVSCore",
+                .product(name: "LayoutCore", package: "semiconductor-layout"),
+                .product(name: "LayoutTech", package: "semiconductor-layout"),
+                .product(name: "LayoutVerify", package: "semiconductor-layout"),
+                .product(name: "LayoutIO", package: "semiconductor-layout"),
+            ]
+        ),
         .target(name: "LVSParsers", dependencies: ["LVSCore"]),
         .target(
             name: "LVSAdapters",
@@ -53,7 +63,17 @@ let package = Package(
         .executableTarget(name: "LVSCLI", dependencies: ["LVSCLICore"], path: "Sources/LVSCLI"),
         .testTarget(name: "LVSAdaptersTests", dependencies: ["LVSAdapters", "LVSCore"]),
         .testTarget(name: "LVSExtractionAdaptersTests", dependencies: ["LVSExtractionAdapters", "LVSCore"]),
-        .testTarget(name: "LVSPureSwiftTests", dependencies: ["LVSPureSwift", "LVSCore"]),
+        .testTarget(
+            name: "LVSPureSwiftTests",
+            dependencies: [
+                "LVSPureSwift",
+                "LVSCore",
+                .product(name: "LayoutCore", package: "semiconductor-layout"),
+                .product(name: "LayoutTech", package: "semiconductor-layout"),
+                .product(name: "LayoutIO", package: "semiconductor-layout"),
+                .product(name: "LayoutAutoGen", package: "semiconductor-layout"),
+            ]
+        ),
         .testTarget(name: "LVSParsersTests", dependencies: ["LVSParsers", "LVSCore"]),
         .testTarget(name: "LVSRuntimeTests", dependencies: ["LVSRuntime", "LVSCore"]),
         .testTarget(name: "LVSCLICoreTests", dependencies: ["LVSCLICore"]),

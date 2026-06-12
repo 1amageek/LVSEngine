@@ -26,6 +26,10 @@ public struct LVSRequest: Sendable, Hashable, Codable {
     public let layoutGDSURL: URL?
     public let schematicNetlistURL: URL
     public let topCell: String
+    /// Technology database (`LayoutTechDatabase` JSON) for backends that
+    /// extract devices from standard layout formats in-process; backends
+    /// delegating extraction to external tools leave it nil.
+    public let technologyURL: URL?
     public let workingDirectory: URL?
     public let backendSelection: LVSBackendSelection
     public let options: LVSOptions
@@ -35,6 +39,7 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         layoutGDSURL: URL? = nil,
         schematicNetlistURL: URL,
         topCell: String,
+        technologyURL: URL? = nil,
         workingDirectory: URL? = nil,
         backendSelection: LVSBackendSelection = LVSBackendSelection(backendID: "netgen"),
         options: LVSOptions = LVSOptions()
@@ -43,6 +48,7 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         self.layoutGDSURL = layoutGDSURL
         self.schematicNetlistURL = schematicNetlistURL
         self.topCell = topCell
+        self.technologyURL = technologyURL
         self.workingDirectory = workingDirectory
         self.backendSelection = backendSelection
         self.options = options

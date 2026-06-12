@@ -15,7 +15,7 @@ public struct DefaultLVSEngine: Sendable {
         layoutNetlistExtractor: (any LVSLayoutNetlistExtracting)? = MagicLayoutNetlistExtractor.locate(),
         store: LVSArtifactStore = LVSArtifactStore()
     ) {
-        var backends: [any LVSBackend] = [PureSwiftLVSBackend()]
+        var backends: [any LVSBackend] = [PureSwiftLVSBackend(), LayoutGDSLVSBackend()]
         if let backend {
             backends.append(backend)
         }

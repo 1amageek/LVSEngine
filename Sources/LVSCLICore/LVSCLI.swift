@@ -29,6 +29,8 @@ public struct LVSCLIOptions: Sendable, Hashable {
     public let layoutGDSURL: URL?
     public let schematicNetlistURL: URL
     public let topCell: String
+    public let technologyURL: URL?
+    public let backendID: String?
     public let outputDirectory: URL
     public let timeoutSeconds: Double
 
@@ -37,6 +39,8 @@ public struct LVSCLIOptions: Sendable, Hashable {
         var layoutGDSURL: URL?
         var schematicNetlistURL: URL?
         var topCell: String?
+        var technologyURL: URL?
+        var backendID: String?
         var outputDirectory: URL?
         var timeoutSeconds = 300.0
         var index = 0
@@ -53,6 +57,10 @@ public struct LVSCLIOptions: Sendable, Hashable {
                 topCell = try Self.value(after: argument, in: arguments, index: &index)
             case "--out":
                 outputDirectory = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
+            case "--tech":
+                technologyURL = URL(filePath: try Self.value(after: argument, in: arguments, index: &index))
+            case "--backend":
+                backendID = try Self.value(after: argument, in: arguments, index: &index)
             case "--timeout":
                 timeoutSeconds = try Self.positiveFiniteDouble(after: argument, in: arguments, index: &index)
             default:
@@ -75,17 +83,24 @@ public struct LVSCLIOptions: Sendable, Hashable {
         self.layoutGDSURL = layoutGDSURL
         self.schematicNetlistURL = schematicNetlistURL
         self.topCell = topCell
+        self.technologyURL = technologyURL
+        self.backendID = backendID
         self.outputDirectory = outputDirectory
         self.timeoutSeconds = timeoutSeconds
     }
 
     public func makeRequest() -> LVSRequest {
-        LVSRequest(
+        // A technology database implies the standard-input pure Swift
+        // backend unless the caller chose one explicitly.
+        let resolvedBackendID = backendID ?? (technologyURL != nil ? "pure-swift-gds" : "netgen")
+        return LVSRequest(
             layoutNetlistURL: layoutNetlistURL,
             layoutGDSURL: layoutGDSURL,
             schematicNetlistURL: schematicNetlistURL,
             topCell: topCell,
+            technologyURL: technologyURL,
             workingDirectory: outputDirectory,
+            backendSelection: LVSBackendSelection(backendID: resolvedBackendID),
             options: LVSOptions(timeoutSeconds: timeoutSeconds)
         )
     }
