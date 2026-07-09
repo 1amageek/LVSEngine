@@ -1,0 +1,8 @@
+.global VDD VSS
+.subckt top in out
+X1 in out inv_global
+.ends top
+.subckt inv_global in out
+M1 out in VDD VDD pmos W=1u L=0.15u
+M2 out in VSS VSS nmos W=1u L=0.15u
+.ends inv_global

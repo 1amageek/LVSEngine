@@ -1,0 +1,12 @@
+.lib tt
+.subckt inv in out vdd vss w=1u l=0.15u
+M1 out in vdd vdd pmos W={w} L={l}
+M2 out in vss vss nmos W={w} L={l}
+.ends inv
+.endl tt
+.lib ss
+.subckt inv in out vdd vss w=2u l=0.20u
+M1 out in vdd vdd pmos_slow W={w} L={l}
+M2 out in vss vss nmos_slow W={w} L={l}
+.ends inv
+.endl ss

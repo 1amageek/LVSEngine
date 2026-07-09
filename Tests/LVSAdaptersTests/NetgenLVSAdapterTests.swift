@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 import LVSCore
 @testable import LVSAdapters
@@ -29,6 +30,38 @@ struct NetgenLVSAdapterTests {
         }
 
         #expect(didThrowExpectedError)
+    }
+
+    @Test func runRejectsInvalidProgrammaticRequestBeforeLaunchingProcess() async throws {
+        let directory = try makeTemporaryDirectory()
+        let launchedFlag = directory.appending(path: "launched")
+        let executableURL = try makeExecutableScript(
+            in: directory,
+            name: "fake-netgen",
+            body: """
+            #!/bin/sh
+            touch \(shellSingleQuoted(launchedFlag.path(percentEncoded: false)))
+            echo "LVS_DONE"
+            """
+        )
+        let adapter = NetgenLVSAdapter(toolchain: NetgenLVSToolchain(
+            netgenExecutableURL: executableURL,
+            setupFileURL: URL(filePath: "/tmp/sky130A_setup.tcl"),
+            pdkRoot: "/tmp/pdk",
+            driverScriptURL: URL(filePath: "/tmp/lvs.tcl")
+        ))
+        let request = LVSRequest(
+            layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
+            schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),
+            topCell: "   ",
+            workingDirectory: directory,
+            options: LVSOptions(timeoutSeconds: .nan)
+        )
+
+        await #expect(throws: LVSError.self) {
+            _ = try await adapter.run(request)
+        }
+        #expect(!FileManager.default.fileExists(atPath: launchedFlag.path(percentEncoded: false)))
     }
 
     @Test func locatorPrefersHeadlessNetgenExecOverGUIWrapper() throws {
@@ -109,6 +142,74 @@ struct NetgenLVSAdapterTests {
         #expect(first.result.provenance?.executablePath == executableURL.path(percentEncoded: false))
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func cancellationCheckTerminatesNetgenProcessTree() async throws {
+        let directory = try makeTemporaryDirectory()
+        let processStarted = directory.appending(path: "process-started")
+        let childSurvived = directory.appending(path: "child-survived")
+        let executableURL = try makeExecutableScript(
+            in: directory,
+            name: "fake-netgen-cancel",
+            body: """
+            #!/bin/sh
+            trap '' TERM
+            touch \(shellSingleQuoted(processStarted.path(percentEncoded: false)))
+            (
+                trap '' TERM
+                sleep 1
+                touch \(shellSingleQuoted(childSurvived.path(percentEncoded: false)))
+            ) &
+            echo "LVS_STARTED"
+            sleep 10
+            """
+        )
+        let adapter = NetgenLVSAdapter(toolchain: NetgenLVSToolchain(
+            netgenExecutableURL: executableURL,
+            setupFileURL: URL(filePath: "/tmp/sky130A_setup.tcl"),
+            pdkRoot: "/tmp/pdk",
+            driverScriptURL: URL(filePath: "/tmp/lvs.tcl")
+        ))
+        let request = LVSRequest(
+            layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
+            schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),
+            topCell: "inv",
+            workingDirectory: directory,
+            options: LVSOptions(timeoutSeconds: 5)
+        )
+        let probe = CancellationProbe()
+
+        let task = Task {
+            try await adapter.run(
+                request,
+                cancellationCheck: {
+                    probe.isCancelled
+                }
+            )
+        }
+        let didStart = try await waitForFile(at: processStarted, timeoutNanoseconds: 2_000_000_000)
+        #expect(didStart)
+        probe.cancel()
+
+        do {
+            _ = try await task.value
+            Issue.record("Expected Netgen LVS cancellation")
+        } catch let error as LVSError {
+            switch error {
+            case .cancelled:
+                break
+            default:
+                Issue.record("Unexpected LVS error: \(error)")
+            }
+        } catch {
+            Issue.record("Unexpected cancellation error: \(error)")
+        }
+
+        let didChildSurvive = try await waitForFile(at: childSurvived, timeoutNanoseconds: 1_500_000_000)
+        if didChildSurvive {
+            Issue.record("Netgen child process survived cancellation")
+        }
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "NetgenLVSAdapterTests-\(UUID().uuidString)")
@@ -124,5 +225,32 @@ struct NetgenLVSAdapterTests {
             ofItemAtPath: scriptURL.path(percentEncoded: false)
         )
         return scriptURL
+    }
+
+    private func shellSingleQuoted(_ value: String) -> String {
+        "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
+    }
+
+    private func waitForFile(at url: URL, timeoutNanoseconds: UInt64) async throws -> Bool {
+        let deadline = ContinuousClock.now + .nanoseconds(Int(timeoutNanoseconds))
+        while ContinuousClock.now < deadline {
+            if FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {
+                return true
+            }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+    }
+}
+
+private final class CancellationProbe: Sendable {
+    private let state = Mutex(false)
+
+    var isCancelled: Bool {
+        state.withLock { $0 }
+    }
+
+    func cancel() {
+        state.withLock { $0 = true }
     }
 }

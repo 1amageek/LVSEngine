@@ -1,0 +1,11 @@
+{
+  "schemaVersion" : 1,
+  "waivers" : [
+    {
+      "category" : "modelMismatch",
+      "id" : "waive-component-count",
+      "reason" : "Committed golden corpus waiver fixture",
+      "ruleID" : "LVS_MODEL_MISMATCH"
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+.subckt inv in out vdd vss w=drawn_w l=drawn_l
+M1 out in vdd vdd pmos W={w} L={l}
+M2 out in vss vss nmos W={w} L={l}
+.ends inv

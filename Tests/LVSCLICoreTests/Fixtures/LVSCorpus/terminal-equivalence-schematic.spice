@@ -1,0 +1,3 @@
+.subckt clamp in vss
+D1 vss in diode area=1
+.ends clamp

@@ -1,5 +1,6 @@
 @_exported import LVSCore
-@_exported import LVSPureSwift
+@_exported import LVSNetlistParsing
+@_exported import LVSNative
 @_exported import LVSParsers
 @_exported import LVSAdapters
 @_exported import LVSExtractionAdapters

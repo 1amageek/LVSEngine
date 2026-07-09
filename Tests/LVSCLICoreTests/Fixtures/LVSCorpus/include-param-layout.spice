@@ -1,0 +1,5 @@
+.param drawn_w=1u drawn_l=0.15u
+.include "includes/inverter-param.spice"
+.subckt top in out vdd vss
+XU1 in out vdd vss inv w={drawn_w} l={drawn_l}
+.ends top

@@ -1,0 +1,4 @@
+.subckt bias in out vdd vss sub
+D1 out vss diode_model AREA=1p
+Q1 out in vss sub npn_model AREA=2
+.ends bias

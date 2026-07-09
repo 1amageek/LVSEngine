@@ -1,0 +1,3 @@
+.subckt top d g s
+M1 d g s s nmos W=4u L=0.18u
+.ends

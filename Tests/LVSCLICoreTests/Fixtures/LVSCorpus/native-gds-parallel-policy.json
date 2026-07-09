@@ -1,0 +1,34 @@
+{
+  "devices" : [
+    {
+      "deviceName" : "nmos",
+      "family" : "mos",
+      "sourceLine" : "lappend devices nmos",
+      "sourceLineNumber" : 1
+    }
+  ],
+  "generatedAt" : "2026-06-24T00:00:00Z",
+  "kind" : "lvs-device-policy-seed",
+  "policyRules" : [
+    {
+      "arguments" : ["-circuit1 nmos", "parallel", "enable"],
+      "kind" : "property",
+      "sourceLine" : "property \"-circuit1 nmos\" parallel enable",
+      "sourceLineNumber" : 2
+    },
+    {
+      "arguments" : ["-circuit1 nmos", "parallel", "{l critical}"],
+      "kind" : "property",
+      "sourceLine" : "property \"-circuit1 nmos\" parallel {l critical}",
+      "sourceLineNumber" : 3
+    },
+    {
+      "arguments" : ["-circuit1 nmos", "parallel", "{w add}"],
+      "kind" : "property",
+      "sourceLine" : "property \"-circuit1 nmos\" parallel {w add}",
+      "sourceLineNumber" : 4
+    }
+  ],
+  "schemaVersion" : 1,
+  "sourcePath" : "sample-netgen-setup.tcl"
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion" : 1,
+  "defaultMaxDurationSeconds" : 0.000000000001,
+  "cases" : [
+    {
+      "backendID" : "native",
+      "caseID" : "matching-tight-budget",
+      "expectedPassed" : true,
+      "layoutNetlistPath" : "layout.spice",
+      "schematicNetlistPath" : "matching-schematic.spice",
+      "topCell" : "inv"
+    }
+  ]
+}

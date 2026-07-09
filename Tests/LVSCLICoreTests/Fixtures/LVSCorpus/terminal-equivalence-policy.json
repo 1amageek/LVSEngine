@@ -1,0 +1,10 @@
+{
+  "schemaVersion" : 1,
+  "rules" : [
+    {
+      "equivalentPinGroups" : [[0, 1]],
+      "kind" : "diode",
+      "pinCount" : 2
+    }
+  ]
+}

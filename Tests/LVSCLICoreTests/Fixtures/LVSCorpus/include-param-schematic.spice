@@ -1,0 +1,5 @@
+.param drawn_w=1000n drawn_l=150n
+.include "includes/inverter-param.spice"
+.subckt top in out vdd vss
+XU1 in out vdd vss inv
+.ends top

@@ -1,0 +1,4 @@
+.subckt inv in out vss vdd
+M1 out in vdd vdd pmos
+M2 out in vss vss nmos
+.ends inv

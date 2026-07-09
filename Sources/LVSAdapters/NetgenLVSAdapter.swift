@@ -22,7 +22,7 @@ public struct NetgenLVSToolchain: Sendable, Hashable {
     }
 }
 
-public struct NetgenLVSAdapter: LVSBackend {
+public struct NetgenLVSAdapter: LVSCancellableBackend {
     public let toolchain: NetgenLVSToolchain
     private let parser: NetgenLVSReportParser
 
@@ -60,14 +60,30 @@ public struct NetgenLVSAdapter: LVSBackend {
             return nil
         }
         guard fileManager.isExecutableFile(atPath: netgenPath) else { return nil }
-        guard let pdkRoot = Sky130PDKLocator.root(
-            requirement: .netgen,
+        let profile: SignoffPDKProfile
+        do {
+            profile = try SignoffPDKProfile.bundledDefaultProfile()
+        } catch {
+            return nil
+        }
+        guard let pdkRoot = SignoffPDKLocator.root(
+            requirementID: "netgen",
+            profile: profile,
             environment: environment,
             fileManager: fileManager
         ) else {
             return nil
         }
-        let setupFile = Sky130PDKLocator.requiredFileURL(in: pdkRoot, requirement: .netgen)
+        let setupFile: URL
+        do {
+            setupFile = try SignoffPDKLocator.requiredFileURL(
+                in: pdkRoot,
+                profile: profile,
+                requirementID: "netgen"
+            )
+        } catch {
+            return nil
+        }
         guard fileManager.fileExists(atPath: setupFile.path(percentEncoded: false)) else {
             return nil
         }
@@ -94,7 +110,15 @@ public struct NetgenLVSAdapter: LVSBackend {
     }
 
     public func run(_ request: LVSRequest) async throws -> LVSExecutionResult {
+        try await run(request, cancellationCheck: nil)
+    }
+
+    public func run(
+        _ request: LVSRequest,
+        cancellationCheck: LVSExecutionCancellationCheck?
+    ) async throws -> LVSExecutionResult {
         try Self.validateAdditionalEnvironment(request.options.additionalEnvironment)
+        try Self.validateRequest(request)
         guard let layoutNetlistURL = request.layoutNetlistURL else {
             throw LVSError.invalidInput("Netgen LVS requires a layout netlist")
         }
@@ -124,7 +148,32 @@ public struct NetgenLVSAdapter: LVSBackend {
             .merging(request.options.additionalEnvironment) { _, new in new }
             .merging(requestEnvironment) { _, new in new }
 
-        let processResult = try await TimedProcessRunner(timeoutSeconds: request.options.timeoutSeconds).run(process: process)
+        let processResult: TimedProcessResult
+        do {
+            processResult = try await TimedProcessRunner(
+                timeoutSeconds: request.options.timeoutSeconds,
+                terminationGraceSeconds: 0.1,
+                pipeDrainGraceSeconds: 0.05
+            ).run(
+                process: process,
+                cancellationCheck: cancellationCheck
+            )
+        } catch let error as TimedProcessError {
+            switch error {
+            case .cancelled(_, let standardOutput, let standardError):
+                let output = [standardOutput, standardError]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n")
+                throw LVSError.cancelled(output.isEmpty ? "Netgen LVS process was cancelled." : output)
+            case .cancellationCheckFailed(_, let message, let standardOutput, let standardError):
+                let output = [standardOutput, standardError, message]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n")
+                throw LVSError.backendFailed(output)
+            default:
+                throw error
+            }
+        }
         let rawOutput = [processResult.standardOutput, processResult.standardError].joined(separator: "\n")
         let log = renderLog(request: request, layoutNetlistURL: layoutNetlistURL, exitCode: processResult.exitCode, rawOutput: rawOutput)
         do {
@@ -168,6 +217,15 @@ public struct NetgenLVSAdapter: LVSBackend {
             .sorted()
         guard reservedKeys.isEmpty else {
             throw LVSError.invalidInput("additionalEnvironment contains reserved keys: \(reservedKeys.joined(separator: ", "))")
+        }
+    }
+
+    private static func validateRequest(_ request: LVSRequest) throws {
+        guard request.options.timeoutSeconds.isFinite, request.options.timeoutSeconds > 0 else {
+            throw LVSError.invalidInput("timeoutSeconds must be positive finite seconds")
+        }
+        guard !request.topCell.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LVSError.invalidInput("topCell must be non-empty")
         }
     }
 }

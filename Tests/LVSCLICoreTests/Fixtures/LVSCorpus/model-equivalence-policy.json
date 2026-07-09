@@ -1,0 +1,9 @@
+{
+  "schemaVersion" : 1,
+  "groups" : [
+    {
+      "canonicalModel" : "nmos",
+      "aliases" : ["sky130_fd_pr__nfet_01v8"]
+    }
+  ]
+}

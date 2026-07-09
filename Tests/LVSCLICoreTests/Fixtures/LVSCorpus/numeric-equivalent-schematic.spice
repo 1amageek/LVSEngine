@@ -1,0 +1,5 @@
+.subckt inv in out vdd vss
+M1 out in vdd vdd pmos W=1000n L=150n
+R1 b a 1000
+C1 y x 1e-12
+.ends inv

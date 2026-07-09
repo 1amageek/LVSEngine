@@ -1,0 +1,126 @@
+{
+  "schemaVersion" : 1,
+  "defaultMaxDurationSeconds" : 30,
+  "qualificationPolicy" : {
+    "requiredCoverageTags" : ["diagnostic.rule-id", "external.netgen", "failure.expected", "layout.gds", "layout.spice", "lvs.bjt", "lvs.controlled-sources", "lvs.device-breadth", "lvs.diode", "lvs.diode-terminal-equivalence", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.global-nets", "lvs.hierarchy", "lvs.independent-sources", "lvs.inductor", "lvs.input.gds", "lvs.match", "lvs.model-mismatch", "lvs.model-mismatch.hierarchical", "lvs.mos-source-drain-permutation", "lvs.multiplicity", "lvs.netgen.policy-gap.global-nets", "lvs.netgen.policy-gap.multiplicity", "lvs.netgen.policy-gap.parameter-mismatch", "lvs.netgen.policy-gap.terminal-equivalence", "lvs.parallel-devices", "lvs.parameter-mismatch", "lvs.passive-terminal-permutation", "lvs.sources", "lvs.symmetric-terminals", "lvs.terminal-equivalence-policy"]
+  },
+  "cases" : [
+    {
+      "backendID" : "netgen",
+      "caseID" : "inverter-netgen-lvs",
+      "coverageTags" : ["external.netgen", "layout.spice", "lvs.match"],
+      "expectedPassed" : true,
+      "layoutNetlistPath" : "../LVSCorpus/layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/matching-schematic.spice",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-model-mismatch",
+      "coverageTags" : ["diagnostic.rule-id", "external.netgen", "failure.expected", "layout.spice", "lvs.model-mismatch"],
+      "expectedActiveErrorRuleIDs" : ["LVS_MISMATCH"],
+      "expectedPassed" : false,
+      "layoutNetlistPath" : "../LVSCorpus/layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/model-mismatch-schematic.spice",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-hierarchical-model-mismatch",
+      "coverageTags" : ["diagnostic.rule-id", "external.netgen", "failure.expected", "layout.spice", "lvs.hierarchy", "lvs.model-mismatch.hierarchical"],
+      "expectedActiveErrorRuleIDs" : ["LVS_MISMATCH"],
+      "expectedPassed" : false,
+      "layoutNetlistPath" : "../LVSCorpus/hierarchical-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/hierarchical-mismatch-schematic.spice",
+      "topCell" : "top"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-symmetric-terminals",
+      "coverageTags" : ["external.netgen", "layout.spice", "lvs.match", "lvs.mos-source-drain-permutation", "lvs.passive-terminal-permutation", "lvs.symmetric-terminals"],
+      "expectedPassed" : true,
+      "layoutNetlistPath" : "../LVSCorpus/symmetric-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/symmetric-schematic.spice",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-device-breadth",
+      "coverageTags" : ["external.netgen", "layout.spice", "lvs.bjt", "lvs.device-breadth", "lvs.diode", "lvs.match"],
+      "expectedPassed" : true,
+      "layoutNetlistPath" : "../LVSCorpus/device-breadth-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/device-breadth-schematic.spice",
+      "topCell" : "bias"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-source-breadth",
+      "coverageTags" : ["external.netgen", "layout.spice", "lvs.controlled-sources", "lvs.device-breadth", "lvs.independent-sources", "lvs.inductor", "lvs.match", "lvs.sources"],
+      "expectedPassed" : true,
+      "layoutNetlistPath" : "../LVSCorpus/source-breadth-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/source-breadth-schematic.spice",
+      "topCell" : "mixed"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-global-supply-policy-gap",
+      "coverageTags" : ["diagnostic.rule-id", "external.netgen", "failure.expected", "layout.spice", "lvs.global-nets", "lvs.netgen.policy-gap.global-nets"],
+      "expectedActiveErrorRuleIDs" : ["LVS_MISMATCH"],
+      "expectedPassed" : false,
+      "layoutNetlistPath" : "../LVSCorpus/global-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/global-schematic.spice",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-multiplicity-policy-gap",
+      "coverageTags" : ["diagnostic.rule-id", "external.netgen", "failure.expected", "layout.spice", "lvs.multiplicity", "lvs.netgen.policy-gap.multiplicity", "lvs.parallel-devices"],
+      "expectedActiveErrorRuleIDs" : ["LVS_MISMATCH"],
+      "expectedPassed" : false,
+      "layoutNetlistPath" : "../LVSCorpus/multiplicity-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/multiplicity-schematic.spice",
+      "topCell" : "inv"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-standard-gds-extraction",
+      "coverageTags" : ["external.netgen", "layout.gds", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.input.gds", "lvs.match"],
+      "expectedPassed" : true,
+      "layoutFormat" : "gds",
+      "layoutGDSPath" : "sky130_fd_sc_hd__inv_1.gds",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "sky130_fd_sc_hd__inv_1-schematic.spice",
+      "topCell" : "sky130_fd_sc_hd__inv_1"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-terminal-equivalence-policy-gap",
+      "coverageTags" : ["diagnostic.rule-id", "external.netgen", "failure.expected", "layout.spice", "lvs.diode-terminal-equivalence", "lvs.netgen.policy-gap.terminal-equivalence", "lvs.terminal-equivalence-policy"],
+      "expectedActiveErrorRuleIDs" : ["LVS_MISMATCH"],
+      "expectedPassed" : false,
+      "layoutNetlistPath" : "../LVSCorpus/terminal-equivalence-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/terminal-equivalence-schematic.spice",
+      "terminalEquivalencePath" : "../LVSCorpus/terminal-equivalence-policy.json",
+      "topCell" : "clamp"
+    },
+    {
+      "backendID" : "netgen",
+      "caseID" : "netgen-parameter-policy-gap",
+      "coverageTags" : ["external.netgen", "layout.spice", "lvs.netgen.policy-gap.parameter-mismatch", "lvs.parameter-mismatch"],
+      "expectedPassed" : true,
+      "layoutNetlistPath" : "../LVSCorpus/parameter-layout.spice",
+      "oracleBackendID" : "netgen",
+      "schematicNetlistPath" : "../LVSCorpus/parameter-mismatch-schematic.spice",
+      "topCell" : "inv"
+    }
+  ]
+}

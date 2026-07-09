@@ -6,7 +6,8 @@ let package = Package(
     platforms: [.macOS(.v26)],
     products: [
         .library(name: "LVSCore", targets: ["LVSCore"]),
-        .library(name: "LVSPureSwift", targets: ["LVSPureSwift"]),
+        .library(name: "LVSNetlistParsing", targets: ["LVSNetlistParsing"]),
+        .library(name: "LVSNative", targets: ["LVSNative"]),
         .library(name: "LVSParsers", targets: ["LVSParsers"]),
         .library(name: "LVSAdapters", targets: ["LVSAdapters"]),
         .library(name: "LVSExtractionAdapters", targets: ["LVSExtractionAdapters"]),
@@ -22,10 +23,12 @@ let package = Package(
     ],
     targets: [
         .target(name: "LVSCore"),
+        .target(name: "LVSNetlistParsing", dependencies: ["LVSCore"]),
         .target(
-            name: "LVSPureSwift",
+            name: "LVSNative",
             dependencies: [
                 "LVSCore",
+                "LVSNetlistParsing",
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
                 .product(name: "LayoutVerify", package: "semiconductor-layout"),
@@ -53,20 +56,36 @@ let package = Package(
         .target(name: "LVSPersistence", dependencies: ["LVSCore"]),
         .target(
             name: "LVSRuntime",
-            dependencies: ["LVSCore", "LVSPureSwift", "LVSAdapters", "LVSExtractionAdapters", "LVSPersistence"]
+            dependencies: [
+                "LVSCore",
+                "LVSNative",
+                "LVSAdapters",
+                "LVSExtractionAdapters",
+                "LVSPersistence",
+                .product(name: "LayoutAutoGen", package: "semiconductor-layout"),
+                .product(name: "LayoutCore", package: "semiconductor-layout"),
+                .product(name: "LayoutTech", package: "semiconductor-layout"),
+                .product(name: "LayoutIO", package: "semiconductor-layout"),
+            ]
         ),
         .target(
             name: "LVSEngine",
-            dependencies: ["LVSCore", "LVSPureSwift", "LVSParsers", "LVSAdapters", "LVSExtractionAdapters", "LVSPersistence", "LVSRuntime"]
+            dependencies: ["LVSCore", "LVSNetlistParsing", "LVSNative", "LVSParsers", "LVSAdapters", "LVSExtractionAdapters", "LVSPersistence", "LVSRuntime"]
         ),
-        .target(name: "LVSCLICore", dependencies: ["LVSEngine"]),
+        .target(
+            name: "LVSCLICore",
+            dependencies: [
+                "LVSEngine",
+                .product(name: "SignoffToolSupport", package: "SignoffToolSupport"),
+            ]
+        ),
         .executableTarget(name: "LVSCLI", dependencies: ["LVSCLICore"], path: "Sources/LVSCLI"),
         .testTarget(name: "LVSAdaptersTests", dependencies: ["LVSAdapters", "LVSCore"]),
         .testTarget(name: "LVSExtractionAdaptersTests", dependencies: ["LVSExtractionAdapters", "LVSCore"]),
         .testTarget(
-            name: "LVSPureSwiftTests",
+            name: "LVSNativeTests",
             dependencies: [
-                "LVSPureSwift",
+                "LVSNative",
                 "LVSCore",
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
@@ -76,6 +95,10 @@ let package = Package(
         ),
         .testTarget(name: "LVSParsersTests", dependencies: ["LVSParsers", "LVSCore"]),
         .testTarget(name: "LVSRuntimeTests", dependencies: ["LVSRuntime", "LVSCore"]),
-        .testTarget(name: "LVSCLICoreTests", dependencies: ["LVSCLICore"]),
+        .testTarget(
+            name: "LVSCLICoreTests",
+            dependencies: ["LVSCLICore"],
+            resources: [.copy("Fixtures")]
+        ),
     ]
 )
