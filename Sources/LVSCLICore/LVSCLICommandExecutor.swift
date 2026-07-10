@@ -416,7 +416,6 @@ private enum LVSCLICommandMode: Sendable {
 
   private static func importsFoundryNetgenDevices(_ arguments: [String]) -> Bool {
     arguments.contains(LVSFoundryDeviceImportCLIOptions.importFlag)
-      || arguments.contains(LVSFoundryDeviceImportCLIOptions.deprecatedCompatibilityImportFlag)
   }
 }
 

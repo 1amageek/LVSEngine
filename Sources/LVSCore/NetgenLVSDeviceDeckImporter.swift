@@ -487,27 +487,3 @@ public enum NetgenLVSDeviceDeckImporter {
         return formatter.string(from: Date())
     }
 }
-
-@available(*, deprecated, renamed: "NetgenLVSDeviceDeckImportStatus")
-public typealias Sky130NetgenLVSDeviceDeckImportStatus = NetgenLVSDeviceDeckImportStatus
-
-@available(*, deprecated, renamed: "NetgenLVSDeviceDescriptor")
-public typealias Sky130NetgenLVSDeviceDescriptor = NetgenLVSDeviceDescriptor
-
-@available(*, deprecated, renamed: "NetgenLVSPolicyRule")
-public typealias Sky130NetgenLVSPolicyRule = NetgenLVSPolicyRule
-
-@available(*, deprecated, renamed: "NetgenLVSDevicePolicySeed")
-public typealias Sky130NetgenLVSDevicePolicySeed = NetgenLVSDevicePolicySeed
-
-@available(*, deprecated, renamed: "NetgenLVSDeviceDeckImportDiagnostic")
-public typealias Sky130NetgenLVSDeviceDeckImportDiagnostic = NetgenLVSDeviceDeckImportDiagnostic
-
-@available(*, deprecated, renamed: "NetgenLVSDeviceDeckImportReport")
-public typealias Sky130NetgenLVSDeviceDeckImportReport = NetgenLVSDeviceDeckImportReport
-
-@available(*, deprecated, renamed: "NetgenLVSDeviceDeckImport")
-public typealias Sky130NetgenLVSDeviceDeckImport = NetgenLVSDeviceDeckImport
-
-@available(*, deprecated, renamed: "NetgenLVSDeviceDeckImporter")
-public typealias Sky130NetgenLVSDeviceDeckImporter = NetgenLVSDeviceDeckImporter

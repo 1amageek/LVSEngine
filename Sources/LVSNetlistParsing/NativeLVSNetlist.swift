@@ -34,8 +34,8 @@ public struct NativeLVSNetlist: Sendable, Hashable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.topCell = try container.decode(String.self, forKey: .topCell)
         self.ports = try container.decode([String].self, forKey: .ports)
-        self.globalNets = try container.decodeIfPresent([String].self, forKey: .globalNets) ?? []
-        self.runtimeCellModels = try container.decodeIfPresent([String].self, forKey: .runtimeCellModels) ?? []
+        self.globalNets = try container.decode([String].self, forKey: .globalNets)
+        self.runtimeCellModels = try container.decode([String].self, forKey: .runtimeCellModels)
         self.components = try container.decode([NativeLVSNetlistComponent].self, forKey: .components)
     }
 }

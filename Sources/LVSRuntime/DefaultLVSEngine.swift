@@ -44,7 +44,7 @@ public struct DefaultLVSEngine: Sendable {
         _ request: LVSRequest,
         cancellationCheck: LVSExecutionCancellationCheck?
     ) async throws -> LVSExecutionResult {
-        let backendID = Self.canonicalBackendID(request.backendSelection.backendID)
+        let backendID = request.backendSelection.backendID
         guard let backend = backends[backendID] else {
             throw LVSError.backendUnavailable("Unsupported LVS backend: \(request.backendSelection.backendID)")
         }
@@ -125,18 +125,6 @@ public struct DefaultLVSEngine: Sendable {
             )
         }
         return result
-    }
-
-    private static func canonicalBackendID(_ backendID: String) -> String {
-        switch backendID {
-        // Legacy aliases are accepted so persisted run specs remain resumable.
-        case "pure-swift":
-            return "native"
-        case "pure-swift-gds":
-            return "native-gds"
-        default:
-            return backendID
-        }
     }
 
     private func resolveLayoutNetlist(

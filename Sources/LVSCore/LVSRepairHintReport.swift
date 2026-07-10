@@ -1,6 +1,8 @@
 import Foundation
 
 public struct LVSRepairHintReport: Codable, Sendable, Hashable {
+    public static let currentSchemaVersion = 1
+
     public let schemaVersion: Int
     public let status: String
     public let reportURL: URL?
@@ -13,7 +15,7 @@ public struct LVSRepairHintReport: Codable, Sendable, Hashable {
     public let unsupportedDiagnostics: [LVSUnsupportedRepairDiagnostic]
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = LVSRepairHintReport.currentSchemaVersion,
         status: String,
         reportURL: URL?,
         backendID: String,
@@ -52,6 +54,13 @@ public struct LVSRepairHintReport: Codable, Sendable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported LVS repair hint report schema version: \(schemaVersion)."
+            )
+        }
         self.status = try container.decode(String.self, forKey: .status)
         self.reportURL = try container.decodeIfPresent(URL.self, forKey: .reportURL)
         self.backendID = try container.decode(String.self, forKey: .backendID)
@@ -63,9 +72,9 @@ public struct LVSRepairHintReport: Codable, Sendable, Hashable {
             [Int].self,
             forKey: .unsupportedDiagnosticIndexes
         )
-        self.unsupportedDiagnostics = try container.decodeIfPresent(
+        self.unsupportedDiagnostics = try container.decode(
             [LVSUnsupportedRepairDiagnostic].self,
             forKey: .unsupportedDiagnostics
-        ) ?? []
+        )
     }
 }

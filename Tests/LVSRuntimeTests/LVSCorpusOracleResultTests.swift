@@ -68,6 +68,7 @@ struct LVSCorpusOracleResultTests {
               "rawLine": "model mismatch"
             }
           ],
+          "integrityDiagnostics": [],
           "diagnosticSummary": {
             "infoCount": 0,
             "warningCount": 0,
@@ -76,6 +77,8 @@ struct LVSCorpusOracleResultTests {
           },
           "durationSeconds": 0.01,
           "agreementPassed": false,
+          "readinessStatus": "ready",
+          "readinessDiagnostics": [],
           "failureReasons": ["oracle_agreement_mismatch"],
           "executionError": null,
           "reportPath": "/tmp/report.json",
@@ -97,7 +100,7 @@ struct LVSCorpusOracleResultTests {
         })
     }
 
-    @Test func legacyArtifactWithoutDiagnosticsKeepsExplicitSummary() throws {
+    @Test func artifactWithoutDiagnosticsIsRejected() {
         let json = """
         {
           "backendID": "native",
@@ -119,14 +122,11 @@ struct LVSCorpusOracleResultTests {
         }
         """
 
-        let result = try JSONDecoder().decode(
-            LVSCorpusOracleResult.self,
-            from: Data(json.utf8)
-        )
-
-        #expect(result.activeErrorRuleIDs == ["LVS_MODEL_MISMATCH"])
-        #expect(result.diagnosticSummary.errorCount == 1)
-        #expect(result.integrityDiagnostics.isEmpty)
-        #expect(result.readinessStatus == .ready)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                LVSCorpusOracleResult.self,
+                from: Data(json.utf8)
+            )
+        }
     }
 }

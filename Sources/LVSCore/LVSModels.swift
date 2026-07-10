@@ -529,6 +529,9 @@ public struct LVSDevicePolicyUnobservedRule: Sendable, Hashable, Codable {
 }
 
 public struct LVSDevicePolicyApplicationReport: Sendable, Hashable, Codable {
+    public static let currentSchemaVersion = 1
+    public static let artifactKind = "lvs-device-policy-application-report"
+
     public let schemaVersion: Int
     public let kind: String
     public let generatedAt: String
@@ -552,8 +555,8 @@ public struct LVSDevicePolicyApplicationReport: Sendable, Hashable, Codable {
     public let unobservedRules: [LVSDevicePolicyUnobservedRule]
 
     public init(
-        schemaVersion: Int = 1,
-        kind: String = "lvs-device-policy-application-report",
+        schemaVersion: Int = LVSDevicePolicyApplicationReport.currentSchemaVersion,
+        kind: String = LVSDevicePolicyApplicationReport.artifactKind,
         generatedAt: String,
         status: LVSDevicePolicyApplicationStatus,
         policyPath: String,
@@ -632,56 +635,47 @@ public struct LVSDevicePolicyApplicationReport: Sendable, Hashable, Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let appliedRules = try container.decodeIfPresent(
-            [LVSDevicePolicyAppliedRule].self,
-            forKey: .appliedRules
-        ) ?? []
-        let ignoredRules = try container.decodeIfPresent(
-            [LVSDevicePolicyIgnoredRule].self,
-            forKey: .ignoredRules
-        ) ?? []
-        let unobservedRules = try container.decodeIfPresent(
-            [LVSDevicePolicyUnobservedRule].self,
-            forKey: .unobservedRules
-        ) ?? []
+        let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported LVS device policy report schema version: \(schemaVersion)."
+            )
+        }
+        let kind = try container.decode(String.self, forKey: .kind)
+        guard kind == Self.artifactKind else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .kind,
+                in: container,
+                debugDescription: "Unsupported LVS device policy report kind: \(kind)."
+            )
+        }
         self.init(
-            schemaVersion: try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1,
-            kind: try container.decodeIfPresent(String.self, forKey: .kind)
-                ?? "lvs-device-policy-application-report",
+            schemaVersion: schemaVersion,
+            kind: kind,
             generatedAt: try container.decode(String.self, forKey: .generatedAt),
             status: try container.decode(LVSDevicePolicyApplicationStatus.self, forKey: .status),
             policyPath: try container.decode(String.self, forKey: .policyPath),
             seedSourcePath: try container.decode(String.self, forKey: .seedSourcePath),
-            knownDeviceCount: try container.decodeIfPresent(Int.self, forKey: .knownDeviceCount) ?? 0,
-            observedKnownDeviceCount: try container.decodeIfPresent(Int.self, forKey: .observedKnownDeviceCount) ?? 0,
-            policyRuleCount: try container.decodeIfPresent(Int.self, forKey: .policyRuleCount),
-            appliedRuleCount: try container.decodeIfPresent(Int.self, forKey: .appliedRuleCount) ?? appliedRules.count,
-            ignoredRuleCount: try container.decodeIfPresent(Int.self, forKey: .ignoredRuleCount) ?? ignoredRules.count,
-            unobservedRuleCount: try container.decodeIfPresent(Int.self, forKey: .unobservedRuleCount),
-            policyRuleCountsByKind: try container.decodeIfPresent(
-                [String: Int].self,
-                forKey: .policyRuleCountsByKind
-            ),
-            appliedRuleCountsByKind: try container.decodeIfPresent(
-                [String: Int].self,
-                forKey: .appliedRuleCountsByKind
-            ),
-            ignoredRuleCountsByReason: try container.decodeIfPresent(
-                [String: Int].self,
-                forKey: .ignoredRuleCountsByReason
-            ),
-            unobservedRuleCountsByKind: try container.decodeIfPresent(
-                [String: Int].self,
-                forKey: .unobservedRuleCountsByKind
-            ),
-            deviceFamilyCounts: try container.decodeIfPresent([String: Int].self, forKey: .deviceFamilyCounts) ?? [:],
-            observedDeviceFamilyCounts: try container.decodeIfPresent(
+            knownDeviceCount: try container.decode(Int.self, forKey: .knownDeviceCount),
+            observedKnownDeviceCount: try container.decode(Int.self, forKey: .observedKnownDeviceCount),
+            policyRuleCount: try container.decode(Int.self, forKey: .policyRuleCount),
+            appliedRuleCount: try container.decode(Int.self, forKey: .appliedRuleCount),
+            ignoredRuleCount: try container.decode(Int.self, forKey: .ignoredRuleCount),
+            unobservedRuleCount: try container.decode(Int.self, forKey: .unobservedRuleCount),
+            policyRuleCountsByKind: try container.decode([String: Int].self, forKey: .policyRuleCountsByKind),
+            appliedRuleCountsByKind: try container.decode([String: Int].self, forKey: .appliedRuleCountsByKind),
+            ignoredRuleCountsByReason: try container.decode([String: Int].self, forKey: .ignoredRuleCountsByReason),
+            unobservedRuleCountsByKind: try container.decode([String: Int].self, forKey: .unobservedRuleCountsByKind),
+            deviceFamilyCounts: try container.decode([String: Int].self, forKey: .deviceFamilyCounts),
+            observedDeviceFamilyCounts: try container.decode(
                 [String: Int].self,
                 forKey: .observedDeviceFamilyCounts
-            ) ?? [:],
-            appliedRules: appliedRules,
-            ignoredRules: ignoredRules,
-            unobservedRules: unobservedRules
+            ),
+            appliedRules: try container.decode([LVSDevicePolicyAppliedRule].self, forKey: .appliedRules),
+            ignoredRules: try container.decode([LVSDevicePolicyIgnoredRule].self, forKey: .ignoredRules),
+            unobservedRules: try container.decode([LVSDevicePolicyUnobservedRule].self, forKey: .unobservedRules)
         )
     }
 }
@@ -730,25 +724,16 @@ public struct LVSDevicePolicyRunSummary: Sendable, Hashable, Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         status = try container.decode(LVSDevicePolicyApplicationStatus.self, forKey: .status)
-        knownDeviceCount = try container.decodeIfPresent(Int.self, forKey: .knownDeviceCount) ?? 0
-        observedKnownDeviceCount = try container.decodeIfPresent(Int.self, forKey: .observedKnownDeviceCount) ?? 0
-        appliedRuleCount = try container.decodeIfPresent(Int.self, forKey: .appliedRuleCount) ?? 0
-        ignoredRuleCount = try container.decodeIfPresent(Int.self, forKey: .ignoredRuleCount) ?? 0
-        unobservedRuleCount = try container.decodeIfPresent(Int.self, forKey: .unobservedRuleCount) ?? 0
-        policyRuleCount = try container.decodeIfPresent(Int.self, forKey: .policyRuleCount)
-            ?? appliedRuleCount + ignoredRuleCount + unobservedRuleCount
-        policyRuleCountsByKind = try container.decodeIfPresent([String: Int].self, forKey: .policyRuleCountsByKind)
-            ?? [:]
-        appliedRuleCountsByKind = try container.decodeIfPresent([String: Int].self, forKey: .appliedRuleCountsByKind)
-            ?? [:]
-        ignoredRuleCountsByReason = try container.decodeIfPresent(
-            [String: Int].self,
-            forKey: .ignoredRuleCountsByReason
-        ) ?? [:]
-        unobservedRuleCountsByKind = try container.decodeIfPresent(
-            [String: Int].self,
-            forKey: .unobservedRuleCountsByKind
-        ) ?? [:]
+        knownDeviceCount = try container.decode(Int.self, forKey: .knownDeviceCount)
+        observedKnownDeviceCount = try container.decode(Int.self, forKey: .observedKnownDeviceCount)
+        appliedRuleCount = try container.decode(Int.self, forKey: .appliedRuleCount)
+        ignoredRuleCount = try container.decode(Int.self, forKey: .ignoredRuleCount)
+        unobservedRuleCount = try container.decode(Int.self, forKey: .unobservedRuleCount)
+        policyRuleCount = try container.decode(Int.self, forKey: .policyRuleCount)
+        policyRuleCountsByKind = try container.decode([String: Int].self, forKey: .policyRuleCountsByKind)
+        appliedRuleCountsByKind = try container.decode([String: Int].self, forKey: .appliedRuleCountsByKind)
+        ignoredRuleCountsByReason = try container.decode([String: Int].self, forKey: .ignoredRuleCountsByReason)
+        unobservedRuleCountsByKind = try container.decode([String: Int].self, forKey: .unobservedRuleCountsByKind)
     }
 }
 

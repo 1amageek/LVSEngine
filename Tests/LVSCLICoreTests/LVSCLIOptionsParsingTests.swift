@@ -62,13 +62,13 @@ extension LVSCLIOptionsTests {
     #expect(options.environment(overriding: [:])["PDK_ROOT"] == "/tmp/pdks")
   }
 
-  @Test func foundryDeviceImportOptionsAcceptDeprecatedCompatibilityRoute() throws {
-    let options = try LVSFoundryDeviceImportCLIOptions(arguments: [
-      "--import-sky130-netgen-devices",
-      "--policy-out", "/tmp/compat-lvs-device-policy.json",
-    ])
-
-    #expect(options.policyURL.path(percentEncoded: false) == "/tmp/compat-lvs-device-policy.json")
+  @Test func foundryDeviceImportOptionsRejectRemovedSky130Alias() throws {
+    #expect(throws: LVSCLIError.self) {
+      try LVSFoundryDeviceImportCLIOptions(arguments: [
+        "--import-sky130-netgen-devices",
+        "--policy-out", "/tmp/lvs-device-policy.json",
+      ])
+    }
   }
 
   @Test func netgenDeviceImportOptionsParseExplicitSetupAndOutputs() throws {
@@ -249,7 +249,7 @@ extension LVSCLIOptionsTests {
     #expect(snapshot.agentContracts.contains { $0.contains("--import-netgen-devices") })
     #expect(snapshot.agentContracts.contains { $0.contains("--import-foundry-netgen-devices") })
     #expect(snapshot.agentContracts.contains { $0.contains("--audit-netgen-device-import") })
-    #expect(snapshot.agentContracts.contains { $0.contains("deprecated compatibility route") })
+    #expect(!snapshot.agentContracts.contains { $0.contains("--import-sky130-netgen-devices") })
     #expect(snapshot.agentContracts.contains { $0.contains("seedSummary") })
     #expect(snapshot.agentContracts.contains { $0.contains("lvsengine --device-policy") })
     #expect(snapshot.openMilestones.contains { $0.contains("native-gds extraction") })

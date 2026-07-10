@@ -95,9 +95,6 @@ public struct LVSDevicePolicySeedSummary: Sendable, Hashable, Codable {
     }
 }
 
-@available(*, deprecated, renamed: "LVSDevicePolicySeedSummary")
-public typealias LVSFoundryDevicePolicySeedSummary = LVSDevicePolicySeedSummary
-
 public struct LVSCorpusQualificationCLIOutput: Sendable, Hashable, Codable {
     public let status: String
     public let reportPath: String

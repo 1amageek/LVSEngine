@@ -796,7 +796,6 @@ public struct LVSNetgenDeviceImportCLIOptions: Sendable, Hashable {
 
 public struct LVSFoundryDeviceImportCLIOptions: Sendable, Hashable {
   public static let importFlag = "--import-foundry-netgen-devices"
-  public static let deprecatedCompatibilityImportFlag = "--import-sky130-netgen-devices"
 
   public let pdkRoot: String?
   public let policyURL: URL
@@ -815,7 +814,7 @@ public struct LVSFoundryDeviceImportCLIOptions: Sendable, Hashable {
     while index < arguments.count {
       let argument = arguments[index]
       switch argument {
-      case Self.importFlag, Self.deprecatedCompatibilityImportFlag:
+      case Self.importFlag:
         sawImport = true
       case "--pdk-root":
         pdkRoot = try Self.nonEmptyValue(after: argument, in: arguments, index: &index)

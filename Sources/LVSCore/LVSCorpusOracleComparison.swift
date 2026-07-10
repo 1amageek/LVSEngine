@@ -77,9 +77,9 @@ public struct LVSCorpusOracleComparison: Sendable, Hashable, Codable {
         primaryDiagnosticSummary = try container.decode(LVSDiagnosticSummary.self, forKey: .primaryDiagnosticSummary)
         oracleDiagnosticSummary = try container.decode(LVSDiagnosticSummary.self, forKey: .oracleDiagnosticSummary)
         mismatchReasons = try container.decode([String].self, forKey: .mismatchReasons)
-        disagreementClassifications = try container.decodeIfPresent(
+        disagreementClassifications = try container.decode(
             [LVSDisagreementClassification].self,
             forKey: .disagreementClassifications
-        ) ?? []
+        )
     }
 }

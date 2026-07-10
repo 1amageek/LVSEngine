@@ -87,6 +87,7 @@ let package = Package(
             dependencies: [
                 "LVSNative",
                 "LVSCore",
+                "LVSNetlistParsing",
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
                 .product(name: "LayoutIO", package: "semiconductor-layout"),

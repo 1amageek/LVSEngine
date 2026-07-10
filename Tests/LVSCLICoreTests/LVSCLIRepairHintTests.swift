@@ -79,7 +79,7 @@ extension LVSCLIOptionsTests {
     #expect(parameterHint.verificationGates == ["artifact-integrity", "native-lvs"])
 }
 
-@Test func repairHintReportDecodesLegacyUnsupportedIndexOnlyArtifacts() throws {
+@Test func repairHintReportRejectsMissingUnsupportedDiagnostics() throws {
     let data = try #require(
         """
         {
@@ -96,10 +96,9 @@ extension LVSCLIOptionsTests {
         """.data(using: .utf8)
     )
 
-    let report = try JSONDecoder().decode(LVSRepairHintReport.self, from: data)
-
-    #expect(report.unsupportedDiagnosticIndexes == [0])
-    #expect(report.unsupportedDiagnostics == [])
+    #expect(throws: DecodingError.self) {
+        _ = try JSONDecoder().decode(LVSRepairHintReport.self, from: data)
+    }
 }
 
 @Test func repairHintsCLIReadsSavedReport() async throws {

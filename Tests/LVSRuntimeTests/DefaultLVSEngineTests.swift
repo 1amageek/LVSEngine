@@ -288,7 +288,7 @@ struct DefaultLVSEngineTests {
         #expect(result.result.passed)
     }
 
-    @Test func corpusOracleReadinessDefaultsWhenDecodingLegacyArtifacts() throws {
+    @Test func corpusEvidenceRejectsMissingReadinessFields() {
         let successfulOracleJSON = """
         {
           "backendID": "native",
@@ -344,24 +344,24 @@ struct DefaultLVSEngineTests {
         }
         """
 
-        let successfulOracle = try JSONDecoder().decode(
-            LVSCorpusOracleResult.self,
-            from: Data(successfulOracleJSON.utf8)
-        )
-        let blockedOracle = try JSONDecoder().decode(
-            LVSCorpusOracleResult.self,
-            from: Data(blockedOracleJSON.utf8)
-        )
-        let summary = try JSONDecoder().decode(
-            LVSCorpusSummary.self,
-            from: Data(summaryJSON.utf8)
-        )
-
-        #expect(successfulOracle.readinessStatus == .ready)
-        #expect(successfulOracle.readinessDiagnostics.isEmpty)
-        #expect(blockedOracle.readinessStatus == .blocked)
-        #expect(blockedOracle.readinessDiagnostics.isEmpty)
-        #expect(summary.oracleReadinessBlockedCaseCount == 1)
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                LVSCorpusOracleResult.self,
+                from: Data(successfulOracleJSON.utf8)
+            )
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                LVSCorpusOracleResult.self,
+                from: Data(blockedOracleJSON.utf8)
+            )
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                LVSCorpusSummary.self,
+                from: Data(summaryJSON.utf8)
+            )
+        }
     }
 
     @Test func nativeGDSBackendBypassesExtractorAndPreservesTechnology() async throws {
@@ -397,7 +397,7 @@ struct DefaultLVSEngineTests {
         #expect(result.artifactManifestURL != nil)
     }
 
-    @Test func deprecatedBackendAliasesAreNormalized() async throws {
+    @Test func removedBackendAliasIsRejected() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutGDSURL = directory.appending(path: "layout.gds")
         let schematicNetlistURL = directory.appending(path: "schematic.spice")
@@ -410,18 +410,18 @@ struct DefaultLVSEngineTests {
         )
         try "{}".write(to: technologyURL, atomically: true, encoding: .utf8)
 
-        let result = try await DefaultLVSEngine(
-            backend: StubNativeGDSLVSBackend(),
-            layoutNetlistExtractor: FailingLayoutNetlistExtractor()
-        ).run(LVSRequest(
-            layoutGDSURL: layoutGDSURL,
-            schematicNetlistURL: schematicNetlistURL,
-            topCell: "inv",
-            technologyURL: technologyURL,
-            backendSelection: LVSBackendSelection(backendID: "pure-swift-gds")
-        ))
-
-        #expect(result.result.backendID == "native-gds")
+        await #expect(throws: LVSError.self) {
+            try await DefaultLVSEngine(
+                backend: StubNativeGDSLVSBackend(),
+                layoutNetlistExtractor: FailingLayoutNetlistExtractor()
+            ).run(LVSRequest(
+                layoutGDSURL: layoutGDSURL,
+                schematicNetlistURL: schematicNetlistURL,
+                topCell: "inv",
+                technologyURL: technologyURL,
+                backendSelection: LVSBackendSelection(backendID: "pure-swift-gds")
+            ))
+        }
     }
 
     @Test func waiverFileMarksMatchingDiagnosticsAndIsPersisted() async throws {

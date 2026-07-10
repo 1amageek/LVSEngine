@@ -95,12 +95,12 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         actualPassed = try container.decode(Bool.self, forKey: .actualPassed)
         expectedActiveErrorRuleIDs = try container.decode([String].self, forKey: .expectedActiveErrorRuleIDs)
         actualActiveErrorRuleIDs = try container.decode([String].self, forKey: .actualActiveErrorRuleIDs)
-        coverageTags = try container.decodeIfPresent([String].self, forKey: .coverageTags) ?? []
-        expectationMatched = try container.decodeIfPresent(Bool.self, forKey: .expectationMatched) ?? matched
-        durationSeconds = try container.decodeIfPresent(Double.self, forKey: .durationSeconds) ?? 0
+        coverageTags = try container.decode([String].self, forKey: .coverageTags)
+        expectationMatched = try container.decode(Bool.self, forKey: .expectationMatched)
+        durationSeconds = try container.decode(Double.self, forKey: .durationSeconds)
         expectedMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .expectedMaxDurationSeconds)
-        durationBudgetPassed = try container.decodeIfPresent(Bool.self, forKey: .durationBudgetPassed) ?? true
-        failureReasons = try container.decodeIfPresent([String].self, forKey: .failureReasons) ?? []
+        durationBudgetPassed = try container.decode(Bool.self, forKey: .durationBudgetPassed)
+        failureReasons = try container.decode([String].self, forKey: .failureReasons)
         executionError = try container.decodeIfPresent(String.self, forKey: .executionError)
         diagnosticSummary = try container.decode(LVSDiagnosticSummary.self, forKey: .diagnosticSummary)
         reportPath = try container.decodeIfPresent(String.self, forKey: .reportPath)

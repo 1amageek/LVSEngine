@@ -4,7 +4,7 @@ import LVSCore
 import LVSCLICore
 
 extension LVSCLIOptionsTests {
-@Test func legacyCorpusReportDecodesWithDerivedQualification() throws {
+@Test func corpusReportRejectsMissingEvidenceProjections() {
     let data = Data("""
     {
       "schemaVersion" : 1,
@@ -17,12 +17,9 @@ extension LVSCLIOptionsTests {
     }
     """.utf8)
 
-    let report = try JSONDecoder().decode(LVSCorpusReport.self, from: data)
-
-    #expect(report.summary.passRate == 0)
-    #expect(!report.qualification.qualified)
-    #expect(report.qualification.failures.map(\.code).contains("empty_corpus"))
-    #expect(report.qualification.policy == .strict)
+    #expect(throws: DecodingError.self) {
+        _ = try JSONDecoder().decode(LVSCorpusReport.self, from: data)
+    }
 }
 
 @Test func cliOutputIncludesStructuredDiagnostics() {

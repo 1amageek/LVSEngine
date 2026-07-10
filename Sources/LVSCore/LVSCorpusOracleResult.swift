@@ -118,12 +118,12 @@ public struct LVSCorpusOracleResult: Sendable, Hashable, Codable {
         backendID = try container.decode(String.self, forKey: .backendID)
         passed = try container.decode(Bool.self, forKey: .passed)
         let decodedActiveErrorRuleIDs = try container.decode([String].self, forKey: .activeErrorRuleIDs)
-        let decodedDiagnostics = try container.decodeIfPresent([LVSDiagnostic].self, forKey: .diagnostics) ?? []
+        let decodedDiagnostics = try container.decode([LVSDiagnostic].self, forKey: .diagnostics)
         let decodedDiagnosticSummary = try container.decode(LVSDiagnosticSummary.self, forKey: .diagnosticSummary)
-        let decodedIntegrityDiagnostics = try container.decodeIfPresent(
+        let decodedIntegrityDiagnostics = try container.decode(
             [LVSCorpusOracleIntegrityDiagnostic].self,
             forKey: .integrityDiagnostics
-        ) ?? []
+        )
         let canonical = Self.canonicalDiagnostics(
             activeErrorRuleIDs: decodedActiveErrorRuleIDs,
             diagnostics: decodedDiagnostics,
@@ -148,14 +148,8 @@ public struct LVSCorpusOracleResult: Sendable, Hashable, Codable {
             forKey: .devicePolicyReport
         )
         provenance = try container.decodeIfPresent(LVSCorpusCaseProvenance.self, forKey: .provenance)
-        readinessStatus = try container.decodeIfPresent(
-            LVSCorpusOracleReadinessStatus.self,
-            forKey: .readinessStatus
-        ) ?? (executionError == nil ? .ready : .blocked)
-        readinessDiagnostics = try container.decodeIfPresent(
-            [String].self,
-            forKey: .readinessDiagnostics
-        ) ?? []
+        readinessStatus = try container.decode(LVSCorpusOracleReadinessStatus.self, forKey: .readinessStatus)
+        readinessDiagnostics = try container.decode([String].self, forKey: .readinessDiagnostics)
     }
 
     private static func canonicalDiagnostics(

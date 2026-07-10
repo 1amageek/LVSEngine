@@ -1,4 +1,6 @@
 public struct LVSCorpusReport: Sendable, Hashable, Codable {
+    public static let currentSchemaVersion = 1
+
     public let schemaVersion: Int
     public let generatedAt: String?
     public let passed: Bool
@@ -12,7 +14,7 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
     public let caseResults: [LVSCorpusCaseResult]
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = LVSCorpusReport.currentSchemaVersion,
         generatedAt: String? = nil,
         passed: Bool,
         caseCount: Int,
@@ -59,24 +61,23 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported LVS corpus report schema version: \(schemaVersion)."
+            )
+        }
         generatedAt = try container.decodeIfPresent(String.self, forKey: .generatedAt)
         passed = try container.decode(Bool.self, forKey: .passed)
         caseCount = try container.decode(Int.self, forKey: .caseCount)
         matchedCaseCount = try container.decode(Int.self, forKey: .matchedCaseCount)
-        budgetExceededCaseCount = try container.decodeIfPresent(Int.self, forKey: .budgetExceededCaseCount) ?? 0
-        totalDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .totalDurationSeconds) ?? 0
-        runOptions = try container.decodeIfPresent(LVSCorpusRunOptions.self, forKey: .runOptions)
-            ?? LVSCorpusRunOptions()
+        budgetExceededCaseCount = try container.decode(Int.self, forKey: .budgetExceededCaseCount)
+        totalDurationSeconds = try container.decode(Double.self, forKey: .totalDurationSeconds)
+        runOptions = try container.decode(LVSCorpusRunOptions.self, forKey: .runOptions)
         caseResults = try container.decode([LVSCorpusCaseResult].self, forKey: .caseResults)
-        let resolvedSummary = try container.decodeIfPresent(LVSCorpusSummary.self, forKey: .summary)
-            ?? LVSCorpusSummary(caseResults: caseResults)
-        summary = resolvedSummary
-        qualification = try container.decodeIfPresent(LVSCorpusQualificationResult.self, forKey: .qualification)
-            ?? LVSCorpusQualificationPolicy.strict.evaluate(
-                passed: passed,
-                caseCount: caseCount,
-                summary: resolvedSummary
-            )
+        summary = try container.decode(LVSCorpusSummary.self, forKey: .summary)
+        qualification = try container.decode(LVSCorpusQualificationResult.self, forKey: .qualification)
     }
 }

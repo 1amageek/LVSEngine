@@ -2,7 +2,7 @@
 
 Layout-versus-schematic engine with a protocol-composed backend model. The native
 in-process backends are the core signoff path; Netgen is an optional, headless-batch-only
-adapter kept for oracle checks and PDK-deck compatibility.
+adapter kept for oracle checks and PDK-deck agreement.
 
 ## Modules
 
@@ -18,12 +18,11 @@ adapter kept for oracle checks and PDK-deck compatibility.
 | `LVSEngine` | Umbrella module |
 | `LVSCLICore` / `lvsengine` | Testable CLI core + executable |
 
-## Legacy backend IDs
+## Backend IDs
 
 `LVSNative`, `native`, and `native-gds` are the only current Swift and CLI
-surfaces for the in-process LVS path. Older implementation-language backend IDs
-are accepted only so persisted run specs can resume; they are not listed by the
-CLI and must not be used in new API, corpus, or flow specs.
+surfaces for the in-process LVS path. Removed implementation-language backend
+IDs are rejected with a typed backend-selection error.
 
 ## Capability snapshot
 
@@ -99,19 +98,19 @@ lvsengine --audit-netgen-device-import \
   --json
 ```
 
-`lvsengine --import-sky130-netgen-devices` remains a compatibility entry point.
-It locates the Sky130 Netgen setup deck through the existing PDK readiness gate,
-then routes into the same generic Netgen importer:
+`lvsengine --import-foundry-netgen-devices` locates the selected installed-PDK
+Netgen setup deck through the signoff profile catalog, then routes into the same
+generic Netgen importer:
 
 ```bash
-lvsengine --import-sky130-netgen-devices \
+lvsengine --import-foundry-netgen-devices \
   --pdk-root ~/.volare \
   --policy-out /tmp/sky130-lvs-device-policy.json \
   --report-out /tmp/sky130-lvs-device-import.json \
   --json
 ```
 
-Compatibility JSON stdout includes the same `seedSummary` and import report plus
+JSON stdout includes the same `seedSummary` and import report plus
 the foundry semantic report used to resolve the deck.
 
 ## Native device policy consumption
