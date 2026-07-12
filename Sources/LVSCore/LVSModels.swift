@@ -1,4 +1,5 @@
 import Foundation
+import LVSGraph
 
 public struct LVSBackendSelection: Sendable, Hashable, Codable {
     public let backendID: String
@@ -11,13 +12,63 @@ public struct LVSBackendSelection: Sendable, Hashable, Codable {
 public struct LVSOptions: Sendable, Hashable, Codable {
     public let timeoutSeconds: Double
     public let additionalEnvironment: [String: String]
+    public let maximumSearchStates: Int?
+    public let maximumGraphObjectCount: Int?
+    public let maximumSearchDepth: Int?
+    public let maximumWorkingSetBytes: Int?
 
     public init(
         timeoutSeconds: Double = 300,
-        additionalEnvironment: [String: String] = [:]
+        additionalEnvironment: [String: String] = [:],
+        maximumSearchStates: Int? = 1_000_000,
+        maximumGraphObjectCount: Int? = 2_000_000,
+        maximumSearchDepth: Int? = 100_000,
+        maximumWorkingSetBytes: Int? = 512 * 1_024 * 1_024
     ) {
         self.timeoutSeconds = timeoutSeconds
         self.additionalEnvironment = additionalEnvironment
+        self.maximumSearchStates = maximumSearchStates
+        self.maximumGraphObjectCount = maximumGraphObjectCount
+        self.maximumSearchDepth = maximumSearchDepth
+        self.maximumWorkingSetBytes = maximumWorkingSetBytes
+    }
+
+    public var effectiveMaximumSearchStates: Int {
+        maximumSearchStates ?? 1_000_000
+    }
+
+    public var effectiveMaximumGraphObjectCount: Int {
+        maximumGraphObjectCount ?? 2_000_000
+    }
+
+    public var effectiveMaximumSearchDepth: Int {
+        maximumSearchDepth ?? 100_000
+    }
+
+    public var effectiveMaximumWorkingSetBytes: Int {
+        maximumWorkingSetBytes ?? 512 * 1_024 * 1_024
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case timeoutSeconds
+        case additionalEnvironment
+        case maximumSearchStates
+        case maximumGraphObjectCount
+        case maximumSearchDepth
+        case maximumWorkingSetBytes
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        timeoutSeconds = try container.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? 300
+        additionalEnvironment = try container.decodeIfPresent(
+            [String: String].self,
+            forKey: .additionalEnvironment
+        ) ?? [:]
+        maximumSearchStates = try container.decodeIfPresent(Int.self, forKey: .maximumSearchStates)
+        maximumGraphObjectCount = try container.decodeIfPresent(Int.self, forKey: .maximumGraphObjectCount)
+        maximumSearchDepth = try container.decodeIfPresent(Int.self, forKey: .maximumSearchDepth)
+        maximumWorkingSetBytes = try container.decodeIfPresent(Int.self, forKey: .maximumWorkingSetBytes)
     }
 }
 
@@ -39,6 +90,8 @@ public struct LVSRequest: Sendable, Hashable, Codable {
     /// extract devices from standard layout formats in-process; backends
     /// delegating extraction to external tools leave it nil.
     public let technologyURL: URL?
+    public let extractionDeckURL: URL?
+    public let processProfileID: String?
     public let waiverURL: URL?
     public let modelEquivalenceURL: URL?
     public let terminalEquivalenceURL: URL?
@@ -54,6 +107,8 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         schematicNetlistURL: URL,
         topCell: String,
         technologyURL: URL? = nil,
+        extractionDeckURL: URL? = nil,
+        processProfileID: String? = nil,
         waiverURL: URL? = nil,
         modelEquivalenceURL: URL? = nil,
         terminalEquivalenceURL: URL? = nil,
@@ -68,6 +123,8 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         self.schematicNetlistURL = schematicNetlistURL
         self.topCell = topCell
         self.technologyURL = technologyURL
+        self.extractionDeckURL = extractionDeckURL
+        self.processProfileID = processProfileID
         self.waiverURL = waiverURL
         self.modelEquivalenceURL = modelEquivalenceURL
         self.terminalEquivalenceURL = terminalEquivalenceURL
@@ -79,35 +136,84 @@ public struct LVSRequest: Sendable, Hashable, Codable {
 }
 
 public struct LVSResult: Sendable, Hashable, Codable {
+    public static let currentSchemaVersion = 2
+
+    public let schemaVersion: Int
     public let backendID: String
     public let toolName: String
-    public let success: Bool
-    public let completed: Bool
+    public let executionStatus: LVSExecutionStatus
+    public let verdict: LVSVerificationVerdict
+    public let readiness: LVSReadinessStatus
+    public let blockingReasons: [LVSBlockingReason]
     public let logPath: String
     public let diagnostics: [LVSDiagnostic]
     public let provenance: LVSToolProvenance?
 
     public init(
+        schemaVersion: Int = LVSResult.currentSchemaVersion,
         backendID: String,
         toolName: String,
-        success: Bool,
-        completed: Bool,
+        executionStatus: LVSExecutionStatus,
+        verdict: LVSVerificationVerdict,
+        readiness: LVSReadinessStatus,
+        blockingReasons: [LVSBlockingReason] = [],
         logPath: String,
         diagnostics: [LVSDiagnostic] = [],
         provenance: LVSToolProvenance? = nil
     ) {
+        self.schemaVersion = schemaVersion
         self.backendID = backendID
         self.toolName = toolName
-        self.success = success
-        self.completed = completed
+        self.executionStatus = executionStatus
+        self.verdict = verdict
+        self.readiness = readiness
+        self.blockingReasons = blockingReasons.sorted { $0.code < $1.code }
         self.logPath = logPath
         self.diagnostics = diagnostics
         self.provenance = provenance
     }
 
     public var passed: Bool {
-        success && completed && !diagnostics.contains { $0.severity == .error && !$0.isWaived }
+        executionStatus == .completed
+            && verdict == .match
+            && readiness == .ready
+            && !diagnostics.contains { $0.severity == .error && !$0.isWaived }
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case backendID
+        case toolName
+        case executionStatus
+        case verdict
+        case readiness
+        case blockingReasons
+        case logPath
+        case diagnostics
+        case provenance
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported LVS result schema version \(schemaVersion)."
+            )
+        }
+        backendID = try container.decode(String.self, forKey: .backendID)
+        toolName = try container.decode(String.self, forKey: .toolName)
+        executionStatus = try container.decode(LVSExecutionStatus.self, forKey: .executionStatus)
+        verdict = try container.decode(LVSVerificationVerdict.self, forKey: .verdict)
+        readiness = try container.decode(LVSReadinessStatus.self, forKey: .readiness)
+        blockingReasons = try container.decode([LVSBlockingReason].self, forKey: .blockingReasons)
+        logPath = try container.decode(String.self, forKey: .logPath)
+        diagnostics = try container.decode([LVSDiagnostic].self, forKey: .diagnostics)
+        provenance = try container.decodeIfPresent(LVSToolProvenance.self, forKey: .provenance)
+    }
+
 }
 
 public struct LVSToolProvenance: Sendable, Hashable, Codable {
@@ -159,6 +265,7 @@ public struct LVSDiagnostic: Sendable, Hashable, Codable {
     public let rawLine: String
     public let layoutComponentName: String?
     public let schematicComponentName: String?
+    public let waiverDisposition: LVSDiagnosticWaiverDisposition?
 
     public init(
         severity: Severity,
@@ -180,7 +287,8 @@ public struct LVSDiagnostic: Sendable, Hashable, Codable {
         waiverReason: String? = nil,
         rawLine: String,
         layoutComponentName: String? = nil,
-        schematicComponentName: String? = nil
+        schematicComponentName: String? = nil,
+        waiverDisposition: LVSDiagnosticWaiverDisposition = .waivable
     ) {
         self.severity = severity
         self.message = message
@@ -202,9 +310,13 @@ public struct LVSDiagnostic: Sendable, Hashable, Codable {
         self.rawLine = rawLine
         self.layoutComponentName = layoutComponentName
         self.schematicComponentName = schematicComponentName
+        self.waiverDisposition = waiverDisposition
     }
 
     public var isWaived: Bool {
+        guard effectiveWaiverDisposition == .waivable else {
+            return false
+        }
         guard let waiverID = waiverID?.trimmingCharacters(in: .whitespacesAndNewlines),
               let waiverReason = waiverReason?.trimmingCharacters(in: .whitespacesAndNewlines) else {
             return false
@@ -212,8 +324,15 @@ public struct LVSDiagnostic: Sendable, Hashable, Codable {
         return !waiverID.isEmpty && !waiverReason.isEmpty
     }
 
+    public var effectiveWaiverDisposition: LVSDiagnosticWaiverDisposition {
+        waiverDisposition ?? .waivable
+    }
+
     public func applyingWaiver(_ waiver: LVSWaiver) -> LVSDiagnostic {
-        LVSDiagnostic(
+        guard effectiveWaiverDisposition == .waivable else {
+            return self
+        }
+        return LVSDiagnostic(
             severity: severity,
             message: message,
             ruleID: ruleID,
@@ -233,7 +352,8 @@ public struct LVSDiagnostic: Sendable, Hashable, Codable {
             waiverReason: waiver.reason,
             rawLine: rawLine,
             layoutComponentName: layoutComponentName,
-            schematicComponentName: schematicComponentName
+            schematicComponentName: schematicComponentName,
+            waiverDisposition: effectiveWaiverDisposition
         )
     }
 }
@@ -246,6 +366,11 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
     public let devicePolicyReport: LVSDevicePolicyApplicationReport?
     public let reportURL: URL?
     public let artifactManifestURL: URL?
+    public let correspondence: LVSCorrespondence?
+    public let correspondenceURL: URL?
+    public let extractionReportURL: URL?
+    public let transformLedgerURL: URL?
+    public let extractionQualification: LVSExtractionQualification?
 
     public init(
         request: LVSRequest,
@@ -254,7 +379,12 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
         waiverReport: LVSWaiverApplicationReport? = nil,
         devicePolicyReport: LVSDevicePolicyApplicationReport? = nil,
         reportURL: URL? = nil,
-        artifactManifestURL: URL? = nil
+        artifactManifestURL: URL? = nil,
+        correspondence: LVSCorrespondence? = nil,
+        correspondenceURL: URL? = nil,
+        extractionReportURL: URL? = nil,
+        transformLedgerURL: URL? = nil,
+        extractionQualification: LVSExtractionQualification? = nil
     ) {
         self.request = request
         self.result = result
@@ -263,46 +393,119 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
         self.devicePolicyReport = devicePolicyReport
         self.reportURL = reportURL
         self.artifactManifestURL = artifactManifestURL
+        self.correspondence = correspondence
+        self.correspondenceURL = correspondenceURL
+        self.extractionReportURL = extractionReportURL
+        self.transformLedgerURL = transformLedgerURL
+        self.extractionQualification = extractionQualification
     }
 }
 
 public struct LVSArtifactManifest: Sendable, Hashable, Codable {
+    public static let currentSchemaVersion = 2
+
     public let schemaVersion: Int
     public let generatedAt: String
     public let backendID: String
     public let toolName: String
-    public let passed: Bool
-    public let completed: Bool
+    public let executionStatus: LVSExecutionStatus
+    public let verdict: LVSVerificationVerdict
+    public let readiness: LVSReadinessStatus
+    public let blockingReasons: [LVSBlockingReason]
+    public let implementationIdentity: LVSImplementationIdentity?
+    public let options: LVSOptions?
+    public let normalizedResultDigest: String?
     public let inputs: [LVSArtifactRecord]
     public let outputs: [LVSArtifactRecord]
     public let diagnosticSummary: LVSDiagnosticSummary
     public let waiverReport: LVSWaiverApplicationReport?
     public let devicePolicyReport: LVSDevicePolicyApplicationReport?
+    public let extractionQualification: LVSExtractionQualification?
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = LVSArtifactManifest.currentSchemaVersion,
         generatedAt: String,
         backendID: String,
         toolName: String,
-        passed: Bool,
-        completed: Bool,
+        executionStatus: LVSExecutionStatus,
+        verdict: LVSVerificationVerdict,
+        readiness: LVSReadinessStatus,
+        blockingReasons: [LVSBlockingReason],
+        implementationIdentity: LVSImplementationIdentity? = nil,
+        options: LVSOptions? = nil,
+        normalizedResultDigest: String? = nil,
         inputs: [LVSArtifactRecord],
         outputs: [LVSArtifactRecord],
         diagnosticSummary: LVSDiagnosticSummary,
         waiverReport: LVSWaiverApplicationReport? = nil,
-        devicePolicyReport: LVSDevicePolicyApplicationReport? = nil
+        devicePolicyReport: LVSDevicePolicyApplicationReport? = nil,
+        extractionQualification: LVSExtractionQualification? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.generatedAt = generatedAt
         self.backendID = backendID
         self.toolName = toolName
-        self.passed = passed
-        self.completed = completed
+        self.executionStatus = executionStatus
+        self.verdict = verdict
+        self.readiness = readiness
+        self.blockingReasons = blockingReasons
+        self.implementationIdentity = implementationIdentity
+        self.options = options
+        self.normalizedResultDigest = normalizedResultDigest
         self.inputs = inputs
         self.outputs = outputs
         self.diagnosticSummary = diagnosticSummary
         self.waiverReport = waiverReport
         self.devicePolicyReport = devicePolicyReport
+        self.extractionQualification = extractionQualification
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case generatedAt
+        case backendID
+        case toolName
+        case executionStatus
+        case verdict
+        case readiness
+        case blockingReasons
+        case implementationIdentity
+        case options
+        case normalizedResultDigest
+        case inputs
+        case outputs
+        case diagnosticSummary
+        case waiverReport
+        case devicePolicyReport
+        case extractionQualification
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported LVS artifact manifest schema version \(schemaVersion)."
+            )
+        }
+        generatedAt = try container.decode(String.self, forKey: .generatedAt)
+        backendID = try container.decode(String.self, forKey: .backendID)
+        toolName = try container.decode(String.self, forKey: .toolName)
+        executionStatus = try container.decode(LVSExecutionStatus.self, forKey: .executionStatus)
+        verdict = try container.decode(LVSVerificationVerdict.self, forKey: .verdict)
+        readiness = try container.decode(LVSReadinessStatus.self, forKey: .readiness)
+        blockingReasons = try container.decode([LVSBlockingReason].self, forKey: .blockingReasons)
+        implementationIdentity = try container.decodeIfPresent(LVSImplementationIdentity.self, forKey: .implementationIdentity)
+        options = try container.decodeIfPresent(LVSOptions.self, forKey: .options)
+        normalizedResultDigest = try container.decodeIfPresent(String.self, forKey: .normalizedResultDigest)
+        inputs = try container.decode([LVSArtifactRecord].self, forKey: .inputs)
+        outputs = try container.decode([LVSArtifactRecord].self, forKey: .outputs)
+        diagnosticSummary = try container.decode(LVSDiagnosticSummary.self, forKey: .diagnosticSummary)
+        waiverReport = try container.decodeIfPresent(LVSWaiverApplicationReport.self, forKey: .waiverReport)
+        devicePolicyReport = try container.decodeIfPresent(LVSDevicePolicyApplicationReport.self, forKey: .devicePolicyReport)
+        extractionQualification = try container.decodeIfPresent(LVSExtractionQualification.self, forKey: .extractionQualification)
     }
 }
 
@@ -312,6 +515,7 @@ public struct LVSArtifactRecord: Sendable, Hashable, Codable {
         case layoutNetlist
         case schematicNetlist
         case technology
+        case extractionDeck
         case waiver
         case modelEquivalence
         case terminalEquivalence
@@ -319,6 +523,9 @@ public struct LVSArtifactRecord: Sendable, Hashable, Codable {
         case report
         case log
         case manifest
+        case correspondence
+        case extractionReport
+        case transformLedger
     }
 
     public let id: String
@@ -795,6 +1002,8 @@ public enum LVSError: Error, LocalizedError, Equatable {
     case unscopedWaiver(id: String)
     case invalidWaiver(id: String, reason: String)
     case cancelled(String)
+    case timedOut(String)
+    case resourceLimitExceeded(String)
 
     public var errorDescription: String? {
         switch self {
@@ -814,6 +1023,10 @@ public enum LVSError: Error, LocalizedError, Equatable {
             return "LVS waiver is invalid (\(reason)): \(id)"
         case .cancelled(let message):
             return "LVS cancelled: \(message)"
+        case .timedOut(let message):
+            return "LVS timed out: \(message)"
+        case .resourceLimitExceeded(let message):
+            return "LVS resource limit exceeded: \(message)"
         }
     }
 }

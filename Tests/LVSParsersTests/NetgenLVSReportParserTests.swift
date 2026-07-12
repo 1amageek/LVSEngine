@@ -15,7 +15,7 @@ struct NetgenLVSReportParserTests {
         )
 
         #expect(report.passed)
-        #expect(report.completed)
+        #expect(report.executionStatus == .completed)
         #expect(report.diagnostics.isEmpty)
     }
 
@@ -44,7 +44,7 @@ struct NetgenLVSReportParserTests {
         )
 
         #expect(!report.passed)
-        #expect(report.completed)
+        #expect(report.executionStatus == .completed)
         #expect(report.diagnostics.count == 1)
         #expect(report.diagnostics[0].ruleID == "LVS_MISMATCH")
     }
@@ -60,7 +60,7 @@ struct NetgenLVSReportParserTests {
         )
 
         #expect(!report.passed)
-        #expect(report.completed)
+        #expect(report.executionStatus == .completed)
         #expect(report.diagnostics.count == 1)
         #expect(report.diagnostics[0].ruleID == "LVS_RESULT")
     }
@@ -73,7 +73,7 @@ struct NetgenLVSReportParserTests {
         )
 
         #expect(!report.passed)
-        #expect(report.completed)
+        #expect(report.executionStatus == .completed)
         #expect(report.diagnostics.count == 1)
         #expect(report.diagnostics[0].ruleID == "LVS_RESULT_MISSING")
     }
@@ -86,7 +86,7 @@ struct NetgenLVSReportParserTests {
         )
 
         #expect(!report.passed)
-        #expect(!report.completed)
+        #expect(report.executionStatus != .completed)
     }
 
     @Test func completionMarkerMustBeExactLine() {
@@ -97,6 +97,6 @@ struct NetgenLVSReportParserTests {
         )
 
         #expect(!report.passed)
-        #expect(!report.completed)
+        #expect(report.executionStatus != .completed)
     }
 }

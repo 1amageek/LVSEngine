@@ -31,11 +31,33 @@ public struct NetgenLVSReportParser: Sendable {
             }
         }
 
+        let activeError = diagnostics.contains { $0.severity == .error && !$0.isWaived }
+        let blockingReasons: [LVSBlockingReason]
+        if !success {
+            blockingReasons = [LVSBlockingReason(
+                code: "external_tool_failed",
+                message: "Netgen exited unsuccessfully."
+            )]
+        } else if !completed {
+            blockingReasons = [LVSBlockingReason(
+                code: "external_report_incomplete",
+                message: "Netgen did not emit the required LVS_DONE marker."
+            )]
+        } else if !hasLVSResult(rawOutput: rawOutput) {
+            blockingReasons = [LVSBlockingReason(
+                code: "external_verdict_missing",
+                message: "Netgen completed without an LVS_RESULT verdict."
+            )]
+        } else {
+            blockingReasons = []
+        }
         return LVSResult(
             backendID: backendID,
             toolName: toolName,
-            success: success,
-            completed: completed,
+            executionStatus: success && completed ? .completed : .failed,
+            verdict: blockingReasons.isEmpty ? (activeError ? .mismatch : .match) : .blocked,
+            readiness: blockingReasons.isEmpty ? .ready : .blocked,
+            blockingReasons: blockingReasons,
             logPath: logPath,
             diagnostics: diagnostics,
             provenance: provenance

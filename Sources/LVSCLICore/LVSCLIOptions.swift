@@ -31,6 +31,8 @@ public struct LVSCLIOptions: Sendable, Hashable {
   public let schematicNetlistURL: URL
   public let topCell: String
   public let technologyURL: URL?
+  public let extractionDeckURL: URL?
+  public let processProfileID: String?
   public let waiverURL: URL?
   public let modelEquivalenceURL: URL?
   public let terminalEquivalenceURL: URL?
@@ -47,6 +49,8 @@ public struct LVSCLIOptions: Sendable, Hashable {
     var schematicNetlistURL: URL?
     var topCell: String?
     var technologyURL: URL?
+    var extractionDeckURL: URL?
+    var processProfileID: String?
     var waiverURL: URL?
     var modelEquivalenceURL: URL?
     var terminalEquivalenceURL: URL?
@@ -92,6 +96,13 @@ public struct LVSCLIOptions: Sendable, Hashable {
         technologyURL = URL(
           filePath: try Self.nonEmptyValue(
             after: argument, in: arguments, index: &index, expected: "non-empty path"))
+      case "--extraction-deck":
+        extractionDeckURL = URL(
+          filePath: try Self.nonEmptyValue(
+            after: argument, in: arguments, index: &index, expected: "non-empty path"))
+      case "--process-profile":
+        processProfileID = try Self.nonEmptyValue(
+          after: argument, in: arguments, index: &index, expected: "non-empty process profile ID")
       case "--waivers":
         waiverURL = URL(
           filePath: try Self.nonEmptyValue(
@@ -138,6 +149,8 @@ public struct LVSCLIOptions: Sendable, Hashable {
     self.schematicNetlistURL = schematicNetlistURL
     self.topCell = topCell
     self.technologyURL = technologyURL
+    self.extractionDeckURL = extractionDeckURL
+    self.processProfileID = processProfileID
     self.waiverURL = waiverURL
     self.modelEquivalenceURL = modelEquivalenceURL
     self.terminalEquivalenceURL = terminalEquivalenceURL
@@ -157,6 +170,8 @@ public struct LVSCLIOptions: Sendable, Hashable {
       schematicNetlistURL: schematicNetlistURL,
       topCell: topCell,
       technologyURL: technologyURL,
+      extractionDeckURL: extractionDeckURL,
+      processProfileID: processProfileID,
       waiverURL: waiverURL,
       modelEquivalenceURL: modelEquivalenceURL,
       terminalEquivalenceURL: terminalEquivalenceURL,
@@ -312,12 +327,14 @@ public struct LVSCorpusQualificationCLIOptions: Sendable, Hashable {
 
 public struct LVSCorpusEvidenceCLIOptions: Sendable, Hashable {
   public let reportURL: URL
+  public let outputURL: URL?
   public let evidenceID: String?
   public let checkedAt: Date
   public let emitJSON: Bool
 
   public init(arguments: [String], now: Date = Date()) throws {
     var reportURL: URL?
+    var outputURL: URL?
     var evidenceID: String?
     var checkedAt = now
     var emitJSON = false
@@ -331,6 +348,9 @@ public struct LVSCorpusEvidenceCLIOptions: Sendable, Hashable {
       case "--evidence-id":
         evidenceID = try Self.nonEmptyValue(
           after: argument, in: arguments, index: &index, expected: "non-empty evidence ID")
+      case "--out":
+        outputURL = URL(
+          filePath: try Self.nonEmptyPath(after: argument, in: arguments, index: &index))
       case "--checked-at":
         let value = try Self.value(after: argument, in: arguments, index: &index)
         checkedAt = try Self.iso8601Date(argument: argument, value: value)
@@ -343,6 +363,7 @@ public struct LVSCorpusEvidenceCLIOptions: Sendable, Hashable {
     }
     guard let reportURL else { throw LVSCLIError.missingRequired("--evidence-from-corpus-report") }
     self.reportURL = reportURL
+    self.outputURL = outputURL
     self.evidenceID = evidenceID
     self.checkedAt = checkedAt
     self.emitJSON = emitJSON

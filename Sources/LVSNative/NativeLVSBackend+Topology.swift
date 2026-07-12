@@ -3,102 +3,27 @@ import LVSCore
 import LVSNetlistParsing
 
 extension NativeLVSBackend {
-    func nonGlobalPorts(_ ports: [String], globalNets: Set<String>) -> [String] {
-        ports.filter { !globalNets.contains($0.lowercased()) }
-    }
-
-    func compareComponents(
-        layout: [NativeLVSNetlistComponent],
-        schematic: [NativeLVSNetlistComponent],
+    func canonicalizedComponentsForGraph(
+        _ components: [NativeLVSNetlistComponent],
         modelEquivalence: [String: String],
         terminalEquivalence: LVSTerminalEquivalenceResolver,
         parameterPolicy: LVSParameterComparisonPolicy
-    ) -> [LVSDiagnostic] {
-        let diagnostics = compareComponentsByTopology(
-            layout: layout,
-            schematic: schematic,
+    ) -> [NativeLVSNetlistComponent] {
+        let seriesReduction = seriesReducedComponents(
+            components: components,
+            modelEquivalence: modelEquivalence,
+            parameterPolicy: parameterPolicy
+        )
+        return parallelReducedComponents(
+            components: seriesReduction.components,
             modelEquivalence: modelEquivalence,
             terminalEquivalence: terminalEquivalence,
             parameterPolicy: parameterPolicy
         )
-        guard !diagnostics.isEmpty,
-              canMatchSeriesReducedComponents(
-                layout: layout,
-                schematic: schematic,
-                modelEquivalence: modelEquivalence,
-                terminalEquivalence: terminalEquivalence,
-                parameterPolicy: parameterPolicy
-              ) else {
-            return diagnostics
-        }
-        return []
     }
 
-    private func compareComponentsByTopology(
-        layout: [NativeLVSNetlistComponent],
-        schematic: [NativeLVSNetlistComponent],
-        modelEquivalence: [String: String],
-        terminalEquivalence: LVSTerminalEquivalenceResolver,
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> [LVSDiagnostic] {
-        var diagnostics: [LVSDiagnostic] = []
-        let layoutByTopology = Dictionary(grouping: layout) {
-            $0.topologySignature(
-                modelEquivalence: modelEquivalence,
-                terminalEquivalence: terminalEquivalence
-            )
-        }
-        let schematicByTopology = Dictionary(grouping: schematic) {
-            $0.topologySignature(
-                modelEquivalence: modelEquivalence,
-                terminalEquivalence: terminalEquivalence
-            )
-        }
-        for topologySignature in Set(layoutByTopology.keys).union(schematicByTopology.keys).sorted() {
-            let layoutComponents = layoutByTopology[topologySignature, default: []]
-            let schematicComponents = schematicByTopology[topologySignature, default: []]
-            if layoutComponents.count == 1, schematicComponents.count == 1 {
-                if canMatchParallelComponents(
-                    layout: layoutComponents,
-                    schematic: schematicComponents,
-                    modelEquivalence: modelEquivalence,
-                    parameterPolicy: parameterPolicy
-                ) {
-                    continue
-                }
-                diagnostics.append(contentsOf: compareMatchedComponents(
-                    layout: layoutComponents[0],
-                    schematic: schematicComponents[0],
-                    topologySignature: topologySignature,
-                    modelEquivalence: modelEquivalence,
-                    parameterPolicy: parameterPolicy
-                ))
-            } else if layoutComponents.count == schematicComponents.count,
-                      canPairAllComponents(
-                        layout: layoutComponents,
-                        schematic: schematicComponents,
-                        modelEquivalence: modelEquivalence,
-                        parameterPolicy: parameterPolicy
-                      ) {
-                continue
-            } else if canMatchParallelComponents(
-                layout: layoutComponents,
-                schematic: schematicComponents,
-                modelEquivalence: modelEquivalence,
-                parameterPolicy: parameterPolicy
-            ) {
-                continue
-            } else {
-                diagnostics.append(contentsOf: componentCountDiagnostics(
-                    layout: layoutComponents,
-                    schematic: schematicComponents,
-                    modelEquivalence: modelEquivalence,
-                    terminalEquivalence: terminalEquivalence,
-                    parameterPolicy: parameterPolicy
-                ))
-            }
-        }
-        return diagnostics
+    func nonGlobalPorts(_ ports: [String], globalNets: Set<String>) -> [String] {
+        ports.filter { !globalNets.contains($0.lowercased()) }
     }
 
     private struct LVSSeriesReductionResult: Sendable, Hashable {
@@ -111,35 +36,6 @@ extension NativeLVSBackend {
         let model: String
         let fixedPins: [String]
         let additiveParameters: [String]
-    }
-
-    private func canMatchSeriesReducedComponents(
-        layout: [NativeLVSNetlistComponent],
-        schematic: [NativeLVSNetlistComponent],
-        modelEquivalence: [String: String],
-        terminalEquivalence: LVSTerminalEquivalenceResolver,
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> Bool {
-        let layoutReduction = seriesReducedComponents(
-            components: layout,
-            modelEquivalence: modelEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-        let schematicReduction = seriesReducedComponents(
-            components: schematic,
-            modelEquivalence: modelEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-        guard layoutReduction.changed || schematicReduction.changed else {
-            return false
-        }
-        return compareComponentsByTopology(
-            layout: layoutReduction.components,
-            schematic: schematicReduction.components,
-            modelEquivalence: modelEquivalence,
-            terminalEquivalence: terminalEquivalence,
-            parameterPolicy: parameterPolicy
-        ).isEmpty
     }
 
     private func seriesReducedComponents(
@@ -452,209 +348,56 @@ extension NativeLVSBackend {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    private func compareMatchedComponents(
-        layout: NativeLVSNetlistComponent,
-        schematic: NativeLVSNetlistComponent,
-        topologySignature: String,
-        modelEquivalence: [String: String],
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> [LVSDiagnostic] {
-        let layoutModel = layout.normalizedModel(modelEquivalence: modelEquivalence)
-        let schematicModel = schematic.normalizedModel(modelEquivalence: modelEquivalence)
-        if layoutModel != schematicModel {
-            return [LVSDiagnostic(
-                severity: .error,
-                message: "Component model differs for \(topologySignature)",
-                ruleID: "LVS_MODEL_MISMATCH",
-                category: "modelMismatch",
-                componentSignature: topologySignature,
-                layoutModel: layout.model,
-                schematicModel: schematic.model,
-                suggestedFix: "Align the schematic and layout device models for this topology.",
-                rawLine: "topology=\(topologySignature) layoutModel=\(layout.model) schematicModel=\(schematic.model)",
-                layoutComponentName: layout.name,
-                schematicComponentName: schematic.name
-            )]
-        }
-
-        let ignoredParameters = parameterPolicy
-            .ignoredParameters(for: layout, modelEquivalence: modelEquivalence)
-            .union(parameterPolicy.ignoredParameters(for: schematic, modelEquivalence: modelEquivalence))
-        let parameterTolerances = mergedParameterTolerances(
-            layout: layout,
-            schematic: schematic,
-            modelEquivalence: modelEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-        let layoutParameters = layout.normalizedComparisonParameters(ignoring: ignoredParameters)
-        let schematicParameters = schematic.normalizedComparisonParameters(ignoring: ignoredParameters)
-        let parameterNames = Set(layoutParameters.keys).union(schematicParameters.keys).sorted()
-        var diagnostics: [LVSDiagnostic] = parameterNames.compactMap { parameterName in
-            let layoutValue = layoutParameters[parameterName]
-            let schematicValue = schematicParameters[parameterName]
-            guard !parameterValuesMatch(
-                layoutValue: layoutValue,
-                schematicValue: schematicValue,
-                tolerance: parameterTolerances[parameterName]
-            ) else {
-                return nil
-            }
-            return LVSDiagnostic(
-                severity: .error,
-                message: "Component parameter \(parameterName) differs for \(topologySignature)",
-                ruleID: "LVS_PARAMETER_MISMATCH",
-                category: "parameterMismatch",
-                componentSignature: "\(topologySignature)|\(layoutModel)",
-                layoutModel: layout.model,
-                schematicModel: schematic.model,
-                parameterName: parameterName,
-                layoutValue: layout.parameters[parameterName],
-                schematicValue: schematic.parameters[parameterName],
-                suggestedFix: "Align the \(parameterName) parameter for the matching device topology.",
-                rawLine: "topology=\(topologySignature) parameter=\(parameterName) layout=\(layoutValue ?? "nil") schematic=\(schematicValue ?? "nil")",
-                layoutComponentName: layout.name,
-                schematicComponentName: schematic.name
-            )
-        }
-        if !multiplicityMatches(layout.effectiveMultiplicity, schematic.effectiveMultiplicity) {
-            diagnostics.append(multiplicityDiagnostic(
-                signature: "\(topologySignature)|\(layoutModel)",
-                layoutMultiplicity: layout.effectiveMultiplicity,
-                schematicMultiplicity: schematic.effectiveMultiplicity,
-                layoutValue: layout.originalMultiplicityValue,
-                schematicValue: schematic.originalMultiplicityValue,
-                layoutComponentName: layout.name,
-                schematicComponentName: schematic.name
-            ))
-        }
-        return diagnostics
-    }
-
-    private func canPairAllComponents(
-        layout: [NativeLVSNetlistComponent],
-        schematic: [NativeLVSNetlistComponent],
-        modelEquivalence: [String: String],
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> Bool {
-        guard layout.count == schematic.count else { return false }
-        var matchedSchematicIndexes = Set<Int>()
-        return canPairComponents(
-            layoutIndex: 0,
-            layout: layout,
-            schematic: schematic,
-            matchedSchematicIndexes: &matchedSchematicIndexes,
-            modelEquivalence: modelEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-    }
-
-    private func canPairComponents(
-        layoutIndex: Int,
-        layout: [NativeLVSNetlistComponent],
-        schematic: [NativeLVSNetlistComponent],
-        matchedSchematicIndexes: inout Set<Int>,
-        modelEquivalence: [String: String],
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> Bool {
-        guard layoutIndex < layout.count else { return true }
-        for schematicIndex in schematic.indices where !matchedSchematicIndexes.contains(schematicIndex) {
-            guard componentsMatch(
-                layout: layout[layoutIndex],
-                schematic: schematic[schematicIndex],
-                modelEquivalence: modelEquivalence,
-                parameterPolicy: parameterPolicy
-            ) else {
-                continue
-            }
-            matchedSchematicIndexes.insert(schematicIndex)
-            if canPairComponents(
-                layoutIndex: layoutIndex + 1,
-                layout: layout,
-                schematic: schematic,
-                matchedSchematicIndexes: &matchedSchematicIndexes,
-                modelEquivalence: modelEquivalence,
-                parameterPolicy: parameterPolicy
-            ) {
-                return true
-            }
-            matchedSchematicIndexes.remove(schematicIndex)
-        }
-        return false
-    }
-
-    private func componentsMatch(
-        layout: NativeLVSNetlistComponent,
-        schematic: NativeLVSNetlistComponent,
-        modelEquivalence: [String: String],
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> Bool {
-        guard layout.normalizedModel(modelEquivalence: modelEquivalence)
-            == schematic.normalizedModel(modelEquivalence: modelEquivalence),
-              multiplicityMatches(layout.effectiveMultiplicity, schematic.effectiveMultiplicity) else {
-            return false
-        }
-        let ignoredParameters = parameterPolicy
-            .ignoredParameters(for: layout, modelEquivalence: modelEquivalence)
-            .union(parameterPolicy.ignoredParameters(for: schematic, modelEquivalence: modelEquivalence))
-        let parameterTolerances = mergedParameterTolerances(
-            layout: layout,
-            schematic: schematic,
-            modelEquivalence: modelEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-        let layoutParameters = layout.normalizedComparisonParameters(ignoring: ignoredParameters)
-        let schematicParameters = schematic.normalizedComparisonParameters(ignoring: ignoredParameters)
-        for parameterName in Set(layoutParameters.keys).union(schematicParameters.keys) {
-            guard parameterValuesMatch(
-                layoutValue: layoutParameters[parameterName],
-                schematicValue: schematicParameters[parameterName],
-                tolerance: parameterTolerances[parameterName]
-            ) else {
-                return false
-            }
-        }
-        return true
-    }
-
     private struct LVSParallelAggregate: Sendable, Hashable {
         let model: String
         let parameters: [String: String]
     }
 
-    private func canMatchParallelComponents(
-        layout: [NativeLVSNetlistComponent],
-        schematic: [NativeLVSNetlistComponent],
+    private func parallelReducedComponents(
+        components: [NativeLVSNetlistComponent],
         modelEquivalence: [String: String],
+        terminalEquivalence: LVSTerminalEquivalenceResolver,
         parameterPolicy: LVSParameterComparisonPolicy
-    ) -> Bool {
-        guard let layoutAggregate = parallelAggregate(
-            components: layout,
-            modelEquivalence: modelEquivalence,
-            parameterPolicy: parameterPolicy
-        ),
-              let schematicAggregate = parallelAggregate(
-                components: schematic,
+    ) -> [NativeLVSNetlistComponent] {
+        let groups = Dictionary(grouping: components) {
+            localConnectivityKey(
+                for: $0,
                 modelEquivalence: modelEquivalence,
-                parameterPolicy: parameterPolicy
-              ),
-              layoutAggregate.model == schematicAggregate.model else {
-            return false
+                terminalEquivalence: terminalEquivalence
+            )
         }
-        let parameterTolerances = mergedParameterTolerances(
-            components: layout + schematic,
-            modelEquivalence: modelEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-        for parameterName in Set(layoutAggregate.parameters.keys).union(schematicAggregate.parameters.keys) {
-            guard parameterValuesMatch(
-                layoutValue: layoutAggregate.parameters[parameterName],
-                schematicValue: schematicAggregate.parameters[parameterName],
-                tolerance: parameterTolerances[parameterName]
-            ) else {
-                return false
+        return groups.keys.sorted().flatMap { signature in
+            let group = groups[signature, default: []].sorted { $0.name < $1.name }
+            guard let first = group.first,
+                  let aggregate = parallelAggregate(
+                    components: group,
+                    modelEquivalence: modelEquivalence,
+                    parameterPolicy: parameterPolicy
+                  ) else {
+                return group
             }
+            return [NativeLVSNetlistComponent(
+                name: group.map(\.name).joined(separator: "+"),
+                kind: first.kind,
+                pins: first.pins,
+                model: first.model,
+                parameters: aggregate.parameters
+            )]
         }
-        return true
+    }
+
+    private func localConnectivityKey(
+        for component: NativeLVSNetlistComponent,
+        modelEquivalence: [String: String],
+        terminalEquivalence: LVSTerminalEquivalenceResolver
+    ) -> String {
+        [
+            component.kind,
+            component.canonicalPins(
+                modelEquivalence: modelEquivalence,
+                terminalEquivalence: terminalEquivalence
+            ).joined(separator: ","),
+        ].joined(separator: "|")
     }
 
     private func parallelAggregate(
@@ -730,25 +473,6 @@ extension NativeLVSBackend {
     }
 
     private func mergedParameterTolerances(
-        layout: NativeLVSNetlistComponent,
-        schematic: NativeLVSNetlistComponent,
-        modelEquivalence: [String: String],
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> [String: Double] {
-        var result = parameterPolicy.parameterTolerances(
-            for: layout,
-            modelEquivalence: modelEquivalence
-        )
-        for (parameterName, tolerance) in parameterPolicy.parameterTolerances(
-            for: schematic,
-            modelEquivalence: modelEquivalence
-        ) {
-            result[parameterName] = max(result[parameterName] ?? 0, tolerance)
-        }
-        return result
-    }
-
-    private func mergedParameterTolerances(
         components: [NativeLVSNetlistComponent],
         modelEquivalence: [String: String],
         parameterPolicy: LVSParameterComparisonPolicy
@@ -787,116 +511,8 @@ extension NativeLVSBackend {
         return abs(layoutNumericValue - schematicNumericValue) / scale <= tolerance
     }
 
-    private func componentCountDiagnostics(
-        layout: [NativeLVSNetlistComponent],
-        schematic: [NativeLVSNetlistComponent],
-        modelEquivalence: [String: String],
-        terminalEquivalence: LVSTerminalEquivalenceResolver,
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> [LVSDiagnostic] {
-        let layoutCounts = effectiveComponentCounts(
-            layout,
-            modelEquivalence: modelEquivalence,
-            terminalEquivalence: terminalEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-        let schematicCounts = effectiveComponentCounts(
-            schematic,
-            modelEquivalence: modelEquivalence,
-            terminalEquivalence: terminalEquivalence,
-            parameterPolicy: parameterPolicy
-        )
-        return Set(layoutCounts.keys).union(schematicCounts.keys).sorted().compactMap { signature in
-            let layoutMultiplicity = layoutCounts[signature, default: 0]
-            let schematicMultiplicity = schematicCounts[signature, default: 0]
-            guard !multiplicityMatches(layoutMultiplicity, schematicMultiplicity) else {
-                return nil
-            }
-            if layoutMultiplicity > 0, schematicMultiplicity > 0 {
-                return multiplicityDiagnostic(
-                    signature: signature,
-                    layoutMultiplicity: layoutMultiplicity,
-                    schematicMultiplicity: schematicMultiplicity,
-                    layoutValue: nil,
-                    schematicValue: nil
-                )
-            }
-            return LVSDiagnostic(
-                severity: .error,
-                message: "Component signature count differs for \(signature)",
-                ruleID: "LVS_COMPONENT_MISMATCH",
-                category: "componentCountMismatch",
-                componentSignature: signature,
-                layoutCount: integerCountIfWhole(layoutMultiplicity),
-                schematicCount: integerCountIfWhole(schematicMultiplicity),
-                suggestedFix: "Compare the devices and parameters represented by this signature in the layout and schematic netlists.",
-                rawLine: "signature=\(signature) layout=\(formatMultiplicity(layoutMultiplicity)) schematic=\(formatMultiplicity(schematicMultiplicity))"
-            )
-        }
-    }
-
-    private func effectiveComponentCounts(
-        _ components: [NativeLVSNetlistComponent],
-        modelEquivalence: [String: String],
-        terminalEquivalence: LVSTerminalEquivalenceResolver,
-        parameterPolicy: LVSParameterComparisonPolicy
-    ) -> [String: Double] {
-        components.reduce(into: [:]) { counts, component in
-            counts[component.comparisonSignature(
-                modelEquivalence: modelEquivalence,
-                terminalEquivalence: terminalEquivalence,
-                ignoringParameters: parameterPolicy.ignoredParameters(
-                    for: component,
-                    modelEquivalence: modelEquivalence
-                )
-            ), default: 0] += component.effectiveMultiplicity
-        }
-    }
-
-    private func multiplicityDiagnostic(
-        signature: String,
-        layoutMultiplicity: Double,
-        schematicMultiplicity: Double,
-        layoutValue: String?,
-        schematicValue: String?,
-        layoutComponentName: String? = nil,
-        schematicComponentName: String? = nil
-    ) -> LVSDiagnostic {
-        LVSDiagnostic(
-            severity: .error,
-            message: "Component effective multiplicity differs for \(signature)",
-            ruleID: "LVS_MULTIPLICITY_MISMATCH",
-            category: "multiplicityMismatch",
-            componentSignature: signature,
-            layoutCount: integerCountIfWhole(layoutMultiplicity),
-            schematicCount: integerCountIfWhole(schematicMultiplicity),
-            parameterName: "m",
-            layoutValue: layoutValue ?? formatMultiplicity(layoutMultiplicity),
-            schematicValue: schematicValue ?? formatMultiplicity(schematicMultiplicity),
-            suggestedFix: "Align the device multiplicity or the number of parallel devices for this topology.",
-            rawLine: "signature=\(signature) layoutMultiplicity=\(formatMultiplicity(layoutMultiplicity)) schematicMultiplicity=\(formatMultiplicity(schematicMultiplicity))",
-            layoutComponentName: layoutComponentName,
-            schematicComponentName: schematicComponentName
-        )
-    }
-
     private func multiplicityMatches(_ lhs: Double, _ rhs: Double) -> Bool {
         abs(lhs - rhs) <= max(1e-12, max(abs(lhs), abs(rhs)) * 1e-12)
     }
 
-    private func integerCountIfWhole(_ value: Double) -> Int? {
-        guard value.isFinite else { return nil }
-        let rounded = value.rounded()
-        guard abs(value - rounded) <= 1e-12 else { return nil }
-        return Int(rounded)
-    }
-
-    private func formatMultiplicity(_ value: Double) -> String {
-        guard value.isFinite else { return "\(value)" }
-        let rounded = value.rounded()
-        if abs(value - rounded) <= 1e-12 {
-            return String(Int(rounded))
-        }
-        return String(format: "%.12e", value)
-    }
 }

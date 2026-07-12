@@ -1,0 +1,538 @@
+{
+  "units" : {
+    "dbuPerMicron" : 1000
+  },
+  "grid" : 0.005,
+  "layers" : [
+    {
+      "id" : { "name" : "nwell", "purpose" : "drawing" },
+      "displayName" : "N-Well",
+      "gdsLayer" : 64,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.4, "green" : 0.2, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "diff", "purpose" : "drawing" },
+      "displayName" : "Diffusion",
+      "gdsLayer" : 65,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.2, "green" : 0.6, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "tap", "purpose" : "drawing" },
+      "displayName" : "Tap",
+      "gdsLayer" : 65,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.3, "green" : 0.5, "blue" : 0.3, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "nsdm", "purpose" : "drawing" },
+      "displayName" : "N+ Implant",
+      "gdsLayer" : 93,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.5, "green" : 0.5, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "psdm", "purpose" : "drawing" },
+      "displayName" : "P+ Implant",
+      "gdsLayer" : 94,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.5, "green" : 0.2, "blue" : 0.5, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "poly", "purpose" : "drawing" },
+      "displayName" : "Poly",
+      "gdsLayer" : 66,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.8, "green" : 0.1, "blue" : 0.1, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "npc", "purpose" : "drawing" },
+      "displayName" : "Nitride Poly Cut",
+      "gdsLayer" : 95,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.6, "green" : 0.3, "blue" : 0.3, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "licon1", "purpose" : "cut" },
+      "displayName" : "Diff/Poly Contact",
+      "gdsLayer" : 66,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.7, "green" : 0.7, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "crosshatch",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "li1", "purpose" : "drawing" },
+      "displayName" : "Local Interconnect",
+      "gdsLayer" : 67,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.7, "green" : 0.4, "blue" : 0.7, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "mcon", "purpose" : "cut" },
+      "displayName" : "li-met1 Via",
+      "gdsLayer" : 67,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.8, "green" : 0.8, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "crosshatch",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met1", "purpose" : "drawing" },
+      "displayName" : "Metal1",
+      "gdsLayer" : 68,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.3, "green" : 0.5, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "via", "purpose" : "drawing" },
+      "displayName" : "met1-met2 Via",
+      "gdsLayer" : 68,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.8, "green" : 0.6, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "crosshatch",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met2", "purpose" : "drawing" },
+      "displayName" : "Metal2",
+      "gdsLayer" : 69,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.2, "green" : 0.7, "blue" : 0.7, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "via2", "purpose" : "drawing" },
+      "displayName" : "met2-met3 Via",
+      "gdsLayer" : 69,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.7, "green" : 0.5, "blue" : 0.3, "alpha" : 1.0 },
+      "fillPattern" : "crosshatch",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met3", "purpose" : "drawing" },
+      "displayName" : "Metal3",
+      "gdsLayer" : 70,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.5, "green" : 0.3, "blue" : 0.7, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "via3", "purpose" : "drawing" },
+      "displayName" : "met3-met4 Via",
+      "gdsLayer" : 70,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.6, "green" : 0.4, "blue" : 0.4, "alpha" : 1.0 },
+      "fillPattern" : "crosshatch",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met4", "purpose" : "drawing" },
+      "displayName" : "Metal4",
+      "gdsLayer" : 71,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.4, "green" : 0.4, "blue" : 0.7, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "nwell", "purpose" : "drawing" },
+      "displayName" : "N-Well Pin",
+      "gdsLayer" : 64,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.4, "green" : 0.2, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "nwell", "purpose" : "drawing" },
+      "displayName" : "N-Well Label",
+      "gdsLayer" : 64,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.4, "green" : 0.2, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "tap", "purpose" : "drawing" },
+      "displayName" : "P-Well Label",
+      "gdsLayer" : 64,
+      "gdsDatatype" : 59,
+      "color" : { "red" : 0.3, "green" : 0.5, "blue" : 0.3, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "tap", "purpose" : "drawing" },
+      "displayName" : "P-Well Pin",
+      "gdsLayer" : 122,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.3, "green" : 0.5, "blue" : 0.3, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "li1", "purpose" : "drawing" },
+      "displayName" : "Local Interconnect Label",
+      "gdsLayer" : 67,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.7, "green" : 0.4, "blue" : 0.7, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "li1", "purpose" : "drawing" },
+      "displayName" : "Local Interconnect Pin",
+      "gdsLayer" : 67,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.7, "green" : 0.4, "blue" : 0.7, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met1", "purpose" : "drawing" },
+      "displayName" : "Metal1 Label",
+      "gdsLayer" : 68,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.2, "green" : 0.5, "blue" : 0.8, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met1", "purpose" : "drawing" },
+      "displayName" : "Metal1 Pin",
+      "gdsLayer" : 68,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.2, "green" : 0.5, "blue" : 0.8, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "hvtp", "purpose" : "drawing" },
+      "displayName" : "High-Vt P-Device Select",
+      "gdsLayer" : 78,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.6, "green" : 0.3, "blue" : 0.5, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "stdcell", "purpose" : "marker" },
+      "displayName" : "Standard Cell Identifier",
+      "gdsLayer" : 81,
+      "gdsDatatype" : 4,
+      "color" : { "red" : 0.5, "green" : 0.5, "blue" : 0.5, "alpha" : 0.4 },
+      "fillPattern" : "solid",
+      "preferredDirection" : "none",
+      "visibleByDefault" : false
+    },
+    {
+      "id" : { "name" : "annotation", "purpose" : "text" },
+      "displayName" : "Annotation Text",
+      "gdsLayer" : 83,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.5, "green" : 0.5, "blue" : 0.5, "alpha" : 0.4 },
+      "fillPattern" : "solid",
+      "preferredDirection" : "none",
+      "visibleByDefault" : false
+    },
+    {
+      "id" : { "name" : "outline", "purpose" : "marker" },
+      "displayName" : "Cell Outline",
+      "gdsLayer" : 236,
+      "gdsDatatype" : 0,
+      "color" : { "red" : 0.5, "green" : 0.5, "blue" : 0.5, "alpha" : 0.4 },
+      "fillPattern" : "solid",
+      "preferredDirection" : "none",
+      "visibleByDefault" : false
+    },
+    {
+      "id" : { "name" : "diearea", "purpose" : "marker" },
+      "displayName" : "DIEAREA",
+      "gdsLayer" : 235,
+      "gdsDatatype" : 4,
+      "color" : { "red" : 0.5, "green" : 0.5, "blue" : 0.5, "alpha" : 0.2 },
+      "fillPattern" : "solid",
+      "preferredDirection" : "none",
+      "visibleByDefault" : false
+    },
+    {
+      "id" : { "name" : "pwell", "purpose" : "drawing" },
+      "displayName" : "P-Well Pin",
+      "gdsLayer" : 122,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.3, "green" : 0.2, "blue" : 0.2, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met1", "purpose" : "drawing" },
+      "displayName" : "Metal1 Obstruction",
+      "gdsLayer" : 68,
+      "gdsDatatype" : 4,
+      "color" : { "red" : 0.2, "green" : 0.5, "blue" : 0.8, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met2", "purpose" : "drawing" },
+      "displayName" : "Metal2 Pin",
+      "gdsLayer" : 69,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.3, "green" : 0.6, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met2", "purpose" : "drawing" },
+      "displayName" : "Metal2 Label",
+      "gdsLayer" : 69,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.3, "green" : 0.6, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met2", "purpose" : "drawing" },
+      "displayName" : "Metal2 Obstruction",
+      "gdsLayer" : 69,
+      "gdsDatatype" : 4,
+      "color" : { "red" : 0.3, "green" : 0.6, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met3", "purpose" : "drawing" },
+      "displayName" : "Metal3 Pin",
+      "gdsLayer" : 70,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.4, "green" : 0.7, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met3", "purpose" : "drawing" },
+      "displayName" : "Metal3 Label",
+      "gdsLayer" : 70,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.4, "green" : 0.7, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met3", "purpose" : "drawing" },
+      "displayName" : "Metal3 Obstruction",
+      "gdsLayer" : 70,
+      "gdsDatatype" : 4,
+      "color" : { "red" : 0.4, "green" : 0.7, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met4", "purpose" : "drawing" },
+      "displayName" : "Metal4 Pin",
+      "gdsLayer" : 71,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.5, "green" : 0.8, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met4", "purpose" : "drawing" },
+      "displayName" : "Metal4 Label",
+      "gdsLayer" : 71,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.5, "green" : 0.8, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met4", "purpose" : "drawing" },
+      "displayName" : "Metal4 Obstruction",
+      "gdsLayer" : 71,
+      "gdsDatatype" : 4,
+      "color" : { "red" : 0.5, "green" : 0.8, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "via4", "purpose" : "drawing" },
+      "displayName" : "Via4",
+      "gdsLayer" : 71,
+      "gdsDatatype" : 44,
+      "color" : { "red" : 0.6, "green" : 0.6, "blue" : 0.6, "alpha" : 1.0 },
+      "fillPattern" : "crosshatch",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met5", "purpose" : "drawing" },
+      "displayName" : "Metal5",
+      "gdsLayer" : 72,
+      "gdsDatatype" : 20,
+      "color" : { "red" : 0.6, "green" : 0.9, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met5", "purpose" : "drawing" },
+      "displayName" : "Metal5 Pin",
+      "gdsLayer" : 72,
+      "gdsDatatype" : 16,
+      "color" : { "red" : 0.6, "green" : 0.9, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    },
+    {
+      "id" : { "name" : "met5", "purpose" : "drawing" },
+      "displayName" : "Metal5 Label",
+      "gdsLayer" : 72,
+      "gdsDatatype" : 5,
+      "color" : { "red" : 0.6, "green" : 0.9, "blue" : 0.9, "alpha" : 1.0 },
+      "fillPattern" : "forwardDiagonal",
+      "preferredDirection" : "none",
+      "visibleByDefault" : true
+    }
+  ],
+  "vias" : [
+    {
+      "id" : "licon1",
+      "cutLayer" : { "name" : "licon1", "purpose" : "cut" },
+      "topLayer" : { "name" : "li1", "purpose" : "drawing" },
+      "bottomLayer" : { "name" : "diff", "purpose" : "drawing" },
+      "cutSize" : { "width" : 0.17, "height" : 0.17 },
+      "enclosure" : { "top" : 0.08, "bottom" : 0.06 },
+      "cutSpacing" : 0.17,
+      "layerGeometries" : []
+    },
+    {
+      "id" : "mcon",
+      "cutLayer" : { "name" : "mcon", "purpose" : "cut" },
+      "topLayer" : { "name" : "met1", "purpose" : "drawing" },
+      "bottomLayer" : { "name" : "li1", "purpose" : "drawing" },
+      "cutSize" : { "width" : 0.17, "height" : 0.17 },
+      "enclosure" : { "top" : 0.06, "bottom" : 0.0 },
+      "cutSpacing" : 0.19,
+      "layerGeometries" : []
+    },
+    {
+      "id" : "via",
+      "cutLayer" : { "name" : "via", "purpose" : "drawing" },
+      "topLayer" : { "name" : "met2", "purpose" : "drawing" },
+      "bottomLayer" : { "name" : "met1", "purpose" : "drawing" },
+      "cutSize" : { "width" : 0.15, "height" : 0.15 },
+      "enclosure" : { "top" : 0.055, "bottom" : 0.055 },
+      "cutSpacing" : 0.17,
+      "layerGeometries" : []
+    },
+    {
+      "id" : "via2",
+      "cutLayer" : { "name" : "via2", "purpose" : "drawing" },
+      "topLayer" : { "name" : "met3", "purpose" : "drawing" },
+      "bottomLayer" : { "name" : "met2", "purpose" : "drawing" },
+      "cutSize" : { "width" : 0.20, "height" : 0.20 },
+      "enclosure" : { "top" : 0.065, "bottom" : 0.085 },
+      "cutSpacing" : 0.20,
+      "layerGeometries" : []
+    },
+    {
+      "id" : "via3",
+      "cutLayer" : { "name" : "via3", "purpose" : "drawing" },
+      "topLayer" : { "name" : "met4", "purpose" : "drawing" },
+      "bottomLayer" : { "name" : "met3", "purpose" : "drawing" },
+      "cutSize" : { "width" : 0.20, "height" : 0.20 },
+      "enclosure" : { "top" : 0.065, "bottom" : 0.065 },
+      "cutSpacing" : 0.20,
+      "layerGeometries" : []
+    }
+  ],
+  "layerRules" : [
+    { "layerID" : { "name" : "nwell", "purpose" : "drawing" }, "minWidth" : 0.84, "minSpacing" : 1.27, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "diff", "purpose" : "drawing" }, "minWidth" : 0.15, "minSpacing" : 0.27, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "tap", "purpose" : "drawing" }, "minWidth" : 0.15, "minSpacing" : 0.27, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "nsdm", "purpose" : "drawing" }, "minWidth" : 0.38, "minSpacing" : 0.38, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "psdm", "purpose" : "drawing" }, "minWidth" : 0.38, "minSpacing" : 0.38, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "poly", "purpose" : "drawing" }, "minWidth" : 0.15, "minSpacing" : 0.21, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "npc", "purpose" : "drawing" }, "minWidth" : 0.27, "minSpacing" : 0.27, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "licon1", "purpose" : "cut" }, "minWidth" : 0.17, "minSpacing" : 0.17, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "li1", "purpose" : "drawing" }, "minWidth" : 0.17, "minSpacing" : 0.17, "minArea" : 0.0561, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "mcon", "purpose" : "cut" }, "minWidth" : 0.17, "minSpacing" : 0.19, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "met1", "purpose" : "drawing" }, "minWidth" : 0.14, "minSpacing" : 0.14, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "via", "purpose" : "drawing" }, "minWidth" : 0.15, "minSpacing" : 0.17, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "met2", "purpose" : "drawing" }, "minWidth" : 0.14, "minSpacing" : 0.14, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "via2", "purpose" : "drawing" }, "minWidth" : 0.20, "minSpacing" : 0.20, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "met3", "purpose" : "drawing" }, "minWidth" : 0.30, "minSpacing" : 0.30, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "via3", "purpose" : "drawing" }, "minWidth" : 0.20, "minSpacing" : 0.20, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false },
+    { "layerID" : { "name" : "met4", "purpose" : "drawing" }, "minWidth" : 0.30, "minSpacing" : 0.30, "minArea" : 0.0, "minDensity" : 0.0, "maxDensity" : 1.0, "maskColors" : [], "requiresRectangular" : false }
+  ],
+  "derivedLayerRules" : [],
+  "spacingRules" : [],
+  "antennaRules" : [],
+  "enclosureRules" : [],
+  "extensionRules" : [],
+  "minimumCutRules" : [],
+  "exactOverlapRules" : [],
+  "forbiddenLayerRules" : [],
+  "contacts" : []
+}

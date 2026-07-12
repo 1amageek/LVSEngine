@@ -1,347 +1,336 @@
 {
-  "schemaVersion" : 1,
-  "defaultMaxDurationSeconds" : 10,
-  "qualificationPolicy" : {
-    "requiredCoverageTags" : ["lvs.bjt", "lvs.controlled-sources", "lvs.device-breadth", "lvs.device-policy", "lvs.device-policy.parallel", "lvs.device-policy.series", "lvs.diode", "lvs.diode-terminal-equivalence", "lvs.extract.cmos-inverter", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.extract.pmos", "lvs.extract.policy", "lvs.global-nets", "lvs.hierarchy", "lvs.independent-sources", "lvs.inductor", "lvs.input.cif", "lvs.input.dxf", "lvs.input.gds", "lvs.input.oasis", "lvs.match", "lvs.model-alias", "lvs.model-equivalence", "lvs.model-mismatch", "lvs.mos-source-drain-permutation", "lvs.multiplicity", "lvs.numeric-parameters", "lvs.parallel-devices", "lvs.parameter-mismatch", "lvs.passive-terminal-permutation", "lvs.port-mismatch", "lvs.series-devices", "lvs.sources", "lvs.subckt-parameter", "lvs.symmetric-terminals", "lvs.terminal-equivalence-policy", "lvs.waiver", "spice.continuation", "spice.include", "spice.inline-comment", "spice.lib", "spice.option-scale", "spice.param", "spice.param-expression"]
+  "schemaVersion": 2,
+  "defaultMaxDurationSeconds": 10,
+  "qualificationPolicy": {
+    "requiredObservedAssertions": [
+      "diagnosticRule:LVS_MODEL_MISMATCH",
+      "diagnosticRule:LVS_PARAMETER_MISMATCH",
+      "diagnosticRule:LVS_PORT_MISMATCH",
+      "durationBudget:within-budget",
+      "verdict:match",
+      "verdict:mismatch"
+    ]
   },
-  "cases" : [
+  "cases": [
     {
-      "backendID" : "native",
-      "caseID" : "matching",
-      "coverageTags" : ["layout.spice", "lvs.match"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "matching-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "matching",
+      "expectedPassed": true,
+      "layoutNetlistPath": "layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "matching-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-gds-nmos-match",
-      "coverageTags" : ["layout.gds", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.input.gds", "lvs.match"],
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "gds",
-        "kind" : "sampleProcessNMOS",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-gds-nmos-match",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "gds",
+        "kind": "sampleProcessNMOS",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "gds",
-      "layoutGDSPath" : "standard-gds-nmos.gds",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-nmos-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "gds",
+      "layoutGDSPath": "standard-gds-nmos.gds",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-nmos-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-gds-pmos-match",
-      "coverageTags" : ["layout.gds", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.pmos", "lvs.input.gds", "lvs.match"],
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "gds",
-        "kind" : "sampleProcessPMOS",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-gds-pmos-match",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "gds",
+        "kind": "sampleProcessPMOS",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "gds",
-      "layoutGDSPath" : "standard-gds-pmos.gds",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-pmos-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "gds",
+      "layoutGDSPath": "standard-gds-pmos.gds",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-pmos-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-gds-cmos-inverter-match",
-      "coverageTags" : ["layout.gds", "lvs.extract.cmos-inverter", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.extract.pmos", "lvs.input.gds", "lvs.match"],
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "gds",
-        "kind" : "sampleProcessCMOSInverter",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-gds-cmos-inverter-match",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "gds",
+        "kind": "sampleProcessCMOSInverter",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "gds",
-      "layoutGDSPath" : "standard-gds-cmos-inverter.gds",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-cmos-inverter-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "gds",
+      "layoutGDSPath": "standard-gds-cmos-inverter.gds",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-cmos-inverter-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-gds-parallel-nmos-policy-match",
-      "coverageTags" : ["layout.gds", "lvs.device-policy", "lvs.device-policy.parallel", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.extract.policy", "lvs.input.gds", "lvs.match", "lvs.multiplicity", "lvs.parallel-devices"],
-      "devicePolicyPath" : "native-gds-parallel-policy.json",
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "gds",
-        "kind" : "sampleProcessParallelNMOS",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-gds-parallel-nmos-policy-match",
+      "devicePolicyPath": "native-gds-parallel-policy.json",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "gds",
+        "kind": "sampleProcessParallelNMOS",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "gds",
-      "layoutGDSPath" : "standard-gds-parallel-nmos.gds",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-parallel-nmos-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "gds",
+      "layoutGDSPath": "standard-gds-parallel-nmos.gds",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-parallel-nmos-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-gds-series-nmos-policy-match",
-      "coverageTags" : ["layout.gds", "lvs.device-policy", "lvs.device-policy.series", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.extract.policy", "lvs.input.gds", "lvs.match", "lvs.series-devices"],
-      "devicePolicyPath" : "native-gds-series-policy.json",
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "gds",
-        "kind" : "sampleProcessSeriesNMOS",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-gds-series-nmos-policy-match",
+      "devicePolicyPath": "native-gds-series-policy.json",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "gds",
+        "kind": "sampleProcessSeriesNMOS",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "gds",
-      "layoutGDSPath" : "standard-gds-series-nmos.gds",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-series-nmos-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "gds",
+      "layoutGDSPath": "standard-gds-series-nmos.gds",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-series-nmos-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-oasis-nmos-match",
-      "coverageTags" : ["layout.oasis", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.input.oasis", "lvs.match"],
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "oasis",
-        "kind" : "sampleProcessNMOS",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-oasis-nmos-match",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "oasis",
+        "kind": "sampleProcessNMOS",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "oasis",
-      "layoutGDSPath" : "standard-oasis-nmos.oas",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-nmos-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "oasis",
+      "layoutGDSPath": "standard-oasis-nmos.oas",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-nmos-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-cif-nmos-match",
-      "coverageTags" : ["layout.cif", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.input.cif", "lvs.match"],
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "cif",
-        "kind" : "sampleProcessNMOS",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-cif-nmos-match",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "cif",
+        "kind": "sampleProcessNMOS",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "cif",
-      "layoutGDSPath" : "standard-cif-nmos.cif",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-nmos-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "cif",
+      "layoutGDSPath": "standard-cif-nmos.cif",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-nmos-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native-gds",
-      "caseID" : "standard-dxf-nmos-match",
-      "coverageTags" : ["layout.dxf", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.input.dxf", "lvs.match"],
-      "expectedPassed" : true,
-      "generatedLayoutFixture" : {
-        "format" : "dxf",
-        "kind" : "sampleProcessNMOS",
-        "technology" : "sampleProcess"
+      "backendID": "native-gds",
+      "caseID": "standard-dxf-nmos-match",
+      "expectedPassed": true,
+      "generatedLayoutFixture": {
+        "format": "dxf",
+        "kind": "sampleProcessNMOS",
+        "technology": "sampleProcess"
       },
-      "layoutFormat" : "dxf",
-      "layoutGDSPath" : "standard-dxf-nmos.dxf",
-      "oracleBackendID" : "native-gds",
-      "schematicNetlistPath" : "standard-gds-nmos-schematic.spice",
-      "topCell" : "TOP"
+      "layoutFormat": "dxf",
+      "layoutGDSPath": "standard-dxf-nmos.dxf",
+      "oracleBackendID": "native-gds",
+      "schematicNetlistPath": "standard-gds-nmos-schematic.spice",
+      "topCell": "TOP"
     },
     {
-      "backendID" : "native",
-      "caseID" : "port-mismatch",
-      "coverageTags" : ["diagnostic.rule-id", "failure.expected", "lvs.port-mismatch"],
-      "expectedActiveErrorRuleIDs" : ["LVS_PORT_MISMATCH"],
-      "expectedPassed" : false,
-      "layoutNetlistPath" : "layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "port-mismatch-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "port-mismatch",
+      "expectedActiveErrorRuleIDs": [
+        "LVS_PORT_MISMATCH"
+      ],
+      "expectedPassed": false,
+      "layoutNetlistPath": "layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "port-mismatch-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "model-mismatch",
-      "coverageTags" : ["diagnostic.rule-id", "failure.expected", "lvs.model-mismatch"],
-      "expectedActiveErrorRuleIDs" : ["LVS_MODEL_MISMATCH"],
-      "expectedPassed" : false,
-      "layoutNetlistPath" : "layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "model-mismatch-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "model-mismatch",
+      "expectedActiveErrorRuleIDs": [
+        "LVS_MODEL_MISMATCH"
+      ],
+      "expectedPassed": false,
+      "layoutNetlistPath": "layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "model-mismatch-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "parameter-mismatch",
-      "coverageTags" : ["diagnostic.rule-id", "failure.expected", "lvs.parameter-mismatch"],
-      "expectedActiveErrorRuleIDs" : ["LVS_PARAMETER_MISMATCH"],
-      "expectedPassed" : false,
-      "layoutNetlistPath" : "parameter-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "parameter-mismatch-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "parameter-mismatch",
+      "expectedActiveErrorRuleIDs": [
+        "LVS_PARAMETER_MISMATCH"
+      ],
+      "expectedPassed": false,
+      "layoutNetlistPath": "parameter-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "parameter-mismatch-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "hierarchical-model-mismatch",
-      "coverageTags" : ["diagnostic.rule-id", "failure.expected", "lvs.hierarchy", "lvs.model-mismatch.hierarchical"],
-      "expectedActiveErrorRuleIDs" : ["LVS_MODEL_MISMATCH"],
-      "expectedPassed" : false,
-      "layoutNetlistPath" : "hierarchical-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "hierarchical-mismatch-schematic.spice",
-      "topCell" : "top"
+      "backendID": "native",
+      "caseID": "hierarchical-model-mismatch",
+      "expectedActiveErrorRuleIDs": [
+        "LVS_MODEL_MISMATCH"
+      ],
+      "expectedPassed": false,
+      "layoutNetlistPath": "hierarchical-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "hierarchical-mismatch-schematic.spice",
+      "topCell": "top"
     },
     {
-      "backendID" : "native",
-      "caseID" : "subckt-parameter-mismatch",
-      "coverageTags" : ["diagnostic.rule-id", "failure.expected", "lvs.parameter-mismatch.subckt", "lvs.subckt-parameter"],
-      "expectedActiveErrorRuleIDs" : ["LVS_PARAMETER_MISMATCH"],
-      "expectedPassed" : false,
-      "layoutNetlistPath" : "subckt-parameter-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "subckt-parameter-mismatch-schematic.spice",
-      "topCell" : "top"
+      "backendID": "native",
+      "caseID": "subckt-parameter-mismatch",
+      "expectedActiveErrorRuleIDs": [
+        "LVS_PARAMETER_MISMATCH"
+      ],
+      "expectedPassed": false,
+      "layoutNetlistPath": "subckt-parameter-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "subckt-parameter-mismatch-schematic.spice",
+      "topCell": "top"
     },
     {
-      "backendID" : "native",
-      "caseID" : "symmetric-terminals",
-      "coverageTags" : ["lvs.match", "lvs.mos-source-drain-permutation", "lvs.passive-terminal-permutation", "lvs.symmetric-terminals"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "symmetric-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "symmetric-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "symmetric-terminals",
+      "expectedPassed": true,
+      "layoutNetlistPath": "symmetric-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "symmetric-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "terminal-equivalence-policy",
-      "coverageTags" : ["lvs.diode-terminal-equivalence", "lvs.match", "lvs.terminal-equivalence-policy"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "terminal-equivalence-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "terminal-equivalence-schematic.spice",
-      "terminalEquivalencePath" : "terminal-equivalence-policy.json",
-      "topCell" : "clamp"
+      "backendID": "native",
+      "caseID": "terminal-equivalence-policy",
+      "expectedPassed": true,
+      "layoutNetlistPath": "terminal-equivalence-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "terminal-equivalence-schematic.spice",
+      "terminalEquivalencePath": "terminal-equivalence-policy.json",
+      "topCell": "clamp"
     },
     {
-      "backendID" : "native",
-      "caseID" : "numeric-equivalent-parameters",
-      "coverageTags" : ["lvs.match", "lvs.numeric-parameters", "passive.numeric-equivalence", "spice.scale-suffix"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "numeric-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "numeric-equivalent-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "numeric-equivalent-parameters",
+      "expectedPassed": true,
+      "layoutNetlistPath": "numeric-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "numeric-equivalent-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "include-param-match",
-      "coverageTags" : ["lvs.match", "spice.include", "spice.param"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "include-param-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "include-param-schematic.spice",
-      "topCell" : "top"
+      "backendID": "native",
+      "caseID": "include-param-match",
+      "expectedPassed": true,
+      "layoutNetlistPath": "include-param-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "include-param-schematic.spice",
+      "topCell": "top"
     },
     {
-      "backendID" : "native",
-      "caseID" : "param-expression-match",
-      "coverageTags" : ["lvs.match", "spice.param-expression"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "param-expression-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "param-expression-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "param-expression-match",
+      "expectedPassed": true,
+      "layoutNetlistPath": "param-expression-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "param-expression-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "lib-section-match",
-      "coverageTags" : ["lvs.match", "spice.lib"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "lib-section-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "lib-section-schematic.spice",
-      "topCell" : "top"
+      "backendID": "native",
+      "caseID": "lib-section-match",
+      "expectedPassed": true,
+      "layoutNetlistPath": "lib-section-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "lib-section-schematic.spice",
+      "topCell": "top"
     },
     {
-      "backendID" : "native",
-      "caseID" : "continuation-inline-comment-match",
-      "coverageTags" : ["lvs.match", "spice.continuation", "spice.inline-comment"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "continuation-comment-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "continuation-comment-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "continuation-inline-comment-match",
+      "expectedPassed": true,
+      "layoutNetlistPath": "continuation-comment-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "continuation-comment-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "option-scale-match",
-      "coverageTags" : ["lvs.match", "spice.option-scale"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "option-scale-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "option-scale-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "option-scale-match",
+      "expectedPassed": true,
+      "layoutNetlistPath": "option-scale-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "option-scale-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "global-supply-nets",
-      "coverageTags" : ["lvs.global-nets", "lvs.match", "spice.global"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "global-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "global-schematic.spice",
-      "topCell" : "top"
+      "backendID": "native",
+      "caseID": "global-supply-nets",
+      "expectedPassed": true,
+      "layoutNetlistPath": "global-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "global-schematic.spice",
+      "topCell": "top"
     },
     {
-      "backendID" : "native",
-      "caseID" : "device-breadth",
-      "coverageTags" : ["lvs.bjt", "lvs.device-breadth", "lvs.diode", "lvs.match"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "device-breadth-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "device-breadth-schematic.spice",
-      "topCell" : "bias"
+      "backendID": "native",
+      "caseID": "device-breadth",
+      "expectedPassed": true,
+      "layoutNetlistPath": "device-breadth-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "device-breadth-schematic.spice",
+      "topCell": "bias"
     },
     {
-      "backendID" : "native",
-      "caseID" : "source-breadth",
-      "coverageTags" : ["lvs.controlled-sources", "lvs.device-breadth", "lvs.independent-sources", "lvs.inductor", "lvs.match", "lvs.sources"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "source-breadth-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "source-breadth-schematic.spice",
-      "topCell" : "mixed"
+      "backendID": "native",
+      "caseID": "source-breadth",
+      "expectedPassed": true,
+      "layoutNetlistPath": "source-breadth-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "source-breadth-schematic.spice",
+      "topCell": "mixed"
     },
     {
-      "backendID" : "native",
-      "caseID" : "multiplicity",
-      "coverageTags" : ["lvs.match", "lvs.multiplicity", "lvs.parallel-devices"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "multiplicity-layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "multiplicity-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "multiplicity",
+      "expectedPassed": true,
+      "layoutNetlistPath": "multiplicity-layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "multiplicity-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "model-equivalence",
-      "coverageTags" : ["lvs.match", "lvs.model-alias", "lvs.model-equivalence"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "model-equivalence-layout.spice",
-      "modelEquivalencePath" : "model-equivalence-policy.json",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "model-equivalence-schematic.spice",
-      "topCell" : "inv"
+      "backendID": "native",
+      "caseID": "model-equivalence",
+      "expectedPassed": true,
+      "layoutNetlistPath": "model-equivalence-layout.spice",
+      "modelEquivalencePath": "model-equivalence-policy.json",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "model-equivalence-schematic.spice",
+      "topCell": "inv"
     },
     {
-      "backendID" : "native",
-      "caseID" : "waived-model-mismatch",
-      "coverageTags" : ["lvs.model-mismatch.waived", "lvs.waiver"],
-      "expectedPassed" : true,
-      "layoutNetlistPath" : "layout.spice",
-      "oracleBackendID" : "native",
-      "schematicNetlistPath" : "model-mismatch-schematic.spice",
-      "topCell" : "inv",
-      "waiverPath" : "component-waiver.json"
+      "backendID": "native",
+      "caseID": "waived-model-mismatch",
+      "expectedPassed": false,
+      "layoutNetlistPath": "layout.spice",
+      "oracleBackendID": "native",
+      "schematicNetlistPath": "model-mismatch-schematic.spice",
+      "topCell": "inv",
+      "waiverPath": "component-waiver.json"
     }
   ]
 }

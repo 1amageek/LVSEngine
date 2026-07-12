@@ -1,8 +1,18 @@
 # LVSEngine
 
-Layout-versus-schematic engine with a protocol-composed backend model. The native
-in-process backends are the core signoff path; Netgen is an optional, headless-batch-only
-adapter kept for oracle checks and PDK-deck agreement.
+Layout-versus-schematic engine with protocol-composed backends, a canonical
+hierarchical graph, deterministic bounded matching, deck-driven physical
+extraction, and evidence-bound qualification. Backend selection is derived from
+fresh process/profile/deck-specific ToolQualification evidence. The capability
+snapshot never declares production maturity by itself. Netgen is the independent
+qualification oracle for the retained Sky130 corpus.
+
+The current production eligibility decision is deliberately narrow:
+
+| Scope | Status | Evidence |
+|---|---|---|
+| `sky130.open-pdk.digital-mos.signoff` | The exact archived binary selected by the retention index is production-eligible for Sky130 1.8 V digital-MOS physical extraction | `../ci-artifacts/signoff/lvs-production/retention-index.json` |
+| Any other process, deck digest, binary digest, algorithm, or physical device family | Blocked until separately qualified | `../docs/lvsengine-production-eligibility-decision.md` |
 
 ## Modules
 
@@ -13,10 +23,15 @@ adapter kept for oracle checks and PDK-deck agreement.
 | `LVSParsers` | Netgen report parsing into typed mismatches |
 | `LVSAdapters` | Netgen batch invocation (`lvs.tcl`), tool-gated |
 | `LVSExtractionAdapters` | LVS input preparation only: Magic layout-to-netlist extraction (`extract_lvs.tcl`) |
-| `LVSPersistence` | LVS artifact persistence and compact run summary building |
-| `LVSRuntime` | Backend registry and engine composition |
+| `LVSPersistence` | Protocol-first LVS artifact persistence and compact run summary building |
+| `LVSRuntime` | `LVSEngineRunning` protocol, backend registry, and default engine composition |
 | `LVSEngine` | Umbrella module |
 | `LVSCLICore` / `lvsengine` | Testable CLI core + executable |
+
+Library consumers depend on `LVSEngineRunning` and `LVSArtifactPersisting`; the
+provided implementations are `DefaultLVSEngine` and `LVSArtifactStore`.
+Backends and layout extraction remain independently injectable through
+`LVSBackend` and `LVSLayoutNetlistExtracting`.
 
 ## Backend IDs
 
@@ -28,10 +43,11 @@ IDs are rejected with a typed backend-selection error.
 
 Agents should use `lvsengine --capabilities --json` before selecting a backend or
 claiming release readiness. The command emits `LVSCapabilitySnapshot`, a stable
-JSON contract that lists the preferred backend, all current backends, whether a
-backend needs an external tool, supported input formats, produced artifacts,
-diagnostic coverage, corpus coverage tags, Agent-facing contracts, and open
-milestones.
+JSON contract that lists the current backends, whether a backend needs an
+external tool, supported input formats, produced artifacts, diagnostics,
+required observed corpus assertions, Agent-facing contracts, and the evidence
+binding used for backend selection. It describes implemented surfaces and
+qualification requirements, not current production eligibility.
 
 ```bash
 lvsengine --capabilities --json
@@ -39,7 +55,7 @@ lvsengine --capabilities --json
 
 The snapshot is intentionally separate from `--action-domain`: `--action-domain`
 describes executable planning operations, while `--capabilities` describes the
-trust surface and remaining capability gaps for standalone LVS.
+trust surface and evidence contract for standalone LVS.
 
 ## Foundry deck semantic inspection
 
@@ -62,12 +78,12 @@ lvsengine --foundry-deck-semantics --pdk-root ~/.volare --require-passed --json
 process-independent entry points for converting a Netgen setup deck into an
 Agent-readable `lvs-device-policy-seed`. The import preserves device names,
 inferred device families, and pin/policy declarations such as `permute`,
-`property`, and `equate pins`. `foreach dev $devices` blocks are expanded into
-concrete device-specific policy rules, so the seed can be consumed without
-re-running Tcl. Runtime cell-list selectors such as `$cell` stay unresolved in
-the static import summary because they depend on the compared netlists, then
-native LVS resolves them against observed models that also have `.subckt`
-definitions during `--device-policy` application. The companion
+`property`, `equate`, `equate pins`, `ignore class`, and `blackbox`. `foreach`
+blocks over device and circuit cell lists are expanded when their values are
+static. Runtime `regexp` selectors such as `$cell` are retained as typed
+predicates, including capture variables, then resolved against the compared
+subcircuit models during `--device-policy` application. Non-semantic Tcl control
+commands such as `catch` do not make an otherwise complete import partial. The companion
 `lvs-foundry-device-import-report` records the source lines, counts, status, and
 diagnostics.
 
@@ -145,7 +161,17 @@ summary is projected into the artifact manifest and CLI `runSummary` so Agent
 callers can gate on policy coverage without scraping full rule arrays. Runtime
 `$cell` selectors that cannot resolve to a compared subcircuit model with a
 `.subckt` definition remain in the application report instead of being silently
-treated as parity.
+treated as parity. Runtime `equate classes` / `equate pins`, circuit-scoped
+`ignore class`, Netgen `permute default` / `property default`, and named
+resistor terminals are consumed without ignored rules. Policy-aware native-GDS
+extraction also selects the SPICE geometry encoding convention that matches the
+schematic, avoiding micron-versus-suffixed-unit mismatches.
+
+Corpus cases may set `devicePolicyDeckPath` to import and audit a Netgen deck
+before native execution. The corpus persists the generated policy, import
+report, and audit, and can require `devicePolicyImport`,
+`devicePolicyApplication`, and `devicePolicyRule` observed assertions. A case
+cannot declare both `devicePolicyPath` and `devicePolicyDeckPath`.
 
 ```bash
 lvsengine \
@@ -164,9 +190,9 @@ boundary preservation, runtime `$cell` blackbox boundary preservation, and
 mixed blackbox-plus-extracted-device top cells, plus property delete / tolerance
 / parallel / series behavior and applied / ignored policy diagnostics, are
 still emitted from standard mask inputs.
-Full foundry LVS benchmark parity still needs broader device-recognition-time
-policy semantics, runtime `$cell` golden agreement, and larger native-gds golden
-cases.
+Full foundry LVS benchmark parity still needs non-digital device-recognition
+families, physical analog and hierarchical extraction qualification, broader
+device-recognition-time policy semantics, and runtime `$cell` golden agreement.
 
 ## Unsupported policy handling
 
@@ -184,21 +210,28 @@ LVS mismatches.
 
 ## Standard-input backend: `native-gds`
 
-`LayoutGDSLVSBackend` extracts devices from GDSII/OASIS/CIF/DXF mask data
-(label-driven net naming with Magic semantics — works on pin-less post-GDS
-layouts) using the same
-`LayoutVerify` extraction kernel as the layout editor, then compares against a
-reference `.subckt` netlist via `NetlistComparator`. Diagnostics separate
-`extraction.*` issues from `compare.unmatchedExtracted` / `compare.unmatchedReference`
-/ `compare.parameterMismatch`. Set `LVSRequest.technologyURL` to select it
-programmatically.
+`LayoutGDSLVSBackend` reads GDSII/OASIS/CIF/DXF mask data, materializes a
+`LayoutExtractionIR` through `LayoutLVSExtraction`, adapts it into `LVSGraph`,
+and compares it with the schematic graph through the shared deterministic
+matcher. Extraction issues, correspondence, graph transformations, and mismatch
+diagnostics retain stable source and geometry references. Set
+`LVSRequest.technologyURL` and `LVSRequest.extractionDeckURL` to select the
+process deck programmatically.
+
+The retained physical production scope is
+`sky130.open-pdk.digital-mos.signoff` at the exact deck digest recorded in the
+evidence. The 20-cell Sky130 physical matrix exercises GDS extraction. Analog
+device and hierarchy cases in the 40-case corpus qualify SPICE graph semantics;
+they do not claim analog or hierarchical physical extraction. Parser support for
+other mask formats likewise requires matching retained evidence before it is
+production eligible.
 
 ```bash
 # Native on standard inputs (mask data + tech deck + reference netlist)
-lvsengine --layout-gds design.gds --tech technology.json --schematic-netlist top.spice
+lvsengine --layout-gds design.gds --tech technology.json --extraction-deck sky130A.tech --schematic-netlist top.spice
 
 # Explicit backend override; default without --tech is netgen
-lvsengine --layout-gds design.gds --backend native-gds --tech technology.json --schematic-netlist top.spice
+lvsengine --layout-gds design.gds --backend native-gds --tech technology.json --extraction-deck sky130A.tech --schematic-netlist top.spice
 ```
 
 ## Agent-facing diagnostics
@@ -250,8 +283,9 @@ original netlist strings.
 let runSummary = LVSRunSummaryBuilder().build(result: executionResult)
 ```
 
-The summary keeps the full report as the source of truth while exposing the
-pass/fail status, active/waived mismatch counts, unused waivers, optional
+The summary keeps the full report as the source of truth while exposing typed
+execution status, verification verdict, readiness, blocking reasons,
+active/waived mismatch counts, unused waivers, optional
 extracted layout netlist path, and grouped category/signature/model/parameter
 mismatch buckets for Agent / CI / Human review.
 
@@ -277,7 +311,8 @@ an executable netlist edit candidate while still requiring LVS re-verification.
 diagnostic-level waivers before pass/fail is folded. A waived error keeps
 `severity = error`, gains `waiverID` / `waiverReason`, increments
 `diagnosticSummary.waivedErrorCount`, and no longer contributes to
-`diagnosticSummary.errorCount` or `result.passed`.
+`diagnosticSummary.errorCount`. A waiver never changes a mismatch or blocked
+verification verdict into a match.
 
 The waiver file is saved as an input artifact with a digest. The report and
 manifest both include `waiverReport`, including unused waiver IDs so stale policy
@@ -289,9 +324,10 @@ entries remain visible.
 multiple LVS cases and compare each result against expected pass/fail, active
 error rule IDs, optional oracle backend agreement (`oracleBackendID`), and
 optional duration budgets (`defaultMaxDurationSeconds` or per-case
-`maxDurationSeconds`). Cases may also declare `coverageTags`, and a corpus
-policy may require `requiredCoverageTags` so a release gate can fail when the
-corpus passes but does not cover the required capability areas. A case may also
+`maxDurationSeconds`). Cases declare typed assertion requirements. The runner
+records each assertion as `passed`, `failed`, or `blocked` with source artifact
+references, and qualification coverage is derived only from passed observations.
+A case may also
 declare a `generatedLayoutFixture` so the corpus runner writes a deterministic
 standard-layout input, such as a GDSII/OASIS/CIF/DXF file plus technology deck,
 before invoking the backend. This keeps the `native-gds` device/connectivity extraction lane
@@ -308,10 +344,18 @@ count, duration-budget pass count, primary/oracle execution failure counts,
 oracle agreement rate, and `failureCategoryCounts`. The qualification result
 records the policy, a boolean `qualified` verdict, and typed failure codes such
 as `pass_rate_below_minimum`, `duration_budget_pass_rate_below_minimum`, or
-`required_coverage_missing`, or `oracle_execution_failed`. The summary also
-includes `coverageTagCounts`. `lvsengine --corpus` uses
+`required_observed_assertion_missing`, or `oracle_execution_failed`. The summary also
+includes `observedAssertionCounts`, failed assertion count, and blocked assertion
+count. `lvsengine --corpus` uses
 `qualification.qualified` for its exit status, so Agents and CI can rely on the
 same persisted gate they review later.
+
+A mixed production corpus declares `qualificationScopeCaseID`. The referenced
+case selects the exact process/deck/build identity exported to ToolQualification.
+Other process-specific cases must have the same identity. Process-neutral
+semantic cases are accepted only when they use the same implementation ID and
+binary digest; they support matcher qualification but cannot become the selected
+physical production scope.
 Saved reports can be rechecked without rerunning the corpus:
 
 ```bash
@@ -326,6 +370,7 @@ evidence for an Agent or flow runtime config:
 ```bash
 lvsengine --evidence-from-corpus-report lvs-corpus-report.json \
   --evidence-id lvs-release-corpus \
+  --out /tmp/lvs-tool-evidence.json \
   --checked-at 2026-06-18T00:00:00Z \
   --json
 ```
@@ -349,7 +394,8 @@ lvsengine --evidence-packet-from-corpus-report lvs-corpus-report.json \
 
 `LVSEvidencePacket` includes corpus readiness, extracted layout netlist
 references, oracle comparison readiness, normalized summary views, metrics,
-structured mismatch diagnostics, confidence, coverage tags, and decision hints.
+structured mismatch diagnostics, confidence derived from observed assertions,
+and decision hints.
 It is decision material for inspection, repair planning, waiver review, or
 rerun selection; it is not a fixed flow or an automatic repair plan. A failing
 corpus report can still export a packet when retained diagnostics or extracted
@@ -367,6 +413,37 @@ external tools leave a reviewable report instead of aborting the corpus run.
 
 Corpus paths are resolved relative to the corpus spec file, which makes committed
 fixtures portable across machines and CI runners.
+
+Saved corpus reports can be audited against a same-case observed-assertion
+coverage policy:
+
+```bash
+lvsengine --audit-corpus-coverage lvs-corpus-report.json \
+  --coverage-policy coverage-policy.json \
+  --checked-at 2026-07-12T00:00:00Z \
+  --out lvs-corpus-coverage-audit.json \
+  --json
+```
+
+`LVSCorpusCoverageAuditPolicy` is a current-only schema-v2 trust contract.
+Unsupported schema versions, empty or duplicate requirement IDs, empty
+assertion sets, invalid case thresholds, and invalid freshness thresholds are
+rejected when decoded. Programmatically constructed invalid policies produce an
+incomplete audit instead of weakening the gate. Netgen device-import audit
+policies apply the same fail-closed rules to schema and count thresholds.
+
+The LVS action domain describes both engine-owned operations and the approved
+policy-repair handoff. Policy mutation, planning-problem generation, and design
+diff persistence are owned by `Xcircuite`; LVSEngine produces the diagnostics
+and typed repair hints consumed by that executor.
+
+For hierarchical standard-layout extraction, descendant labels and pins name
+their local flattened conductor nets but do not declare top-level LVS ports.
+Only labels and pins owned by the selected top cell define the top-port contract.
+Hierarchy, array, and blackbox fixtures therefore declare their externally
+visible labels on the top cell explicitly. The extractor and GDS round-trip
+tests retain a child-only label to prevent descendant-port leakage from
+regressing.
 
 The committed CLI golden corpus lives under
 `Tests/LVSCLICoreTests/Fixtures/LVSCorpus`. It covers native standard-mask
@@ -391,7 +468,7 @@ equivalence policy case that hashes the alias policy as an input artifact, a
 SPICE continuation / inline-comment case that prevents comment parameters from
 affecting comparison, and the model/signature mismatch
 accepted only through an explicit diagnostic waiver, each with a public CLI
-oracle result and required coverage tags for diode/BJT/inductor/source device
+oracle result and observed assertions for diode/BJT/inductor/source device
 breadth, standard mask input (GDSII/OASIS/CIF/DXF), NMOS/PMOS/CMOS inverter
 extraction, standard-input policy extraction, multiplicity/parallel/series-device
 equivalence, model alias policy, global nets, hierarchy, match, port mismatch, model mismatch, primitive parameter
@@ -403,19 +480,27 @@ expression evaluation, continuation-line folding, inline-comment
 stripping, and waiver behavior. The
 tight-budget fixture proves that a correctness-clean run still fails the corpus
 gate when it exceeds its declared benchmark budget. CLI tests additionally prove
-that a correctness-clean corpus fails when `requiredCoverageTags` are missing.
+that a correctness-clean corpus fails when required observed assertions are missing.
 Runtime tests additionally inject disagreeing backends to prove oracle mismatch
 fails the corpus gate.
 
 ## Result convention
 
-`result.success` means the comparison **ran**. Topology and property verdicts are
-separate diagnostics; only the fold of all of them counts as a match. A missing
-result status is never interpreted as a match.
+`result.executionStatus` records whether execution completed, while
+`result.verdict` records `match`, `mismatch`, or `blocked`. A pass requires
+completed execution, a match verdict, ready tool state, no blocking reasons, and
+no active unwaived error. Missing or uncertain state is never interpreted as a
+match.
 
 ## Build & test
 
 ```bash
-swift build
-swift test   # Netgen/Magic-gated suites skip themselves when the tools are absent
+perl -e 'alarm 180; exec @ARGV' xcodebuild build \
+  -scheme LVSEngine-Package -destination 'platform=macOS'
+perl -e 'alarm 300; exec @ARGV' xcodebuild test \
+  -scheme LVSEngine-Package -destination 'platform=macOS'
 ```
+
+Netgen/Magic-gated suites skip themselves when the tools are absent. Release
+qualification must additionally run the committed 40-case production corpus
+with the independent Netgen oracle and retain the exact executable digest.

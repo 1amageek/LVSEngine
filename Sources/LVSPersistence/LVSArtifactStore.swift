@@ -2,17 +2,7 @@ import Foundation
 import CryptoKit
 import LVSCore
 
-public struct LVSArtifactSaveResult: Sendable, Hashable {
-    public let reportURL: URL
-    public let manifestURL: URL
-
-    public init(reportURL: URL, manifestURL: URL) {
-        self.reportURL = reportURL
-        self.manifestURL = manifestURL
-    }
-}
-
-public struct LVSArtifactStore: Sendable {
+public struct LVSArtifactStore: LVSArtifactPersisting {
     public init() {}
 
     public func save(_ executionResult: LVSExecutionResult, to directory: URL) throws -> LVSArtifactSaveResult {
@@ -22,6 +12,12 @@ public struct LVSArtifactStore: Sendable {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let reportURL = directory.appending(path: "lvs-report-\(UUID().uuidString).json")
             let manifestURL = directory.appending(path: "lvs-artifact-manifest-\(UUID().uuidString).json")
+            let correspondenceURL = executionResult.correspondence.map { _ in
+                directory.appending(path: "lvs-correspondence-\(UUID().uuidString).json")
+            }
+            if let correspondence = executionResult.correspondence, let correspondenceURL {
+                try encoder.encode(correspondence).write(to: correspondenceURL, options: [.atomic])
+            }
             let storedResult = LVSExecutionResult(
                 request: executionResult.request,
                 result: executionResult.result,
@@ -29,7 +25,12 @@ public struct LVSArtifactStore: Sendable {
                 waiverReport: executionResult.waiverReport,
                 devicePolicyReport: executionResult.devicePolicyReport,
                 reportURL: reportURL,
-                artifactManifestURL: manifestURL
+                artifactManifestURL: manifestURL,
+                correspondence: executionResult.correspondence,
+                correspondenceURL: correspondenceURL,
+                extractionReportURL: executionResult.extractionReportURL,
+                transformLedgerURL: executionResult.transformLedgerURL,
+                extractionQualification: executionResult.extractionQualification
             )
             let data = try encoder.encode(storedResult)
             try data.write(to: reportURL, options: [.atomic])
@@ -38,11 +39,16 @@ public struct LVSArtifactStore: Sendable {
                 for: storedResult,
                 reportURL: reportURL,
                 manifestURL: manifestURL,
+                correspondenceURL: correspondenceURL,
                 baseDirectory: directory
             )
             let manifestData = try encoder.encode(manifest)
             try manifestData.write(to: manifestURL, options: [.atomic])
-            return LVSArtifactSaveResult(reportURL: reportURL, manifestURL: manifestURL)
+            return LVSArtifactSaveResult(
+                reportURL: reportURL,
+                manifestURL: manifestURL,
+                correspondenceURL: correspondenceURL
+            )
         } catch let error as LVSError {
             throw error
         } catch {
@@ -54,6 +60,7 @@ public struct LVSArtifactStore: Sendable {
         for executionResult: LVSExecutionResult,
         reportURL: URL,
         manifestURL: URL,
+        correspondenceURL: URL?,
         baseDirectory: URL
     ) throws -> LVSArtifactManifest {
         var inputs: [LVSArtifactRecord] = []
@@ -85,6 +92,14 @@ public struct LVSArtifactStore: Sendable {
         ))
         if let technologyURL = executionResult.request.technologyURL {
             inputs.append(try record(id: "input-technology", kind: .technology, url: technologyURL, baseDirectory: baseDirectory))
+        }
+        if let extractionDeckURL = executionResult.request.extractionDeckURL {
+            inputs.append(try record(
+                id: "input-extraction-deck",
+                kind: .extractionDeck,
+                url: extractionDeckURL,
+                baseDirectory: baseDirectory
+            ))
         }
         if let waiverURL = executionResult.request.waiverURL {
             inputs.append(try record(id: "input-waivers", kind: .waiver, url: waiverURL, baseDirectory: baseDirectory))
@@ -122,6 +137,30 @@ public struct LVSArtifactStore: Sendable {
            FileManager.default.fileExists(atPath: logURL.path(percentEncoded: false)) {
             outputs.append(try record(id: "log", kind: .log, url: logURL, baseDirectory: baseDirectory))
         }
+        if let correspondenceURL {
+            outputs.append(try record(
+                id: "lvs-correspondence",
+                kind: .correspondence,
+                url: correspondenceURL,
+                baseDirectory: baseDirectory
+            ))
+        }
+        if let extractionReportURL = executionResult.extractionReportURL {
+            outputs.append(try record(
+                id: "lvs-extraction-report",
+                kind: .extractionReport,
+                url: extractionReportURL,
+                baseDirectory: baseDirectory
+            ))
+        }
+        if let transformLedgerURL = executionResult.transformLedgerURL {
+            outputs.append(try record(
+                id: "lvs-transform-ledger",
+                kind: .transformLedger,
+                url: transformLedgerURL,
+                baseDirectory: baseDirectory
+            ))
+        }
         outputs.append(LVSArtifactRecord(
             id: "manifest",
             kind: .manifest,
@@ -134,14 +173,75 @@ public struct LVSArtifactStore: Sendable {
             generatedAt: ISO8601DateFormatter().string(from: Date()),
             backendID: executionResult.result.backendID,
             toolName: executionResult.result.toolName,
-            passed: executionResult.result.passed,
-            completed: executionResult.result.completed,
+            executionStatus: executionResult.result.executionStatus,
+            verdict: executionResult.result.verdict,
+            readiness: executionResult.result.readiness,
+            blockingReasons: executionResult.result.blockingReasons,
+            implementationIdentity: try implementationIdentity(
+                for: executionResult,
+                inputs: inputs
+            ),
+            options: executionResult.request.options,
+            normalizedResultDigest: try normalizedResultDigest(executionResult),
             inputs: inputs,
             outputs: outputs,
             diagnosticSummary: diagnosticSummary(executionResult.result.diagnostics),
             waiverReport: executionResult.waiverReport,
-            devicePolicyReport: executionResult.devicePolicyReport
+            devicePolicyReport: executionResult.devicePolicyReport,
+            extractionQualification: executionResult.extractionQualification
         )
+    }
+
+    private func implementationIdentity(
+        for executionResult: LVSExecutionResult,
+        inputs: [LVSArtifactRecord]
+    ) throws -> LVSImplementationIdentity? {
+        guard let processProfileID = executionResult.request.processProfileID,
+              let deckDigest = inputs.first(where: { $0.kind == .extractionDeck })?.sha256
+                ?? inputs.first(where: { $0.kind == .technology })?.sha256,
+              let executableURL = resolvedExecutableURL(executionResult.result.provenance) else {
+            return nil
+        }
+        let executableData = try Data(contentsOf: executableURL)
+        let binaryDigest = SHA256.hash(data: executableData)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return LVSImplementationIdentity(
+            implementationID: executionResult.result.backendID == "netgen"
+                ? "netgen-external"
+                : "lvsengine-native",
+            binaryDigest: binaryDigest,
+            algorithmVersion: "lvs-graph-v2",
+            processProfileID: processProfileID,
+            deckDigest: deckDigest
+        )
+    }
+
+    private func resolvedExecutableURL(_ provenance: LVSToolProvenance?) -> URL? {
+        guard let path = provenance?.executablePath, path != "in-process" else {
+            return Bundle.main.executableURL
+        }
+        let url = URL(filePath: path)
+        return FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) ? url : nil
+    }
+
+    private func normalizedResultDigest(_ executionResult: LVSExecutionResult) throws -> String {
+        let payload = LVSNormalizedResultPayload(
+            backendID: executionResult.result.backendID,
+            executionStatus: executionResult.result.executionStatus,
+            verdict: executionResult.result.verdict,
+            readiness: executionResult.result.readiness,
+            blockingReasons: executionResult.result.blockingReasons.sorted { $0.code < $1.code },
+            diagnostics: executionResult.result.diagnostics.sorted {
+                ($0.ruleID ?? "", $0.rawLine) < ($1.ruleID ?? "", $1.rawLine)
+            },
+            correspondence: executionResult.correspondence,
+            extractionQualification: executionResult.extractionQualification
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(payload)
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     private func diagnosticSummary(_ diagnostics: [LVSDiagnostic]) -> LVSDiagnosticSummary {

@@ -22,13 +22,14 @@ public struct LVSRunSummaryBuilder: Sendable {
             reportURL: reportURL ?? result.reportURL,
             manifestURL: result.artifactManifestURL,
             summary: LVSRunSummary(
-                status: result.result.passed ? "passed" : "failed",
+                executionStatus: result.result.executionStatus,
+                verdict: result.result.verdict,
+                readiness: result.result.readiness,
+                blockingReasons: result.result.blockingReasons,
                 backendID: result.result.backendID,
                 toolName: result.result.toolName,
                 topCell: result.request.topCell,
                 layoutInputKind: layoutInputKind(result.request),
-                passed: result.result.passed,
-                completed: result.result.completed,
                 diagnosticSummary: diagnosticSummary(result.result.diagnostics),
                 activeMismatchCount: result.result.diagnostics.filter { $0.severity == .error && !$0.isWaived }.count,
                 waivedMismatchCount: result.result.diagnostics.filter { $0.severity == .error && $0.isWaived }.count,
@@ -107,13 +108,15 @@ public struct LVSRunSummaryBuilder: Sendable {
 }
 
 public struct LVSRunSummaryReport: Sendable, Codable, Hashable {
+    public static let currentSchemaVersion = 2
+
     public let schemaVersion: Int
     public let reportURL: URL?
     public let manifestURL: URL?
     public let summary: LVSRunSummary
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = LVSRunSummaryReport.currentSchemaVersion,
         reportURL: URL?,
         manifestURL: URL?,
         summary: LVSRunSummary
@@ -123,16 +126,39 @@ public struct LVSRunSummaryReport: Sendable, Codable, Hashable {
         self.manifestURL = manifestURL
         self.summary = summary
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case reportURL
+        case manifestURL
+        case summary
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported LVS run summary schema version \(schemaVersion)."
+            )
+        }
+        reportURL = try container.decodeIfPresent(URL.self, forKey: .reportURL)
+        manifestURL = try container.decodeIfPresent(URL.self, forKey: .manifestURL)
+        summary = try container.decode(LVSRunSummary.self, forKey: .summary)
+    }
 }
 
 public struct LVSRunSummary: Sendable, Codable, Hashable {
-    public let status: String
+    public let executionStatus: LVSExecutionStatus
+    public let verdict: LVSVerificationVerdict
+    public let readiness: LVSReadinessStatus
+    public let blockingReasons: [LVSBlockingReason]
     public let backendID: String
     public let toolName: String
     public let topCell: String
     public let layoutInputKind: String
-    public let passed: Bool
-    public let completed: Bool
     public let diagnosticSummary: LVSDiagnosticSummary
     public let activeMismatchCount: Int
     public let waivedMismatchCount: Int
@@ -142,13 +168,14 @@ public struct LVSRunSummary: Sendable, Codable, Hashable {
     public let devicePolicySummary: LVSDevicePolicyRunSummary?
 
     public init(
-        status: String,
+        executionStatus: LVSExecutionStatus,
+        verdict: LVSVerificationVerdict,
+        readiness: LVSReadinessStatus,
+        blockingReasons: [LVSBlockingReason],
         backendID: String,
         toolName: String,
         topCell: String,
         layoutInputKind: String,
-        passed: Bool,
-        completed: Bool,
         diagnosticSummary: LVSDiagnosticSummary,
         activeMismatchCount: Int,
         waivedMismatchCount: Int,
@@ -157,13 +184,14 @@ public struct LVSRunSummary: Sendable, Codable, Hashable {
         unusedWaiverIDs: [String],
         devicePolicySummary: LVSDevicePolicyRunSummary? = nil
     ) {
-        self.status = status
+        self.executionStatus = executionStatus
+        self.verdict = verdict
+        self.readiness = readiness
+        self.blockingReasons = blockingReasons
         self.backendID = backendID
         self.toolName = toolName
         self.topCell = topCell
         self.layoutInputKind = layoutInputKind
-        self.passed = passed
-        self.completed = completed
         self.diagnosticSummary = diagnosticSummary
         self.activeMismatchCount = activeMismatchCount
         self.waivedMismatchCount = waivedMismatchCount

@@ -4,7 +4,7 @@ public enum LVSCorpusCoverageAuditStatus: String, Sendable, Hashable, Codable {
 }
 
 public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 1
+    public static let currentSchemaVersion = 2
 
     public let schemaVersion: Int
     public let auditID: String
@@ -12,7 +12,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
     public let policyID: String
     public let reportPath: String?
     public let summary: Summary
-    public let observedCoverageTags: [String]
+    public let observedAssertions: [String]
     public let missingRequirements: [MissingRequirement]
     public let suggestedActions: [SuggestedAction]
 
@@ -23,7 +23,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
         policyID: String,
         reportPath: String? = nil,
         summary: Summary,
-        observedCoverageTags: [String],
+        observedAssertions: [String],
         missingRequirements: [MissingRequirement] = [],
         suggestedActions: [SuggestedAction] = []
     ) {
@@ -33,7 +33,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
         self.policyID = policyID
         self.reportPath = reportPath
         self.summary = summary
-        self.observedCoverageTags = Array(Set(observedCoverageTags.filter { !$0.isEmpty })).sorted()
+        self.observedAssertions = Array(Set(observedAssertions.filter { !$0.isEmpty })).sorted()
         self.missingRequirements = missingRequirements.sorted { lhs, rhs in
             lhs.requirementID < rhs.requirementID
         }
@@ -51,9 +51,9 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
         public let requiredRequirementCount: Int
         public let satisfiedRequirementCount: Int
         public let missingRequirementCount: Int
-        public let observedCoverageTagCount: Int
-        public let requiredCoverageTagCount: Int
-        public let coveredRequiredCoverageTagCount: Int
+        public let observedAssertionCount: Int
+        public let requiredAssertionCount: Int
+        public let coveredRequiredAssertionCount: Int
         public let reportGeneratedAt: String?
         public let checkedAt: String?
         public let reportAgeSeconds: Double?
@@ -67,9 +67,9 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
             requiredRequirementCount: Int,
             satisfiedRequirementCount: Int,
             missingRequirementCount: Int,
-            observedCoverageTagCount: Int,
-            requiredCoverageTagCount: Int,
-            coveredRequiredCoverageTagCount: Int,
+            observedAssertionCount: Int,
+            requiredAssertionCount: Int,
+            coveredRequiredAssertionCount: Int,
             reportGeneratedAt: String? = nil,
             checkedAt: String? = nil,
             reportAgeSeconds: Double? = nil
@@ -82,9 +82,9 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
             self.requiredRequirementCount = requiredRequirementCount
             self.satisfiedRequirementCount = satisfiedRequirementCount
             self.missingRequirementCount = missingRequirementCount
-            self.observedCoverageTagCount = observedCoverageTagCount
-            self.requiredCoverageTagCount = requiredCoverageTagCount
-            self.coveredRequiredCoverageTagCount = coveredRequiredCoverageTagCount
+            self.observedAssertionCount = observedAssertionCount
+            self.requiredAssertionCount = requiredAssertionCount
+            self.coveredRequiredAssertionCount = coveredRequiredAssertionCount
             self.reportGeneratedAt = reportGeneratedAt
             self.checkedAt = checkedAt
             self.reportAgeSeconds = reportAgeSeconds
@@ -94,7 +94,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
     public struct MissingRequirement: Sendable, Hashable, Codable {
         public let requirementID: String
         public let title: String
-        public let missingCoverageTags: [String]
+        public let missingAssertions: [String]
         public let observedCaseCount: Int
         public let requiredCaseCount: Int
         public let reason: String
@@ -103,7 +103,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
         public init(
             requirementID: String,
             title: String,
-            missingCoverageTags: [String],
+            missingAssertions: [String],
             observedCaseCount: Int,
             requiredCaseCount: Int,
             reason: String,
@@ -111,7 +111,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
         ) {
             self.requirementID = requirementID
             self.title = title
-            self.missingCoverageTags = Array(Set(missingCoverageTags.filter { !$0.isEmpty })).sorted()
+            self.missingAssertions = Array(Set(missingAssertions.filter { !$0.isEmpty })).sorted()
             self.observedCaseCount = observedCaseCount
             self.requiredCaseCount = requiredCaseCount
             self.reason = reason

@@ -1,0 +1,5 @@
+.subckt inv in out vdd vss
+M1 vdd in out vdd pmos W=1u L=0.15u
+R1 a b 100
+C1 x y 1f
+.ends inv

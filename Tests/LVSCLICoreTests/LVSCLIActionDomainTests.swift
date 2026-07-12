@@ -15,7 +15,7 @@ extension LVSCLIOptionsTests {
 
     #expect(snapshot.schemaVersion == 1)
     #expect(snapshot.domainID == "lvs-signoff")
-    #expect(snapshot.ownerPackages == ["LVSEngine"])
+    #expect(snapshot.ownerPackages == ["LVSEngine", "Xcircuite"])
 
     let operationIDs = Set(snapshot.operations.map(\.operationID))
     #expect(operationIDs.contains("lvs.run-native"))
@@ -43,6 +43,8 @@ extension LVSCLIOptionsTests {
     #expect(policy.producedArtifacts.contains("terminal-equivalence-policy"))
     #expect(policy.producedArtifacts.contains("policy-artifact"))
     #expect(policy.verificationGates.contains("approval-gate"))
+    #expect(policy.inputRefs.contains("xcircuite-project-state-ref"))
+    #expect(policy.effects.contains("xcircuite-design-diff-written"))
 
     let waiver = try #require(snapshot.operations.first { $0.operationID == "lvs.waiver-review" })
     #expect(waiver.maturity == "implemented")

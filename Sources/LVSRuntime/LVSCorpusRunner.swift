@@ -1,11 +1,20 @@
+import CryptoKit
 import Foundation
 import LVSCore
+import LVSNetlistParsing
 import LayoutAutoGen
 import LayoutCore
 import LayoutIO
 import LayoutTech
 
 public struct LVSCorpusRunner: Sendable {
+    private struct ExecutionProbe: Sendable {
+        let status: LVSCorpusAssertionStatus
+        let observedValue: String?
+        let sourceArtifactRefs: [String]
+        let failureCode: String?
+    }
+
     private let engine: DefaultLVSEngine
 
     public init(engine: DefaultLVSEngine = DefaultLVSEngine()) {
@@ -34,10 +43,14 @@ public struct LVSCorpusRunner: Sendable {
         let specDirectory = specURL.deletingLastPathComponent()
         try validateBudget(spec.defaultMaxDurationSeconds, label: "defaultMaxDurationSeconds")
         try validateCaseIdentifiers(spec.cases)
+        try validateQualificationScopeCaseID(spec.qualificationScopeCaseID, cases: spec.cases)
 
         for corpusCase in spec.cases {
             try validateBudget(corpusCase.maxDurationSeconds, label: "\(corpusCase.caseID).maxDurationSeconds")
-            let maxDurationSeconds = corpusCase.maxDurationSeconds ?? spec.defaultMaxDurationSeconds
+            try validateHardExecutionBudget(corpusCase)
+            let maxDurationSeconds = corpusCase.hardExecutionBudget?.maximumDurationSeconds
+                ?? corpusCase.maxDurationSeconds
+                ?? spec.defaultMaxDurationSeconds
             let caseDirectory = outputDirectory
                 .appending(path: "cases")
                 .appending(path: safePathComponent(corpusCase.caseID))
@@ -91,6 +104,17 @@ public struct LVSCorpusRunner: Sendable {
                 continue
             }
             let durationSeconds = Date().timeIntervalSince(startedAt)
+            let determinismProbe = await runDeterminismProbeIfNeeded(
+                corpusCase: corpusCase,
+                request: request,
+                primaryResult: executionResult,
+                caseDirectory: caseDirectory
+            )
+            let cancellationProbe = await runCancellationProbeIfNeeded(
+                corpusCase: corpusCase,
+                request: request,
+                caseDirectory: caseDirectory
+            )
             let actualRuleIDs = activeErrorRuleIDs(in: executionResult.result.diagnostics)
             let primaryDiagnosticSummary = diagnosticSummary(executionResult.result.diagnostics)
             let primaryProvenance = provenance(for: executionResult)
@@ -106,6 +130,7 @@ public struct LVSCorpusRunner: Sendable {
                 preparedInputs: preparedInputs,
                 primaryPassed: executionResult.result.passed,
                 primaryBackendID: executionResult.result.backendID,
+                primaryImplementationIdentity: primaryProvenance?.implementationIdentity,
                 primaryActiveRuleIDs: actualRuleIDs,
                 primaryDiagnosticSummary: primaryDiagnosticSummary
             )
@@ -122,8 +147,20 @@ public struct LVSCorpusRunner: Sendable {
                 )
             }
             let oracleAgreementPassed = oracleResult?.agreementPassed ?? true
+            let observedAssertions = observedAssertions(
+                corpusCase: corpusCase,
+                executionResult: executionResult,
+                actualRuleIDs: actualRuleIDs,
+                durationSeconds: durationSeconds,
+                durationBudgetPassed: durationBudgetPassed,
+                oracleResult: oracleResult,
+                determinismProbe: determinismProbe,
+                cancellationProbe: cancellationProbe,
+                preparedInputs: preparedInputs
+            )
+            let assertionGatePassed = observedAssertions.allSatisfy { $0.status == .passed }
             let failureReasons = failureReasons(
-                expectationMatched: expectationMatched,
+                expectationMatched: expectationMatched && assertionGatePassed,
                 durationBudgetPassed: durationBudgetPassed,
                 oracleAgreementPassed: oracleAgreementPassed,
                 oracleFailureReasons: oracleResult?.failureReasons ?? [],
@@ -132,12 +169,11 @@ public struct LVSCorpusRunner: Sendable {
             )
             caseResults.append(LVSCorpusCaseResult(
                 caseID: corpusCase.caseID,
-                matched: expectationMatched && durationBudgetPassed && oracleAgreementPassed,
+                matched: expectationMatched && durationBudgetPassed && oracleAgreementPassed && assertionGatePassed,
                 expectedPassed: corpusCase.expectedPassed,
                 actualPassed: executionResult.result.passed,
                 expectedActiveErrorRuleIDs: expectedRuleIDs,
                 actualActiveErrorRuleIDs: actualRuleIDs,
-                coverageTags: corpusCase.coverageTags,
                 expectationMatched: expectationMatched,
                 durationSeconds: durationSeconds,
                 expectedMaxDurationSeconds: maxDurationSeconds,
@@ -149,7 +185,8 @@ public struct LVSCorpusRunner: Sendable {
                 extractedLayoutNetlistPath: executionResult.extractedLayoutNetlistURL?.path(percentEncoded: false),
                 primaryProvenance: primaryProvenance,
                 oracleResult: oracleResult,
-                oracleComparison: oracleComparison
+                oracleComparison: oracleComparison,
+                observedAssertions: observedAssertions
             ))
         }
 
@@ -161,6 +198,7 @@ public struct LVSCorpusRunner: Sendable {
             budgetExceededCaseCount: caseResults.filter { !$0.durationBudgetPassed }.count,
             totalDurationSeconds: caseResults.reduce(0) { $0 + $1.durationSeconds },
             runOptions: options,
+            qualificationScopeCaseID: spec.qualificationScopeCaseID,
             qualificationPolicy: spec.qualificationPolicy,
             caseResults: caseResults
         )
@@ -177,6 +215,43 @@ public struct LVSCorpusRunner: Sendable {
         guard value.isFinite, value > 0 else {
             throw LVSError.invalidInput("\(label) must be positive finite seconds")
         }
+    }
+
+    private func validateQualificationScopeCaseID(
+        _ qualificationScopeCaseID: String?,
+        cases: [LVSCorpusCase]
+    ) throws {
+        guard let qualificationScopeCaseID else { return }
+        guard !qualificationScopeCaseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LVSError.invalidInput("qualificationScopeCaseID must not be empty.")
+        }
+        guard cases.contains(where: { $0.caseID == qualificationScopeCaseID }) else {
+            throw LVSError.invalidInput(
+                "qualificationScopeCaseID does not reference a corpus case: \(qualificationScopeCaseID)"
+            )
+        }
+    }
+
+    private func validateHardExecutionBudget(_ corpusCase: LVSCorpusCase) throws {
+        guard let budget = corpusCase.hardExecutionBudget else { return }
+        guard budget.determinismRunCount > 0 else {
+            throw LVSError.invalidInput(
+                "\(corpusCase.caseID).hardExecutionBudget.determinismRunCount must be positive."
+            )
+        }
+        for (label, value) in [
+            ("maximumSearchStates", budget.maximumSearchStates),
+            ("maximumSearchDepth", budget.maximumSearchDepth),
+            ("maximumWorkingSetBytes", budget.maximumWorkingSetBytes),
+        ] where value.map({ $0 <= 0 }) == true {
+            throw LVSError.invalidInput(
+                "\(corpusCase.caseID).hardExecutionBudget.\(label) must be positive."
+            )
+        }
+        try validateBudget(
+            budget.maximumDurationSeconds,
+            label: "\(corpusCase.caseID).hardExecutionBudget.maximumDurationSeconds"
+        )
     }
 
     private func validateCaseIdentifiers(_ cases: [LVSCorpusCase]) throws {
@@ -198,6 +273,450 @@ public struct LVSCorpusRunner: Sendable {
             }
             seenDirectoryNames[directoryName] = corpusCase.caseID
         }
+    }
+
+    private func runDeterminismProbeIfNeeded(
+        corpusCase: LVSCorpusCase,
+        request: LVSRequest,
+        primaryResult: LVSExecutionResult,
+        caseDirectory: URL
+    ) async -> ExecutionProbe? {
+        let requiredRuns = corpusCase.hardExecutionBudget?.determinismRunCount ?? 1
+        let explicitlyRequired = corpusCase.requiredAssertions.contains { $0.kind == .determinism }
+        guard requiredRuns > 1 || explicitlyRequired else { return nil }
+        guard requiredRuns > 1 else {
+            return ExecutionProbe(
+                status: .passed,
+                observedValue: "runs=1;stable=true",
+                sourceArtifactRefs: primaryResult.artifactManifestURL.map {
+                    [$0.path(percentEncoded: false)]
+                } ?? [],
+                failureCode: nil
+            )
+        }
+
+        do {
+            let primaryDigest = try normalizedResultDigest(from: primaryResult)
+            var digests = [primaryDigest]
+            var artifactRefs = primaryResult.artifactManifestURL.map {
+                [$0.path(percentEncoded: false)]
+            } ?? []
+            for runIndex in 2...requiredRuns {
+                let runDirectory = caseDirectory
+                    .appending(path: "determinism")
+                    .appending(path: "run-\(runIndex)")
+                try FileManager.default.createDirectory(
+                    at: runDirectory,
+                    withIntermediateDirectories: true
+                )
+                let repeatedResult = try await engine.run(
+                    requestWithWorkingDirectory(request, workingDirectory: runDirectory)
+                )
+                digests.append(try normalizedResultDigest(from: repeatedResult))
+                if let manifestURL = repeatedResult.artifactManifestURL {
+                    artifactRefs.append(manifestURL.path(percentEncoded: false))
+                }
+            }
+            let stable = Set(digests).count == 1
+            return ExecutionProbe(
+                status: stable ? .passed : .failed,
+                observedValue: "runs=\(digests.count);stable=\(stable)",
+                sourceArtifactRefs: artifactRefs,
+                failureCode: stable ? nil : "determinism_digest_mismatch"
+            )
+        } catch {
+            return ExecutionProbe(
+                status: .blocked,
+                observedValue: nil,
+                sourceArtifactRefs: [],
+                failureCode: "determinism_probe_failed:\(executionErrorMessage(error))"
+            )
+        }
+    }
+
+    private func runCancellationProbeIfNeeded(
+        corpusCase: LVSCorpusCase,
+        request: LVSRequest,
+        caseDirectory: URL
+    ) async -> ExecutionProbe? {
+        guard corpusCase.requiredAssertions.contains(where: { $0.kind == .cancellation }) else {
+            return nil
+        }
+        let probeDirectory = caseDirectory.appending(path: "cancellation")
+        do {
+            try FileManager.default.createDirectory(
+                at: probeDirectory,
+                withIntermediateDirectories: true
+            )
+            _ = try await engine.run(
+                requestWithWorkingDirectory(request, workingDirectory: probeDirectory),
+                cancellationCheck: { true }
+            )
+            return ExecutionProbe(
+                status: .failed,
+                observedValue: "completed",
+                sourceArtifactRefs: artifactManifestPaths(in: probeDirectory),
+                failureCode: "cancellation_request_ignored"
+            )
+        } catch {
+            let cancelled: Bool
+            if let lvsError = error as? LVSError,
+               case .cancelled = lvsError {
+                cancelled = true
+            } else {
+                cancelled = error is CancellationError
+            }
+            return ExecutionProbe(
+                status: cancelled ? .passed : .failed,
+                observedValue: cancelled ? "cancelled" : "failed-with-non-cancellation-error",
+                sourceArtifactRefs: artifactManifestPaths(in: probeDirectory),
+                failureCode: cancelled ? nil : "cancellation_probe_failed:\(executionErrorMessage(error))"
+            )
+        }
+    }
+
+    private func normalizedResultDigest(from result: LVSExecutionResult) throws -> String {
+        guard let manifestURL = result.artifactManifestURL else {
+            throw LVSError.artifactWriteFailed("Determinism probe requires an LVS artifact manifest.")
+        }
+        let data = try Data(contentsOf: manifestURL)
+        let manifest = try JSONDecoder().decode(LVSArtifactManifest.self, from: data)
+        guard let digest = manifest.normalizedResultDigest,
+              !digest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LVSError.artifactWriteFailed(
+                "Determinism probe manifest does not contain normalizedResultDigest."
+            )
+        }
+        return digest
+    }
+
+    private func artifactManifestPaths(in directory: URL) -> [String] {
+        do {
+            return try FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil
+            ).filter {
+                $0.lastPathComponent.hasPrefix("lvs-artifact-manifest-")
+                    && $0.pathExtension == "json"
+            }.map { $0.path(percentEncoded: false) }.sorted()
+        } catch {
+            return []
+        }
+    }
+
+    private func requestWithWorkingDirectory(
+        _ request: LVSRequest,
+        workingDirectory: URL
+    ) -> LVSRequest {
+        LVSRequest(
+            layoutNetlistURL: request.layoutNetlistURL,
+            layoutGDSURL: request.layoutGDSURL,
+            layoutFormat: request.layoutFormat,
+            schematicNetlistURL: request.schematicNetlistURL,
+            topCell: request.topCell,
+            technologyURL: request.technologyURL,
+            extractionDeckURL: request.extractionDeckURL,
+            processProfileID: request.processProfileID,
+            waiverURL: request.waiverURL,
+            modelEquivalenceURL: request.modelEquivalenceURL,
+            terminalEquivalenceURL: request.terminalEquivalenceURL,
+            devicePolicyURL: request.devicePolicyURL,
+            workingDirectory: workingDirectory,
+            backendSelection: request.backendSelection,
+            options: request.options
+        )
+    }
+
+    private func observedAssertions(
+        corpusCase: LVSCorpusCase,
+        executionResult: LVSExecutionResult,
+        actualRuleIDs: [String],
+        durationSeconds: Double,
+        durationBudgetPassed: Bool,
+        oracleResult: LVSCorpusOracleResult?,
+        determinismProbe: ExecutionProbe?,
+        cancellationProbe: ExecutionProbe?,
+        preparedInputs: PreparedLVSCorpusInputs
+    ) -> [LVSCorpusObservedAssertion] {
+        let expectedVerdict = corpusCase.expectedVerdict
+            ?? (corpusCase.expectedPassed ? .match : .mismatch)
+        var requirements = corpusCase.requiredAssertions
+        if requirements.isEmpty {
+            requirements.append(LVSCorpusAssertionRequirement(
+                assertionID: "verdict",
+                kind: .verdict,
+                expectedValue: expectedVerdict.rawValue
+            ))
+            requirements.append(LVSCorpusAssertionRequirement(
+                assertionID: "duration-budget",
+                kind: .durationBudget,
+                expectedValue: "within-budget"
+            ))
+            requirements.append(contentsOf: corpusCase.expectedActiveErrorRuleIDs.map {
+                LVSCorpusAssertionRequirement(
+                    assertionID: "diagnostic-rule:\($0)",
+                    kind: .diagnosticRule,
+                    expectedValue: $0
+                )
+            })
+            if corpusCase.hardExecutionBudget?.determinismRunCount ?? 1 > 1 {
+                requirements.append(LVSCorpusAssertionRequirement(
+                    assertionID: "determinism",
+                    kind: .determinism,
+                    expectedValue: "stable"
+                ))
+            }
+        }
+        let artifactRefs = [
+            executionResult.reportURL,
+            executionResult.artifactManifestURL,
+            executionResult.correspondenceURL,
+            executionResult.extractionReportURL,
+            executionResult.transformLedgerURL,
+        ].compactMap { $0?.path(percentEncoded: false) }
+            + preparedInputs.devicePolicyArtifactURLs.map { $0.path(percentEncoded: false) }
+        return requirements.map { requirement in
+            let evaluation: (LVSCorpusAssertionStatus, String?, String?)
+            switch requirement.kind {
+            case .verdict:
+                let observed = executionResult.result.verdict.rawValue
+                evaluation = (
+                    observed == requirement.expectedValue ? .passed : .failed,
+                    observed,
+                    observed == requirement.expectedValue ? nil : "verdict_mismatch"
+                )
+            case .faultClass:
+                let observedClasses = Set(executionResult.result.diagnostics.compactMap {
+                    $0.category ?? $0.ruleID
+                })
+                let matched = requirement.expectedValue.map(observedClasses.contains) == true
+                evaluation = (
+                    matched ? .passed : .failed,
+                    observedClasses.sorted().joined(separator: ","),
+                    matched ? nil : "fault_class_not_observed"
+                )
+            case .readiness:
+                let observed = executionResult.result.readiness.rawValue
+                evaluation = (
+                    observed == requirement.expectedValue ? .passed : .failed,
+                    observed,
+                    observed == requirement.expectedValue ? nil : "readiness_mismatch"
+                )
+            case .diagnosticRule:
+                let matched = requirement.expectedValue.map(actualRuleIDs.contains) == true
+                evaluation = (
+                    matched ? .passed : .failed,
+                    actualRuleIDs.joined(separator: ","),
+                    matched ? nil : "diagnostic_rule_not_observed"
+                )
+            case .reportArtifact:
+                evaluation = artifactEvaluation(executionResult.reportURL, code: "report_artifact_missing")
+            case .manifestArtifact:
+                evaluation = artifactEvaluation(executionResult.artifactManifestURL, code: "manifest_artifact_missing")
+            case .correspondenceArtifact:
+                evaluation = artifactEvaluation(executionResult.correspondenceURL, code: "correspondence_artifact_missing")
+            case .extractionArtifact:
+                evaluation = artifactEvaluation(executionResult.extractionReportURL, code: "extraction_artifact_missing")
+            case .extractionProductionEligibility:
+                guard let qualification = executionResult.extractionQualification else {
+                    evaluation = (.blocked, nil, "extraction_qualification_missing")
+                    break
+                }
+                evaluation = (
+                    qualification.productionEligible ? .passed : .failed,
+                    qualification.productionEligible ? "eligible" : "ineligible",
+                    qualification.productionEligible
+                        ? nil
+                        : "extraction_production_ineligible:\(qualification.blockingReasonCodes.joined(separator: ","))"
+                )
+            case .structureClass:
+                let observed = observedStructureClass(in: executionResult)
+                guard let observed else {
+                    evaluation = (.blocked, nil, "structure_class_unavailable")
+                    break
+                }
+                evaluation = (
+                    observed == requirement.expectedValue ? .passed : .failed,
+                    observed,
+                    observed == requirement.expectedValue ? nil : "structure_class_mismatch"
+                )
+            case .hierarchyDepth:
+                guard let requiredText = requirement.expectedValue,
+                      let requiredDepth = Int(requiredText),
+                      let observedDepth = observedHierarchyDepth(in: executionResult) else {
+                    evaluation = (.blocked, nil, "hierarchy_depth_unavailable")
+                    break
+                }
+                evaluation = (
+                    observedDepth >= requiredDepth ? .passed : .failed,
+                    String(observedDepth),
+                    observedDepth >= requiredDepth ? nil : "hierarchy_depth_below_required"
+                )
+            case .oracleAgreement:
+                guard let oracleResult else {
+                    evaluation = (.blocked, nil, "oracle_result_missing")
+                    break
+                }
+                evaluation = (
+                    oracleResult.agreementPassed ? .passed : .failed,
+                    String(oracleResult.agreementPassed),
+                    oracleResult.agreementPassed ? nil : "oracle_disagreement"
+                )
+            case .oracleIndependence:
+                guard let oracleResult else {
+                    evaluation = (.blocked, nil, "oracle_result_missing")
+                    break
+                }
+                let independent = oracleResult.readinessStatus == .ready
+                evaluation = (
+                    independent ? .passed : .failed,
+                    oracleResult.readinessStatus.rawValue,
+                    independent ? nil : "oracle_not_independent"
+                )
+            case .durationBudget:
+                evaluation = (
+                    durationBudgetPassed ? .passed : .failed,
+                    String(durationSeconds),
+                    durationBudgetPassed ? nil : "duration_budget_exceeded"
+                )
+            case .searchBudget:
+                let blocked = executionResult.result.blockingReasons.contains {
+                    $0.code.contains("search") || $0.code.contains("match_budget")
+                }
+                evaluation = (blocked ? .failed : .passed, blocked ? "exceeded" : "within-budget", blocked ? "search_budget_exceeded" : nil)
+            case .memoryBudget:
+                let blocked = executionResult.result.blockingReasons.contains { $0.code.contains("memory") }
+                evaluation = (blocked ? .failed : .passed, blocked ? "exceeded" : "within-budget", blocked ? "memory_budget_exceeded" : nil)
+            case .cancellation:
+                evaluation = cancellationProbe.map {
+                    ($0.status, $0.observedValue, $0.failureCode)
+                } ?? (.blocked, nil, "cancellation_probe_not_run")
+            case .determinism:
+                evaluation = determinismProbe.map {
+                    ($0.status, $0.observedValue, $0.failureCode)
+                } ?? (.passed, "runs=1;stable=true", nil)
+            case .devicePolicyImport:
+                guard let audit = preparedInputs.devicePolicyAudit else {
+                    evaluation = (.blocked, nil, "device_policy_import_audit_missing")
+                    break
+                }
+                let observed = audit.status.rawValue
+                evaluation = (
+                    observed == requirement.expectedValue ? .passed : .failed,
+                    observed,
+                    observed == requirement.expectedValue ? nil : "device_policy_import_incomplete"
+                )
+            case .devicePolicyApplication:
+                guard let report = executionResult.devicePolicyReport else {
+                    evaluation = (.blocked, nil, "device_policy_application_report_missing")
+                    break
+                }
+                let observed = report.status.rawValue
+                evaluation = (
+                    observed == requirement.expectedValue ? .passed : .failed,
+                    observed,
+                    observed == requirement.expectedValue ? nil : "device_policy_application_incomplete"
+                )
+            case .devicePolicyRule:
+                guard let expectedKind = requirement.expectedValue,
+                      let report = executionResult.devicePolicyReport else {
+                    evaluation = (.blocked, nil, "device_policy_rule_evidence_missing")
+                    break
+                }
+                let count = report.policyRuleCountsByKind[expectedKind] ?? 0
+                evaluation = (
+                    count > 0 ? .passed : .failed,
+                    "\(expectedKind)=\(count)",
+                    count > 0 ? nil : "device_policy_rule_not_observed"
+                )
+            }
+            return LVSCorpusObservedAssertion(
+                assertionID: requirement.assertionID,
+                kind: requirement.kind,
+                status: evaluation.0,
+                expectedValue: requirement.expectedValue,
+                observedValue: evaluation.1,
+                sourceArtifactRefs: assertionArtifactRefs(
+                    baseArtifactRefs: artifactRefs,
+                    kind: requirement.kind,
+                    determinismProbe: determinismProbe,
+                    cancellationProbe: cancellationProbe
+                ),
+                failureCode: evaluation.2
+            )
+        }
+    }
+
+    private func assertionArtifactRefs(
+        baseArtifactRefs: [String],
+        kind: LVSCorpusAssertionKind,
+        determinismProbe: ExecutionProbe?,
+        cancellationProbe: ExecutionProbe?
+    ) -> [String] {
+        let refs: [String]
+        switch kind {
+        case .determinism:
+            refs = determinismProbe?.sourceArtifactRefs ?? []
+        case .cancellation:
+            refs = cancellationProbe?.sourceArtifactRefs ?? []
+        default:
+            refs = baseArtifactRefs
+        }
+        return Array(Set(refs)).sorted()
+    }
+
+    private func artifactEvaluation(
+        _ url: URL?,
+        code: String
+    ) -> (LVSCorpusAssertionStatus, String?, String?) {
+        guard let url else { return (.blocked, nil, code) }
+        let exists = FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+        return (exists ? .passed : .failed, url.path(percentEncoded: false), exists ? nil : code)
+    }
+
+    private func observedStructureClass(in executionResult: LVSExecutionResult) -> String? {
+        guard let netlists = observedNetlists(in: executionResult) else { return nil }
+        let analogKinds: Set<String> = [
+            "resistor", "capacitor", "inductor", "diode", "bjt",
+            "voltage-source", "current-source", "vcvs", "vccs", "cccs", "ccvs",
+        ]
+        let layoutKinds = Set(netlists.layout.components.map(\.kind))
+        let schematicKinds = Set(netlists.schematic.components.map(\.kind))
+        return !layoutKinds.isDisjoint(with: analogKinds)
+            && !schematicKinds.isDisjoint(with: analogKinds)
+            ? "analog"
+            : "digital"
+    }
+
+    private func observedHierarchyDepth(in executionResult: LVSExecutionResult) -> Int? {
+        guard let netlists = observedNetlists(in: executionResult) else { return nil }
+        let layoutDepth = netlists.layout.components.map(hierarchyDepth).max() ?? 0
+        let schematicDepth = netlists.schematic.components.map(hierarchyDepth).max() ?? 0
+        return min(layoutDepth, schematicDepth)
+    }
+
+    private func observedNetlists(
+        in executionResult: LVSExecutionResult
+    ) -> (layout: NativeLVSNetlist, schematic: NativeLVSNetlist)? {
+        guard let layoutURL = executionResult.request.layoutNetlistURL else { return nil }
+        do {
+            return (
+                try NativeSPICENetlistParser().parse(
+                    url: layoutURL,
+                    expectedTopCell: executionResult.request.topCell
+                ),
+                try NativeSPICENetlistParser().parse(
+                    url: executionResult.request.schematicNetlistURL,
+                    expectedTopCell: executionResult.request.topCell
+                )
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    private func hierarchyDepth(_ component: NativeLVSNetlistComponent) -> Int {
+        max(0, component.name.split(separator: "/").count - 1)
     }
 
     private func failureReasons(
@@ -243,7 +762,6 @@ public struct LVSCorpusRunner: Sendable {
             actualPassed: false,
             expectedActiveErrorRuleIDs: corpusCase.expectedActiveErrorRuleIDs.sorted(),
             actualActiveErrorRuleIDs: [],
-            coverageTags: corpusCase.coverageTags,
             expectationMatched: false,
             durationSeconds: durationSeconds,
             expectedMaxDurationSeconds: expectedMaxDurationSeconds,
@@ -265,6 +783,7 @@ public struct LVSCorpusRunner: Sendable {
         preparedInputs: PreparedLVSCorpusInputs,
         primaryPassed: Bool,
         primaryBackendID: String,
+        primaryImplementationIdentity: LVSImplementationIdentity?,
         primaryActiveRuleIDs: [String],
         primaryDiagnosticSummary: LVSDiagnosticSummary
     ) async -> LVSCorpusOracleResult? {
@@ -312,15 +831,28 @@ public struct LVSCorpusRunner: Sendable {
         let durationSeconds = Date().timeIntervalSince(startedAt)
         let oracleRuleIDs = activeErrorRuleIDs(in: executionResult.result.diagnostics)
         let oracleDiagnosticSummary = diagnosticSummary(executionResult.result.diagnostics)
-        let agreementPassed = executionResult.result.passed == primaryPassed
-            && oracleRuleIDs == primaryActiveRuleIDs
-            && oracleDiagnosticSummary == primaryDiagnosticSummary
+        let oracleProvenance = provenance(for: executionResult)
+        let independentImplementation = primaryImplementationIdentity.map { primaryIdentity in
+            oracleProvenance?.implementationIdentity?.isIndependent(from: primaryIdentity) == true
+        } ?? false
+        let passedMatched = executionResult.result.passed == primaryPassed
+        let ruleIDsMatched = oracleRuleIDs == primaryActiveRuleIDs
+        let diagnosticSummaryMatched = oracleDiagnosticSummary == primaryDiagnosticSummary
+        let enforcedRuleIDsMatched = corpusCase.oracleComparisonMode == .verdict
+            ? true
+            : ruleIDsMatched
+        let enforcedDiagnosticSummaryMatched = corpusCase.oracleComparisonMode == .strictDiagnostics
+            ? diagnosticSummaryMatched
+            : true
+        let agreementPassed = passedMatched
+            && enforcedRuleIDsMatched
+            && enforcedDiagnosticSummaryMatched
         let comparison = LVSCorpusOracleComparison(
             primaryBackendID: primaryBackendID,
             oracleBackendID: executionResult.result.backendID,
-            passedMatched: executionResult.result.passed == primaryPassed,
-            activeErrorRuleIDsMatched: oracleRuleIDs == primaryActiveRuleIDs,
-            diagnosticSummaryMatched: oracleDiagnosticSummary == primaryDiagnosticSummary,
+            passedMatched: passedMatched,
+            activeErrorRuleIDsMatched: enforcedRuleIDsMatched,
+            diagnosticSummaryMatched: enforcedDiagnosticSummaryMatched,
             primaryPassed: primaryPassed,
             oraclePassed: executionResult.result.passed,
             primaryActiveErrorRuleIDs: primaryActiveRuleIDs,
@@ -345,13 +877,17 @@ public struct LVSCorpusRunner: Sendable {
             diagnosticSummary: oracleDiagnosticSummary,
             durationSeconds: durationSeconds,
             agreementPassed: comparison.agreementPassed,
+            readinessStatus: independentImplementation ? .ready : .blocked,
+            readinessDiagnostics: independentImplementation
+                ? []
+                : ["The oracle implementation identity is missing or is not independent from the primary implementation."],
             failureReasons: comparison.mismatchReasons,
             executionError: nil,
             reportPath: executionResult.reportURL?.path(percentEncoded: false),
             manifestPath: executionResult.artifactManifestURL?.path(percentEncoded: false),
             extractedLayoutNetlistPath: executionResult.extractedLayoutNetlistURL?.path(percentEncoded: false),
             devicePolicyReport: executionResult.devicePolicyReport,
-            provenance: provenance(for: executionResult)
+            provenance: oracleProvenance
         )
     }
 
@@ -379,8 +915,18 @@ public struct LVSCorpusRunner: Sendable {
     }
 
     private func provenance(for executionResult: LVSExecutionResult) -> LVSCorpusCaseProvenance? {
+        let initialIdentity = implementationIdentity(
+            for: executionResult,
+            manifest: nil
+        )
         guard let manifestURL = executionResult.artifactManifestURL else {
-            return nil
+            return LVSCorpusCaseProvenance(
+                backendID: executionResult.result.backendID,
+                reportPath: executionResult.reportURL?.path(percentEncoded: false),
+                manifestPath: nil,
+                extractedLayoutNetlistPath: executionResult.extractedLayoutNetlistURL?.path(percentEncoded: false),
+                implementationIdentity: initialIdentity
+            )
         }
         let manifest: LVSArtifactManifest
         do {
@@ -391,7 +937,8 @@ public struct LVSCorpusRunner: Sendable {
                 backendID: executionResult.result.backendID,
                 reportPath: executionResult.reportURL?.path(percentEncoded: false),
                 manifestPath: manifestURL.path(percentEncoded: false),
-                extractedLayoutNetlistPath: executionResult.extractedLayoutNetlistURL?.path(percentEncoded: false)
+                extractedLayoutNetlistPath: executionResult.extractedLayoutNetlistURL?.path(percentEncoded: false),
+                implementationIdentity: initialIdentity
             )
         }
 
@@ -401,8 +948,76 @@ public struct LVSCorpusRunner: Sendable {
             outputArtifacts: manifest.outputs,
             reportPath: executionResult.reportURL?.path(percentEncoded: false),
             manifestPath: manifestURL.path(percentEncoded: false),
-            extractedLayoutNetlistPath: executionResult.extractedLayoutNetlistURL?.path(percentEncoded: false)
+            extractedLayoutNetlistPath: executionResult.extractedLayoutNetlistURL?.path(percentEncoded: false),
+            implementationIdentity: implementationIdentity(for: executionResult, manifest: manifest)
         )
+    }
+
+    private func implementationIdentity(
+        for executionResult: LVSExecutionResult,
+        manifest: LVSArtifactManifest?
+    ) -> LVSImplementationIdentity {
+        let backendID = executionResult.result.backendID
+        let executablePath = executionResult.result.provenance?.executablePath ?? "in-process"
+        let executableURL: URL?
+        if executablePath == "in-process" {
+            executableURL = Bundle.main.executableURL
+                ?? URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+        } else {
+            executableURL = URL(fileURLWithPath: executablePath)
+        }
+        let technologyDigest = manifest?.inputs.first { $0.kind == .technology }?.sha256
+            ?? digestIfReadable(executionResult.request.technologyURL)
+        let setupDigest = executionResult.result.provenance.flatMap {
+            digestIfReadable(URL(fileURLWithPath: $0.setupFilePath))
+        }
+        return LVSImplementationIdentity(
+            implementationID: implementationFamily(for: backendID),
+            binaryDigest: digestIfReadable(executableURL) ?? "",
+            algorithmVersion: algorithmVersion(for: backendID),
+            processProfileID: executionResult.request.processProfileID
+                ?? executionResult.extractionQualification?.processProfileID
+                ?? technologyDigest
+                ?? "process-neutral",
+            deckDigest: executionResult.extractionQualification?.deckDigest
+                ?? setupDigest
+                ?? technologyDigest
+                ?? "no-deck"
+        )
+    }
+
+    private func implementationFamily(for backendID: String) -> String {
+        switch backendID {
+        case "native", "native-gds":
+            return "lvsengine-native"
+        case "netgen":
+            return "netgen-external"
+        default:
+            return backendID
+        }
+    }
+
+    private func algorithmVersion(for backendID: String) -> String {
+        switch backendID {
+        case "native":
+            return "canonical-graph-v2"
+        case "native-gds":
+            return "layout-extraction-canonical-graph-v2"
+        case "netgen":
+            return "netgen-subprocess"
+        default:
+            return "backend-contract-v2:\(backendID)"
+        }
+    }
+
+    private func digestIfReadable(_ url: URL?) -> String? {
+        guard let url, !url.path(percentEncoded: false).isEmpty else { return nil }
+        do {
+            let data = try Data(contentsOf: url)
+            return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        } catch {
+            return nil
+        }
     }
 
     private func oracleComparison(
@@ -559,6 +1174,8 @@ public struct LVSCorpusRunner: Sendable {
             ),
             topCell: corpusCase.topCell,
             technologyURL: preparedInputs.technologyURL,
+            extractionDeckURL: preparedInputs.extractionDeckURL,
+            processProfileID: corpusCase.processProfileID,
             waiverURL: try corpusCase.waiverPath.map {
                 try resolveCorpusInputPath(
                     $0,
@@ -580,16 +1197,18 @@ public struct LVSCorpusRunner: Sendable {
                     relativeTo: specDirectory
                 )
             },
-            devicePolicyURL: try corpusCase.devicePolicyPath.map {
-                try resolveCorpusInputPath(
-                    $0,
-                    label: "\(corpusCase.caseID).devicePolicyPath",
-                    relativeTo: specDirectory
-                )
-            },
+            devicePolicyURL: backendID == "native" || backendID == "native-gds"
+                ? preparedInputs.devicePolicyURL
+                : nil,
             workingDirectory: workingDirectory,
             backendSelection: LVSBackendSelection(backendID: backendID),
-            options: LVSOptions()
+            options: LVSOptions(
+                timeoutSeconds: corpusCase.hardExecutionBudget?.maximumDurationSeconds ?? 300,
+                maximumSearchStates: corpusCase.hardExecutionBudget?.maximumSearchStates,
+                maximumGraphObjectCount: nil,
+                maximumSearchDepth: corpusCase.hardExecutionBudget?.maximumSearchDepth,
+                maximumWorkingSetBytes: corpusCase.hardExecutionBudget?.maximumWorkingSetBytes
+            )
         )
     }
 
@@ -598,6 +1217,22 @@ public struct LVSCorpusRunner: Sendable {
         label: String,
         relativeTo base: URL
     ) throws -> URL {
+        if path.hasPrefix("pdk://") {
+            guard let pdkRoot = ProcessInfo.processInfo.environment["PDK_ROOT"],
+                  !pdkRoot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw LVSError.invalidInput("\(label) requires PDK_ROOT for its pdk:// reference.")
+            }
+            let relativePath = String(path.dropFirst("pdk://".count))
+            let components = try checkedRelativePathComponents(relativePath, label: label)
+            let root = URL(filePath: pdkRoot).standardizedFileURL
+            let resolved = components.reduce(root) { partial, component in
+                partial.appending(path: component)
+            }.standardizedFileURL
+            guard resolved.path.hasPrefix(root.path + "/") else {
+                throw LVSError.invalidInput("\(label) escapes PDK_ROOT.")
+            }
+            return resolved
+        }
         let components = try checkedRelativePathComponents(path, label: label)
         return components.reduce(base) { partial, component in
             partial.appending(path: component)
@@ -609,6 +1244,11 @@ public struct LVSCorpusRunner: Sendable {
         specDirectory: URL,
         caseDirectory: URL
     ) throws -> PreparedLVSCorpusInputs {
+        let preparedDevicePolicy = try prepareDevicePolicy(
+            for: corpusCase,
+            specDirectory: specDirectory,
+            caseDirectory: caseDirectory
+        )
         guard let fixture = corpusCase.generatedLayoutFixture else {
             return PreparedLVSCorpusInputs(
                 layoutNetlistURL: try corpusCase.layoutNetlistPath.map {
@@ -632,7 +1272,17 @@ public struct LVSCorpusRunner: Sendable {
                         label: "\(corpusCase.caseID).technologyPath",
                         relativeTo: specDirectory
                     )
-                }
+                },
+                extractionDeckURL: try corpusCase.extractionDeckPath.map {
+                    try resolveCorpusInputPath(
+                        $0,
+                        label: "\(corpusCase.caseID).extractionDeckPath",
+                        relativeTo: specDirectory
+                    )
+                },
+                devicePolicyURL: preparedDevicePolicy.policyURL,
+                devicePolicyAudit: preparedDevicePolicy.audit,
+                devicePolicyArtifactURLs: preparedDevicePolicy.artifactURLs
             )
         }
 
@@ -661,7 +1311,70 @@ public struct LVSCorpusRunner: Sendable {
             layoutNetlistURL: nil,
             layoutGDSURL: layoutURL,
             layoutFormat: layoutFormat,
-            technologyURL: technologyURL
+            technologyURL: technologyURL,
+            extractionDeckURL: nil,
+            devicePolicyURL: preparedDevicePolicy.policyURL,
+            devicePolicyAudit: preparedDevicePolicy.audit,
+            devicePolicyArtifactURLs: preparedDevicePolicy.artifactURLs
+        )
+    }
+
+    private func prepareDevicePolicy(
+        for corpusCase: LVSCorpusCase,
+        specDirectory: URL,
+        caseDirectory: URL
+    ) throws -> PreparedLVSCorpusDevicePolicy {
+        if corpusCase.devicePolicyPath != nil, corpusCase.devicePolicyDeckPath != nil {
+            throw LVSError.invalidInput(
+                "\(corpusCase.caseID) cannot declare both devicePolicyPath and devicePolicyDeckPath."
+            )
+        }
+        if let path = corpusCase.devicePolicyPath {
+            let url = try resolveCorpusInputPath(
+                path,
+                label: "\(corpusCase.caseID).devicePolicyPath",
+                relativeTo: specDirectory
+            )
+            return PreparedLVSCorpusDevicePolicy(
+                policyURL: url,
+                audit: nil,
+                artifactURLs: [url]
+            )
+        }
+        guard let deckPath = corpusCase.devicePolicyDeckPath else {
+            return PreparedLVSCorpusDevicePolicy(policyURL: nil, audit: nil, artifactURLs: [])
+        }
+        let deckURL = try resolveCorpusInputPath(
+            deckPath,
+            label: "\(corpusCase.caseID).devicePolicyDeckPath",
+            relativeTo: specDirectory
+        )
+        let imported = try NetgenLVSDeviceDeckImporter.importDeviceDeck(from: deckURL)
+        let policyDirectory = caseDirectory.appending(path: "generated-device-policy")
+        try FileManager.default.createDirectory(at: policyDirectory, withIntermediateDirectories: true)
+        let policyURL = policyDirectory.appending(path: "lvs-device-policy.json")
+        let reportURL = policyDirectory.appending(path: "lvs-device-import-report.json")
+        let auditURL = policyDirectory.appending(path: "lvs-device-import-audit.json")
+        let audit = NetgenLVSDeviceDeckImportAuditor().audit(
+            seed: imported.seed,
+            report: imported.report,
+            seedPath: policyURL.path(percentEncoded: false),
+            reportPath: reportURL.path(percentEncoded: false)
+        )
+        guard imported.report.status == .complete, audit.status == .satisfied else {
+            throw LVSError.invalidInput(
+                "\(corpusCase.caseID) device policy deck did not satisfy the import gate."
+            )
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(imported.seed).write(to: policyURL, options: [.atomic])
+        try encoder.encode(imported.report).write(to: reportURL, options: [.atomic])
+        try encoder.encode(audit).write(to: auditURL, options: [.atomic])
+        return PreparedLVSCorpusDevicePolicy(
+            policyURL: policyURL,
+            audit: audit,
+            artifactURLs: [deckURL, policyURL, reportURL, auditURL]
         )
     }
 
@@ -826,6 +1539,14 @@ public struct LVSCorpusRunner: Sendable {
             name: "TOP",
             shapes: metal2Routes.flatMap(\.shapes) + sourceBulkRoutes,
             vias: metal2Routes.flatMap(\.vias),
+            labels: try ["drain": "d", "gate": "g", "source": "s"].map { pinName, netName in
+                let devicePin = try pin(pinName, in: nmos)
+                return LayoutLabel(
+                    text: netName,
+                    position: baseTransform.apply(to: devicePin.position),
+                    layer: devicePin.layer
+                )
+            },
             instances: [
                 LayoutInstance(
                     cellID: nmos.id,
@@ -1131,4 +1852,14 @@ private struct PreparedLVSCorpusInputs: Sendable {
     let layoutGDSURL: URL?
     let layoutFormat: LVSLayoutFormat?
     let technologyURL: URL?
+    let extractionDeckURL: URL?
+    let devicePolicyURL: URL?
+    let devicePolicyAudit: NetgenLVSDeviceDeckImportAudit?
+    let devicePolicyArtifactURLs: [URL]
+}
+
+private struct PreparedLVSCorpusDevicePolicy: Sendable {
+    let policyURL: URL?
+    let audit: NetgenLVSDeviceDeckImportAudit?
+    let artifactURLs: [URL]
 }

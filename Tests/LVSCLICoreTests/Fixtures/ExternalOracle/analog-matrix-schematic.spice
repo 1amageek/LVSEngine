@@ -1,0 +1,55 @@
+.subckt analog_resistor_divider input output vss
+R2 divider output 0.001
+R1 divider vss 20000
+R0 input divider 10000
+.ends analog_resistor_divider
+
+.subckt analog_rc_filter input output vss
+C0 output vss 2e-12
+R0 input output 1000
+.ends analog_rc_filter
+
+.subckt analog_rlc_network input output vss
+C0 output vss 1e-12
+L0 series output 3e-9
+R0 input series 50
+.ends analog_rlc_network
+
+.subckt analog_diode_clamp input output vdd vss
+D1 vss output sky130_fd_pr__diode_pw2nd_05v5 area=2e-12
+D0 output vdd sky130_fd_pr__diode_pd2nw_05v5 area=1e-12
+R0 input output 1000
+.ends analog_diode_clamp
+
+.subckt analog_bjt_pair input output vdd vss substrate
+Q1 vdd output vss substrate sky130_fd_pr__npn_05v5 area=2
+Q0 output input vss substrate sky130_fd_pr__npn_05v5 area=1
+.ends analog_bjt_pair
+
+.subckt analog_nmos_bias input output vdd vss
+M0 output input vss vss sky130_fd_pr__nfet_01v8 l=500n w=2u
+R0 vdd output 4000
+.ends analog_nmos_bias
+
+.subckt analog_pmos_bias input output vdd vss
+M0 output input vdd vdd sky130_fd_pr__pfet_01v8_hvt l=500n w=3u
+R0 output vss 4000
+.ends analog_pmos_bias
+
+.subckt analog_differential_pair input0 input1 output0 output1 vdd vss
+I0 bias_tail vss 10e-6
+M1 output1 input1 bias_tail vss sky130_fd_pr__nfet_01v8 l=500n w=4u
+M0 output0 input0 bias_tail vss sky130_fd_pr__nfet_01v8 l=500n w=4u
+R1 vdd output1 2000
+R0 vdd output0 2000
+.ends analog_differential_pair
+
+.subckt analog_controlled_voltage input positive negative output vss
+E0 output vss positive negative 10
+R0 input vss 1000
+.ends analog_controlled_voltage
+
+.subckt analog_controlled_current input positive negative output vss
+G0 output vss positive negative 0.001
+R0 input vss 1000
+.ends analog_controlled_current

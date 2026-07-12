@@ -89,7 +89,7 @@ public struct LVSDevicePolicySeedSummary: Sendable, Hashable, Codable {
             deviceFamilyCounts: report.deviceFamilyCounts,
             policyRuleCounts: report.policyRuleCounts,
             unresolvedPolicyRuleCount: seed.policyRules.filter {
-                $0.arguments.joined(separator: " ").contains("$")
+                !$0.unresolvedVariableNames.isEmpty
             }.count
         )
     }

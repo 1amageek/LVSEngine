@@ -6,6 +6,83 @@ import LVSRuntime
 
 @Suite("Default LVS engine")
 struct DefaultLVSEngineTests {
+    @Test func backendDeadlineIsEnforced() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "layout.spice")
+        let schematicURL = directory.appending(path: "schematic.spice")
+        try ".subckt top in out\n.ends top\n".write(
+            to: layoutURL,
+            atomically: true,
+            encoding: .utf8
+        )
+        try ".subckt top in out\n.ends top\n".write(
+            to: schematicURL,
+            atomically: true,
+            encoding: .utf8
+        )
+        let engine = DefaultLVSEngine(
+            backends: [SlowCancellableLVSBackend()],
+            layoutNetlistExtractor: nil
+        )
+
+        await #expect(throws: LVSError.self) {
+            _ = try await engine.run(LVSRequest(
+                layoutNetlistURL: layoutURL,
+                schematicNetlistURL: schematicURL,
+                topCell: "top",
+                backendSelection: LVSBackendSelection(backendID: "slow-cancellable"),
+                options: LVSOptions(timeoutSeconds: 0.01)
+            ))
+        }
+    }
+
+    @Test func nativeRunPersistsCanonicalCorrespondenceAsManifestArtifact() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "layout.spice")
+        let schematicURL = directory.appending(path: "schematic.spice")
+        try """
+        .subckt top in out
+        Rlayout in internal 1k
+        C_layout internal out 1p
+        .ends top
+        """.write(to: layoutURL, atomically: true, encoding: .utf8)
+        try """
+        .subckt top in out
+        C_schematic renamed out 1p
+        Rschematic in renamed 1k
+        .ends top
+        """.write(to: schematicURL, atomically: true, encoding: .utf8)
+
+        let execution = try await DefaultLVSEngine().run(LVSRequest(
+            layoutNetlistURL: layoutURL,
+            schematicNetlistURL: schematicURL,
+            topCell: "top",
+            workingDirectory: directory,
+            backendSelection: LVSBackendSelection(backendID: "native")
+        ))
+
+        #expect(execution.result.passed)
+        let correspondence = try #require(execution.correspondence)
+        #expect(correspondence.deviceMappings.count == 2)
+        #expect(correspondence.netMappings.count == 3)
+        let correspondenceURL = try #require(execution.correspondenceURL)
+        #expect(FileManager.default.fileExists(atPath: correspondenceURL.path(percentEncoded: false)))
+        let manifestURL = try #require(execution.artifactManifestURL)
+        let manifest = try JSONDecoder().decode(
+            LVSArtifactManifest.self,
+            from: Data(contentsOf: manifestURL)
+        )
+        #expect(manifest.schemaVersion == 2)
+        #expect(manifest.executionStatus == .completed)
+        #expect(manifest.verdict == .match)
+        #expect(manifest.readiness == .ready)
+        #expect(manifest.outputs.contains {
+            $0.id == "lvs-correspondence" && $0.kind == .correspondence && $0.sha256 != nil
+        })
+    }
+
     @Test func injectedExtractorPreparesLayoutNetlistForBackend() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutGDSURL = directory.appending(path: "inverter.gds")
@@ -30,6 +107,7 @@ struct DefaultLVSEngineTests {
         ).run(request)
 
         #expect(result.result.passed)
+        #expect(result.result.verdict == .match)
         #expect(result.extractedLayoutNetlistURL?.lastPathComponent.hasPrefix("inv.extracted") == true)
         #expect(result.request.layoutNetlistURL == directory.appending(path: "inv.extracted.spice"))
         #expect(result.reportURL?.lastPathComponent.hasPrefix("lvs-report-") == true)
@@ -338,7 +416,6 @@ struct DefaultLVSEngineTests {
           "oracleAgreementPassedCaseCount": 0,
           "oracleExecutionFailedCaseCount": 1,
           "failureCategoryCounts": {"oracle_execution_failed": 1},
-          "coverageTagCounts": {},
           "passRate": 0,
           "oracleAgreementRate": 0
         }
@@ -469,7 +546,8 @@ struct DefaultLVSEngineTests {
             backendSelection: LVSBackendSelection(backendID: "waiver-stub")
         ))
 
-        #expect(result.result.passed)
+        #expect(!result.result.passed)
+        #expect(result.result.verdict == .mismatch)
         let diagnostic = try #require(result.result.diagnostics.first)
         #expect(diagnostic.waiverID == "waive-nmos-signature")
         #expect(diagnostic.waiverReason == "Known fixture mismatch")
@@ -478,7 +556,8 @@ struct DefaultLVSEngineTests {
         #expect(waiverReport.unusedWaiverIDs == ["unused-waiver"])
         let manifestURL = try #require(result.artifactManifestURL)
         let manifest = try JSONDecoder().decode(LVSArtifactManifest.self, from: Data(contentsOf: manifestURL))
-        #expect(manifest.passed)
+        #expect(manifest.verdict != .match || manifest.readiness != .ready)
+        #expect(manifest.verdict == .mismatch)
         #expect(manifest.diagnosticSummary.errorCount == 0)
         #expect(manifest.diagnosticSummary.waivedErrorCount == 1)
         #expect(manifest.waiverReport == waiverReport)
@@ -562,6 +641,70 @@ struct DefaultLVSEngineTests {
         #expect(result.oracleResult?.provenance?.inputArtifacts.contains { $0.id == "input-layout-netlist" } == true)
     }
 
+    @Test func corpusRunnerExecutesDeterminismAndCancellationAssertions() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutNetlistURL = directory.appending(path: "layout.spice")
+        let schematicNetlistURL = directory.appending(path: "schematic.spice")
+        let specURL = directory.appending(path: "lvs-corpus.json")
+        let outputDirectory = directory.appending(path: "corpus-output")
+        let netlist = ".subckt inv in out\nR1 in out 1k\n.ends inv\n"
+        try netlist.write(to: layoutNetlistURL, atomically: true, encoding: .utf8)
+        try netlist.write(to: schematicNetlistURL, atomically: true, encoding: .utf8)
+        try writeJSON(LVSCorpusSpec(cases: [
+            LVSCorpusCase(
+                caseID: "execution-probes",
+                layoutNetlistPath: layoutNetlistURL.lastPathComponent,
+                schematicNetlistPath: schematicNetlistURL.lastPathComponent,
+                topCell: "inv",
+                backendID: "native",
+                expectedPassed: true,
+                requiredAssertions: [
+                    LVSCorpusAssertionRequirement(
+                        assertionID: "verdict",
+                        kind: .verdict,
+                        expectedValue: "match"
+                    ),
+                    LVSCorpusAssertionRequirement(
+                        assertionID: "duration",
+                        kind: .durationBudget,
+                        expectedValue: "within-budget"
+                    ),
+                    LVSCorpusAssertionRequirement(
+                        assertionID: "determinism",
+                        kind: .determinism,
+                        expectedValue: "stable"
+                    ),
+                    LVSCorpusAssertionRequirement(
+                        assertionID: "cancellation",
+                        kind: .cancellation,
+                        expectedValue: "cancelled"
+                    ),
+                ],
+                hardExecutionBudget: LVSCorpusHardExecutionBudget(
+                    maximumDurationSeconds: 5,
+                    determinismRunCount: 3
+                )
+            ),
+        ]), to: specURL)
+
+        let report = try await LVSCorpusRunner().run(
+            specURL: specURL,
+            outputDirectory: outputDirectory
+        )
+
+        #expect(report.passed)
+        let result = try #require(report.caseResults.first)
+        let determinism = try #require(result.observedAssertions.first { $0.kind == .determinism })
+        #expect(determinism.status == .passed)
+        #expect(determinism.observedValue == "runs=3;stable=true")
+        #expect(determinism.sourceArtifactRefs.count == 3)
+        let cancellation = try #require(result.observedAssertions.first { $0.kind == .cancellation })
+        #expect(cancellation.status == .passed)
+        #expect(cancellation.observedValue == "cancelled")
+        #expect(cancellation.sourceArtifactRefs.count == 1)
+    }
+
     @Test func corpusRunnerFailsWhenOracleDiagnosticSummaryDiffers() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutNetlistURL = directory.appending(path: "layout.spice")
@@ -586,7 +729,8 @@ struct DefaultLVSEngineTests {
                 topCell: "inv",
                 backendID: "warning-stub",
                 oracleBackendID: "clean-stub",
-                expectedPassed: true
+                expectedPassed: true,
+                oracleComparisonMode: .strictDiagnostics
             ),
         ]), to: specURL)
 
@@ -1024,8 +1168,9 @@ struct DefaultLVSEngineTests {
                 result: LVSResult(
                     backendID: backendID,
                     toolName: "stub-lvs",
-                    success: true,
-                    completed: true,
+                    executionStatus: .completed,
+                    verdict: .match,
+                    readiness: .ready,
                     logPath: "/tmp/stub-lvs.log",
                     provenance: LVSToolProvenance(
                         executablePath: "/bin/stub-lvs",
@@ -1048,8 +1193,9 @@ struct DefaultLVSEngineTests {
                 result: LVSResult(
                     backendID: backendID,
                     toolName: "clean-stub-lvs",
-                    success: true,
-                    completed: true,
+                    executionStatus: .completed,
+                    verdict: .match,
+                    readiness: .ready,
                     logPath: ""
                 )
             )
@@ -1065,8 +1211,9 @@ struct DefaultLVSEngineTests {
                 result: LVSResult(
                     backendID: backendID,
                     toolName: "warning-stub-lvs",
-                    success: true,
-                    completed: true,
+                    executionStatus: .completed,
+                    verdict: .match,
+                    readiness: .ready,
                     logPath: "",
                     diagnostics: [
                         LVSDiagnostic(
@@ -1091,8 +1238,9 @@ struct DefaultLVSEngineTests {
                 result: LVSResult(
                     backendID: backendID,
                     toolName: "violation-stub-lvs",
-                    success: true,
-                    completed: true,
+                    executionStatus: .completed,
+                    verdict: .mismatch,
+                    readiness: .ready,
                     logPath: "",
                     diagnostics: [
                         LVSDiagnostic(
@@ -1131,8 +1279,9 @@ struct DefaultLVSEngineTests {
                 result: LVSResult(
                     backendID: backendID,
                     toolName: "stub-gds-lvs",
-                    success: true,
-                    completed: true,
+                    executionStatus: .completed,
+                    verdict: .match,
+                    readiness: .ready,
                     logPath: "",
                     provenance: LVSToolProvenance(
                         executablePath: "in-process",
@@ -1158,8 +1307,9 @@ struct DefaultLVSEngineTests {
                 result: LVSResult(
                     backendID: backendID,
                     toolName: "waiver-stub-lvs",
-                    success: true,
-                    completed: true,
+                    executionStatus: .completed,
+                    verdict: .mismatch,
+                    readiness: .ready,
                     logPath: "",
                     diagnostics: [
                         LVSDiagnostic(
@@ -1173,6 +1323,35 @@ struct DefaultLVSEngineTests {
                             rawLine: "signature=mos|nmos|out,in,vss,vss| layout=1 schematic=0"
                         ),
                     ]
+                )
+            )
+        }
+    }
+
+    private struct SlowCancellableLVSBackend: LVSCancellableBackend {
+        let backendID = "slow-cancellable"
+
+        func run(_ request: LVSRequest) async throws -> LVSExecutionResult {
+            try await run(request, cancellationCheck: nil)
+        }
+
+        func run(
+            _ request: LVSRequest,
+            cancellationCheck: LVSExecutionCancellationCheck?
+        ) async throws -> LVSExecutionResult {
+            try await Task.sleep(for: .seconds(1))
+            if try await cancellationCheck?() == true {
+                throw LVSError.cancelled("Slow backend cancellation requested.")
+            }
+            return LVSExecutionResult(
+                request: request,
+                result: LVSResult(
+                    backendID: backendID,
+                    toolName: "slow-cancellable",
+                    executionStatus: .completed,
+                    verdict: .match,
+                    readiness: .ready,
+                    logPath: ""
                 )
             )
         }

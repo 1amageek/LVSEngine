@@ -4,7 +4,7 @@ public struct LVSActionDomainExporter: Sendable {
     public func snapshot() -> LVSActionDomainSnapshot {
         LVSActionDomainSnapshot(
             domainID: "lvs-signoff",
-            ownerPackages: ["LVSEngine"],
+            ownerPackages: ["LVSEngine", "Xcircuite"],
             operations: [
                 runNativeLVSOperation(),
                 inspectFoundryDeckSemanticsOperation(),
@@ -83,10 +83,10 @@ public struct LVSActionDomainExporter: Sendable {
             operationID: "lvs.qualify-corpus",
             maturity: "implemented",
             inputRefs: ["lvs-corpus-spec", "optional-oracle-backend"],
-            preconditions: ["corpus-spec-valid", "coverage-tags-declared"],
+            preconditions: ["corpus-spec-valid", "observed-assertion-requirements-declared"],
             effects: ["corpus-report-written", "qualification-result-produced"],
             producedArtifacts: ["lvs-corpus-report"],
-            verificationGates: ["coverage-taxonomy", "oracle-agreement", "duration-budget"],
+            verificationGates: ["same-case-observed-assertions", "oracle-agreement", "duration-budget"],
             reversible: true
         )
     }
@@ -147,9 +147,12 @@ public struct LVSActionDomainExporter: Sendable {
         LVSActionDomainOperation(
             operationID: "lvs.policy-repair",
             maturity: "implemented",
-            inputRefs: ["lvs-diagnostics", "schematic-netlist-ref"],
+            inputRefs: ["lvs-diagnostics", "schematic-netlist-ref", "xcircuite-project-state-ref"],
             preconditions: ["auditable-policy-gap", "human-approval-required"],
-            effects: ["model-or-terminal-equivalence-policy-updated", "design-diff-written"],
+            effects: [
+                "xcircuite-model-or-terminal-equivalence-policy-updated",
+                "xcircuite-design-diff-written",
+            ],
             producedArtifacts: [
                 "model-equivalence-policy",
                 "terminal-equivalence-policy",

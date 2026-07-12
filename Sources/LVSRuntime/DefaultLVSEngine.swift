@@ -5,15 +5,15 @@ import LVSAdapters
 import LVSExtractionAdapters
 import LVSPersistence
 
-public struct DefaultLVSEngine: Sendable {
+public struct DefaultLVSEngine: LVSEngineRunning {
     private let backends: [String: any LVSBackend]
     private let layoutNetlistExtractor: (any LVSLayoutNetlistExtracting)?
-    private let store: LVSArtifactStore
+    private let store: any LVSArtifactPersisting
 
     public init(
         backend: (any LVSBackend)? = NetgenLVSAdapter.locate(),
         layoutNetlistExtractor: (any LVSLayoutNetlistExtracting)? = MagicLayoutNetlistExtractor.locate(),
-        store: LVSArtifactStore = LVSArtifactStore()
+        store: any LVSArtifactPersisting = LVSArtifactStore()
     ) {
         var backends: [any LVSBackend] = [NativeLVSBackend(), LayoutGDSLVSBackend()]
         if let backend {
@@ -25,7 +25,7 @@ public struct DefaultLVSEngine: Sendable {
     public init(
         backends: [any LVSBackend],
         layoutNetlistExtractor: (any LVSLayoutNetlistExtracting)? = MagicLayoutNetlistExtractor.locate(),
-        store: LVSArtifactStore = LVSArtifactStore()
+        store: any LVSArtifactPersisting = LVSArtifactStore()
     ) {
         var backendsByID: [String: any LVSBackend] = [:]
         for backend in backends {
@@ -44,6 +44,20 @@ public struct DefaultLVSEngine: Sendable {
         _ request: LVSRequest,
         cancellationCheck: LVSExecutionCancellationCheck?
     ) async throws -> LVSExecutionResult {
+        do {
+            return try await runAttempt(request, cancellationCheck: cancellationCheck)
+        } catch {
+            if let directory = request.workingDirectory {
+                try persistFailedAttempt(error, request: request, directory: directory)
+            }
+            throw error
+        }
+    }
+
+    private func runAttempt(
+        _ request: LVSRequest,
+        cancellationCheck: LVSExecutionCancellationCheck?
+    ) async throws -> LVSExecutionResult {
         let backendID = request.backendSelection.backendID
         guard let backend = backends[backendID] else {
             throw LVSError.backendUnavailable("Unsupported LVS backend: \(request.backendSelection.backendID)")
@@ -54,12 +68,11 @@ public struct DefaultLVSEngine: Sendable {
             guard request.layoutGDSURL != nil else {
                 throw LVSError.invalidInput("native-gds LVS requires layoutGDSURL")
             }
-            var directResult: LVSExecutionResult
-            if let cancellableBackend = backend as? any LVSCancellableBackend {
-                directResult = try await cancellableBackend.run(request, cancellationCheck: cancellationCheck)
-            } else {
-                directResult = try await backend.run(request)
-            }
+            var directResult = try await runBackend(
+                backend,
+                request: request,
+                cancellationCheck: cancellationCheck
+            )
             directResult = try applyWaivers(to: directResult)
             if let directory = request.workingDirectory {
                 let artifacts = try store.save(directResult, to: directory)
@@ -70,7 +83,12 @@ public struct DefaultLVSEngine: Sendable {
                     waiverReport: directResult.waiverReport,
                     devicePolicyReport: directResult.devicePolicyReport,
                     reportURL: artifacts.reportURL,
-                    artifactManifestURL: artifacts.manifestURL
+                    artifactManifestURL: artifacts.manifestURL,
+                    correspondence: directResult.correspondence,
+                    correspondenceURL: artifacts.correspondenceURL,
+                    extractionReportURL: directResult.extractionReportURL,
+                    transformLedgerURL: directResult.transformLedgerURL,
+                    extractionQualification: directResult.extractionQualification
                 )
             }
             return directResult
@@ -88,6 +106,8 @@ public struct DefaultLVSEngine: Sendable {
             schematicNetlistURL: request.schematicNetlistURL,
             topCell: request.topCell,
             technologyURL: request.technologyURL,
+            extractionDeckURL: request.extractionDeckURL,
+            processProfileID: request.processProfileID,
             waiverURL: request.waiverURL,
             modelEquivalenceURL: request.modelEquivalenceURL,
             terminalEquivalenceURL: request.terminalEquivalenceURL,
@@ -96,12 +116,11 @@ public struct DefaultLVSEngine: Sendable {
             backendSelection: request.backendSelection,
             options: request.options
         )
-        var result: LVSExecutionResult
-        if let cancellableBackend = backend as? any LVSCancellableBackend {
-            result = try await cancellableBackend.run(comparisonRequest, cancellationCheck: cancellationCheck)
-        } else {
-            result = try await backend.run(comparisonRequest)
-        }
+        var result = try await runBackend(
+            backend,
+            request: comparisonRequest,
+            cancellationCheck: cancellationCheck
+        )
         result = try applyWaivers(to: result)
         result = LVSExecutionResult(
             request: result.request,
@@ -110,7 +129,12 @@ public struct DefaultLVSEngine: Sendable {
             waiverReport: result.waiverReport,
             devicePolicyReport: result.devicePolicyReport,
             reportURL: result.reportURL,
-            artifactManifestURL: result.artifactManifestURL
+            artifactManifestURL: result.artifactManifestURL,
+            correspondence: result.correspondence,
+            correspondenceURL: result.correspondenceURL,
+            extractionReportURL: result.extractionReportURL,
+            transformLedgerURL: result.transformLedgerURL,
+            extractionQualification: result.extractionQualification
         )
         if let directory = request.workingDirectory {
             let artifacts = try store.save(result, to: directory)
@@ -121,10 +145,126 @@ public struct DefaultLVSEngine: Sendable {
                 waiverReport: result.waiverReport,
                 devicePolicyReport: result.devicePolicyReport,
                 reportURL: artifacts.reportURL,
-                artifactManifestURL: artifacts.manifestURL
+                artifactManifestURL: artifacts.manifestURL,
+                correspondence: result.correspondence,
+                correspondenceURL: artifacts.correspondenceURL,
+                extractionReportURL: result.extractionReportURL,
+                transformLedgerURL: result.transformLedgerURL,
+                extractionQualification: result.extractionQualification
             )
         }
         return result
+    }
+
+    private func persistFailedAttempt(
+        _ error: any Error,
+        request: LVSRequest,
+        directory: URL
+    ) throws {
+        let failure = failureContract(for: error)
+        let diagnostic = LVSDiagnostic(
+            severity: .error,
+            message: error.localizedDescription,
+            ruleID: failure.reason.code,
+            category: "executionReadiness",
+            suggestedFix: "Inspect the retained request, partial artifacts, and blocking reason before resuming.",
+            rawLine: error.localizedDescription,
+            waiverDisposition: .nonWaivable
+        )
+        let result = LVSResult(
+            backendID: request.backendSelection.backendID,
+            toolName: "LVSRuntime",
+            executionStatus: failure.status,
+            verdict: .blocked,
+            readiness: .blocked,
+            blockingReasons: [failure.reason],
+            logPath: "",
+            diagnostics: [diagnostic]
+        )
+        _ = try store.save(
+            LVSExecutionResult(request: request, result: result),
+            to: directory
+        )
+    }
+
+    private func failureContract(
+        for error: any Error
+    ) -> (status: LVSExecutionStatus, reason: LVSBlockingReason) {
+        let code: String
+        let status: LVSExecutionStatus
+        if let lvsError = error as? LVSError {
+            switch lvsError {
+            case .cancelled:
+                code = "execution_cancelled"
+                status = .cancelled
+            case .timedOut:
+                code = "execution_timed_out"
+                status = .timedOut
+            case .resourceLimitExceeded:
+                code = "execution_resource_limit_exceeded"
+                status = .failed
+            case .invalidInput:
+                code = "execution_invalid_input"
+                status = .failed
+            case .backendUnavailable:
+                code = "execution_backend_unavailable"
+                status = .failed
+            case .backendFailed:
+                code = "execution_backend_failed"
+                status = .failed
+            case .artifactWriteFailed:
+                code = "execution_artifact_write_failed"
+                status = .failed
+            case .waiverApplicationFailed, .unscopedWaiver, .invalidWaiver:
+                code = "execution_waiver_failed"
+                status = .failed
+            }
+        } else if error is CancellationError {
+            code = "execution_cancelled"
+            status = .cancelled
+        } else {
+            code = "execution_failed"
+            status = .failed
+        }
+        return (
+            status,
+            LVSBlockingReason(
+                code: code,
+                message: error.localizedDescription
+            )
+        )
+    }
+
+    private func runBackend(
+        _ backend: any LVSBackend,
+        request: LVSRequest,
+        cancellationCheck: LVSExecutionCancellationCheck?
+    ) async throws -> LVSExecutionResult {
+        guard request.options.timeoutSeconds > 0 else {
+            throw LVSError.invalidInput("LVS timeoutSeconds must be greater than zero.")
+        }
+        return try await withThrowingTaskGroup(of: LVSExecutionResult.self) { group in
+            group.addTask {
+                if let cancellableBackend = backend as? any LVSCancellableBackend {
+                    return try await cancellableBackend.run(
+                        request,
+                        cancellationCheck: cancellationCheck
+                    )
+                }
+                return try await backend.run(request)
+            }
+            group.addTask {
+                try await Task.sleep(for: .seconds(request.options.timeoutSeconds))
+                throw LVSError.timedOut(
+                    "Backend \(backend.backendID) exceeded \(request.options.timeoutSeconds) seconds."
+                )
+            }
+            defer { group.cancelAll() }
+            guard let result = try await group.next() else {
+                throw LVSError.backendFailed("LVS backend produced no result.")
+            }
+            return result
+        }
     }
 
     private func resolveLayoutNetlist(
@@ -169,8 +309,10 @@ public struct DefaultLVSEngine: Sendable {
         let result = LVSResult(
             backendID: executionResult.result.backendID,
             toolName: executionResult.result.toolName,
-            success: executionResult.result.success,
-            completed: executionResult.result.completed,
+            executionStatus: executionResult.result.executionStatus,
+            verdict: executionResult.result.verdict,
+            readiness: executionResult.result.readiness,
+            blockingReasons: executionResult.result.blockingReasons,
             logPath: executionResult.result.logPath,
             diagnostics: diagnostics,
             provenance: executionResult.result.provenance
@@ -182,7 +324,12 @@ public struct DefaultLVSEngine: Sendable {
             waiverReport: review.applicationReport,
             devicePolicyReport: executionResult.devicePolicyReport,
             reportURL: executionResult.reportURL,
-            artifactManifestURL: executionResult.artifactManifestURL
+            artifactManifestURL: executionResult.artifactManifestURL,
+            correspondence: executionResult.correspondence,
+            correspondenceURL: executionResult.correspondenceURL,
+            extractionReportURL: executionResult.extractionReportURL,
+            transformLedgerURL: executionResult.transformLedgerURL,
+            extractionQualification: executionResult.extractionQualification
         )
     }
 

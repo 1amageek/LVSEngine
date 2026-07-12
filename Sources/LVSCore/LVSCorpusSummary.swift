@@ -8,7 +8,9 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
     public let oracleReadinessBlockedCaseCount: Int
     public let failureCategoryCounts: [String: Int]
     public let disagreementClassCounts: [String: Int]
-    public let coverageTagCounts: [String: Int]
+    public let observedAssertionCounts: [String: Int]
+    public let failedAssertionCount: Int
+    public let blockedAssertionCount: Int
     public let passRate: Double
     public let oracleAgreementRate: Double?
 
@@ -22,7 +24,9 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
         case oracleReadinessBlockedCaseCount
         case failureCategoryCounts
         case disagreementClassCounts
-        case coverageTagCounts
+        case observedAssertionCounts
+        case failedAssertionCount
+        case blockedAssertionCount
         case passRate
         case oracleAgreementRate
     }
@@ -37,7 +41,9 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
         oracleReadinessBlockedCaseCount: Int = 0,
         failureCategoryCounts: [String: Int],
         disagreementClassCounts: [String: Int] = [:],
-        coverageTagCounts: [String: Int] = [:],
+        observedAssertionCounts: [String: Int] = [:],
+        failedAssertionCount: Int = 0,
+        blockedAssertionCount: Int = 0,
         passRate: Double,
         oracleAgreementRate: Double?
     ) {
@@ -50,7 +56,9 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
         self.oracleReadinessBlockedCaseCount = oracleReadinessBlockedCaseCount
         self.failureCategoryCounts = failureCategoryCounts
         self.disagreementClassCounts = disagreementClassCounts
-        self.coverageTagCounts = coverageTagCounts
+        self.observedAssertionCounts = observedAssertionCounts
+        self.failedAssertionCount = failedAssertionCount
+        self.blockedAssertionCount = blockedAssertionCount
         self.passRate = passRate
         self.oracleAgreementRate = oracleAgreementRate
     }
@@ -68,7 +76,9 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
             oracleReadinessBlockedCaseCount: oracleResults.filter { $0.readinessStatus == .blocked }.count,
             failureCategoryCounts: Self.failureCategoryCounts(in: caseResults),
             disagreementClassCounts: Self.disagreementClassCounts(in: caseResults),
-            coverageTagCounts: Self.coverageTagCounts(in: caseResults),
+            observedAssertionCounts: Self.observedAssertionCounts(in: caseResults),
+            failedAssertionCount: caseResults.flatMap(\.observedAssertions).filter { $0.status == .failed }.count,
+            blockedAssertionCount: caseResults.flatMap(\.observedAssertions).filter { $0.status == .blocked }.count,
             passRate: caseCount == 0 ? 0 : Double(caseResults.filter(\.matched).count) / Double(caseCount),
             oracleAgreementRate: oracleResults.isEmpty
                 ? nil
@@ -87,7 +97,12 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
         oracleReadinessBlockedCaseCount = try container.decode(Int.self, forKey: .oracleReadinessBlockedCaseCount)
         failureCategoryCounts = try container.decode([String: Int].self, forKey: .failureCategoryCounts)
         disagreementClassCounts = try container.decode([String: Int].self, forKey: .disagreementClassCounts)
-        coverageTagCounts = try container.decode([String: Int].self, forKey: .coverageTagCounts)
+        observedAssertionCounts = try container.decodeIfPresent(
+            [String: Int].self,
+            forKey: .observedAssertionCounts
+        ) ?? [:]
+        failedAssertionCount = try container.decodeIfPresent(Int.self, forKey: .failedAssertionCount) ?? 0
+        blockedAssertionCount = try container.decodeIfPresent(Int.self, forKey: .blockedAssertionCount) ?? 0
         passRate = try container.decode(Double.self, forKey: .passRate)
         oracleAgreementRate = try container.decodeIfPresent(Double.self, forKey: .oracleAgreementRate)
     }
@@ -110,10 +125,13 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
         return counts
     }
 
-    private static func coverageTagCounts(in caseResults: [LVSCorpusCaseResult]) -> [String: Int] {
+    private static func observedAssertionCounts(
+        in caseResults: [LVSCorpusCaseResult]
+    ) -> [String: Int] {
         var counts: [String: Int] = [:]
-        for tag in caseResults.flatMap(\.coverageTags) {
-            counts[tag, default: 0] += 1
+        for assertion in caseResults.flatMap(\.observedAssertions)
+            where assertion.status == .passed {
+            counts[assertion.coverageKey, default: 0] += 1
         }
         return counts
     }

@@ -5,6 +5,7 @@ public struct LVSCorpusCaseProvenance: Sendable, Hashable, Codable {
     public let reportPath: String?
     public let manifestPath: String?
     public let extractedLayoutNetlistPath: String?
+    public let implementationIdentity: LVSImplementationIdentity?
 
     public init(
         backendID: String,
@@ -12,7 +13,8 @@ public struct LVSCorpusCaseProvenance: Sendable, Hashable, Codable {
         outputArtifacts: [LVSArtifactRecord] = [],
         reportPath: String?,
         manifestPath: String?,
-        extractedLayoutNetlistPath: String?
+        extractedLayoutNetlistPath: String?,
+        implementationIdentity: LVSImplementationIdentity? = nil
     ) {
         self.backendID = backendID
         self.inputArtifacts = inputArtifacts
@@ -20,5 +22,6 @@ public struct LVSCorpusCaseProvenance: Sendable, Hashable, Codable {
         self.reportPath = reportPath
         self.manifestPath = manifestPath
         self.extractedLayoutNetlistPath = extractedLayoutNetlistPath
+        self.implementationIdentity = implementationIdentity
     }
 }

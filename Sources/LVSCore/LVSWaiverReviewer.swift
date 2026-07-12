@@ -29,7 +29,19 @@ public struct LVSWaiverReviewer: Sendable {
         var unmatchedDiagnostics: [LVSWaiverReviewReport.UnmatchedDiagnostic] = []
         var appliedWaivers: [LVSAppliedWaiver] = []
 
-        for (index, diagnostic) in diagnostics.enumerated() where diagnostic.severity == .error && !diagnostic.isWaived {
+        for (index, diagnostic) in diagnostics.enumerated()
+        where diagnostic.severity == .error && !diagnostic.isWaived {
+            guard diagnostic.effectiveWaiverDisposition == .waivable else {
+                unmatchedDiagnostics.append(LVSWaiverReviewReport.UnmatchedDiagnostic(
+                    diagnosticIndex: index,
+                    ruleID: diagnostic.ruleID,
+                    category: diagnostic.category,
+                    componentSignature: diagnostic.componentSignature,
+                    diagnosticMessage: diagnostic.message,
+                    suggestedFix: diagnostic.suggestedFix
+                ))
+                continue
+            }
             guard let waiver = waiverFile.waivers.first(where: { matches(diagnostic: diagnostic, waiver: $0) }) else {
                 unmatchedDiagnostics.append(LVSWaiverReviewReport.UnmatchedDiagnostic(
                     diagnosticIndex: index,
@@ -89,6 +101,7 @@ public struct LVSWaiverReviewer: Sendable {
         return diagnostics.map { diagnostic in
             guard diagnostic.severity == .error,
                   !diagnostic.isWaived,
+                  diagnostic.effectiveWaiverDisposition == .waivable,
                   let waiver = waiverFile.waivers.first(where: { matches(diagnostic: diagnostic, waiver: $0) }) else {
                 return diagnostic
             }

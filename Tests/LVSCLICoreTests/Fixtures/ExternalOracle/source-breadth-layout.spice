@@ -1,0 +1,9 @@
+.subckt mixed in out ctrl ctrlb vdd vss sense
+L1 out in 1n TOL=5
+VBIAS vdd vss 1.2
+IREF out vss DC 10u
+E1 out vss ctrl ctrlb 10
+G1 in vss ctrl ctrlb 1m
+F1 out vss VBIAS 2
+H1 sense vss VBIAS 500
+.ends mixed

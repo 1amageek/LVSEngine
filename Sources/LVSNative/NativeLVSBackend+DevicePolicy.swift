@@ -7,6 +7,8 @@ extension NativeLVSBackend {
         let terminalPolicy: LVSTerminalEquivalencePolicy?
         let modelEquivalence: [String: String]
         let parameterPolicy: LVSParameterComparisonPolicy
+        let ignoredLayoutModels: Set<String>
+        let ignoredSchematicModels: Set<String>
         let report: LVSDevicePolicyApplicationReport?
         let diagnostics: [LVSDiagnostic]
     }
@@ -14,6 +16,21 @@ extension NativeLVSBackend {
     private struct EquatePinDevicePair: Sendable, Hashable {
         let circuit1: NetgenLVSDeviceDescriptor
         let circuit2: NetgenLVSDeviceDescriptor
+    }
+
+    private struct CircuitModelPair: Sendable, Hashable {
+        let circuit1Model: String
+        let circuit2Model: String
+    }
+
+    private struct CircuitModelTarget: Sendable, Hashable {
+        let circuit: Int
+        let model: String
+    }
+
+    private struct RuntimePolicyResolution: Sendable, Hashable {
+        let rules: [NetgenLVSPolicyRule]
+        let failureReason: String?
     }
 
     func loadDevicePolicySeed(from url: URL?) throws -> NetgenLVSDevicePolicySeed? {
@@ -39,6 +56,8 @@ extension NativeLVSBackend {
                 terminalPolicy: nil,
                 modelEquivalence: [:],
                 parameterPolicy: .empty,
+                ignoredLayoutModels: [],
+                ignoredSchematicModels: [],
                 report: nil,
                 diagnostics: []
             )
@@ -63,6 +82,14 @@ extension NativeLVSBackend {
         let observedModels = Set((layout.components + schematic.components).map {
             normalizedPolicyName($0.normalizedModel)
         })
+        let layoutObservedModels = Set(layout.components.map {
+            normalizedPolicyName($0.normalizedModel)
+        }).union(layout.runtimeCellModels.map(normalizedPolicyName))
+        let schematicObservedModels = Set(schematic.components.map {
+            normalizedPolicyName($0.normalizedModel)
+        }).union(schematic.runtimeCellModels.map(normalizedPolicyName))
+        let layoutRuntimeCellModels = Set(layout.runtimeCellModels.map(normalizedPolicyName))
+        let schematicRuntimeCellModels = Set(schematic.runtimeCellModels.map(normalizedPolicyName))
         let runtimeCellModels = Set((layout.runtimeCellModels + schematic.runtimeCellModels).map(normalizedPolicyName))
         let observedPolicyModels = observedModels.union(runtimeCellModels)
         let observedDevices = seed.devices.filter { observedModels.contains(normalizedPolicyName($0.deviceName)) }
@@ -73,11 +100,151 @@ extension NativeLVSBackend {
         var parallelPolicyByModel: [String: LVSParallelComparisonPolicy] = [:]
         var seriesPolicyByModel: [String: LVSSeriesComparisonPolicy] = [:]
         var blackboxedModels: Set<String> = []
+        var ignoredLayoutModels: Set<String> = []
+        var ignoredSchematicModels: Set<String> = []
         var appliedRules: [LVSDevicePolicyAppliedRule] = []
         var ignoredRules: [LVSDevicePolicyIgnoredRule] = []
         var unobservedRules: [LVSDevicePolicyUnobservedRule] = []
 
-        for rule in seed.policyRules {
+        for sourceRule in seed.policyRules {
+            let resolution = resolveRuntimePolicyRule(
+                sourceRule,
+                layoutRuntimeCellModels: layoutRuntimeCellModels,
+                schematicRuntimeCellModels: schematicRuntimeCellModels
+            )
+            if let failureReason = resolution.failureReason {
+                ignoredRules.append(ignoredPolicyRule(
+                    sourceRule,
+                    reasonCode: "invalid-runtime-selector",
+                    message: failureReason
+                ))
+                continue
+            }
+            guard !resolution.rules.isEmpty else {
+                unobservedRules.append(unobservedPolicyRule(
+                    sourceRule,
+                    reasonCode: "runtime-selector-target-not-observed",
+                    message: "The Netgen runtime selector matched no compared subcircuit model.",
+                    targetModels: []
+                ))
+                continue
+            }
+            for rule in resolution.rules {
+            if rule.kind == "permute", isPermuteDefault(rule.arguments) {
+                appliedRules.append(LVSDevicePolicyAppliedRule(
+                    kind: "permute-default",
+                    model: nil,
+                    family: nil,
+                    propertyMode: "native-default",
+                    sourceLineNumber: rule.sourceLineNumber,
+                    sourceLine: rule.sourceLine
+                ))
+                continue
+            }
+            if rule.kind == "property", let globalMode = globalPropertyMode(rule.arguments) {
+                appliedRules.append(LVSDevicePolicyAppliedRule(
+                    kind: "property-default",
+                    model: nil,
+                    family: nil,
+                    propertyMode: globalMode,
+                    sourceLineNumber: rule.sourceLineNumber,
+                    sourceLine: rule.sourceLine
+                ))
+                continue
+            }
+            if rule.kind == "ignore-class" {
+                let targets = circuitModelTargets(in: rule.arguments)
+                guard !targets.isEmpty else {
+                    ignoredRules.append(ignoredPolicyRule(
+                        rule,
+                        reasonCode: "unsupported-ignore-class-arguments",
+                        message: "Netgen ignore class policy did not contain a circuit-scoped model selector."
+                    ))
+                    continue
+                }
+                var observedTargetCount = 0
+                var unobservedTargets: [String] = []
+                for target in targets {
+                    let normalizedModel = normalizedPolicyName(target.model)
+                    switch target.circuit {
+                    case 1 where layoutObservedModels.contains(normalizedModel):
+                        ignoredLayoutModels.insert(normalizedModel)
+                        observedTargetCount += 1
+                    case 2 where schematicObservedModels.contains(normalizedModel):
+                        ignoredSchematicModels.insert(normalizedModel)
+                        observedTargetCount += 1
+                    default:
+                        unobservedTargets.append(normalizedModel)
+                        continue
+                    }
+                    appliedRules.append(LVSDevicePolicyAppliedRule(
+                        kind: "ignore-class",
+                        model: normalizedModel,
+                        family: "cell",
+                        propertyMode: "circuit\(target.circuit)",
+                        sourceLineNumber: rule.sourceLineNumber,
+                        sourceLine: rule.sourceLine
+                    ))
+                }
+                if !unobservedTargets.isEmpty {
+                    unobservedRules.append(unobservedPolicyRule(
+                        rule,
+                        reasonCode: "selector-target-not-observed",
+                        message: "Netgen ignore class policy resolved to model(s) not observed on the selected circuit side.",
+                        targetModels: unobservedTargets
+                    ))
+                }
+                if observedTargetCount == 0 { continue }
+                continue
+            }
+
+            if rule.kind == "equate" {
+                guard let pair = circuitModelPair(in: rule.arguments, command: "classes") else {
+                    ignoredRules.append(ignoredPolicyRule(
+                        rule,
+                        reasonCode: "unsupported-equate-classes-arguments",
+                        message: "Netgen equate classes policy did not contain concrete circuit1 and circuit2 model selectors."
+                    ))
+                    continue
+                }
+                guard layoutObservedModels.contains(pair.circuit1Model),
+                      schematicObservedModels.contains(pair.circuit2Model) else {
+                    unobservedRules.append(unobservedPolicyRule(
+                        rule,
+                        reasonCode: "selector-target-not-observed",
+                        message: "Netgen equate classes policy resolved to a pair not observed on both circuit sides.",
+                        targetModels: [pair.circuit1Model, pair.circuit2Model]
+                    ))
+                    continue
+                }
+                guard mergeModelEquivalenceAlias(
+                    alias: pair.circuit1Model,
+                    canonical: pair.circuit1Model,
+                    into: &modelEquivalenceByModel
+                ), mergeModelEquivalenceAlias(
+                    alias: pair.circuit2Model,
+                    canonical: pair.circuit1Model,
+                    into: &modelEquivalenceByModel
+                ) else {
+                    ignoredRules.append(ignoredPolicyRule(
+                        rule,
+                        reasonCode: "conflicting-equate-classes-model-equivalence",
+                        message: "Netgen equate classes policy conflicts with another model-equivalence rule."
+                    ))
+                    continue
+                }
+                appliedRules.append(LVSDevicePolicyAppliedRule(
+                    kind: "equate-classes",
+                    model: pair.circuit1Model,
+                    pairedModel: pair.circuit2Model,
+                    family: "cell",
+                    propertyMode: "class-name",
+                    sourceLineNumber: rule.sourceLineNumber,
+                    sourceLine: rule.sourceLine
+                ))
+                continue
+            }
+
             if rule.kind == "property" {
                 let targetDevices = concreteTargetDevices(
                     in: rule.arguments,
@@ -280,6 +447,46 @@ extension NativeLVSBackend {
             }
 
             if rule.kind == "equate-pins" {
+                if let runtimePair = circuitModelPair(in: rule.arguments, command: "pins"),
+                   devicesByName[runtimePair.circuit1Model] == nil,
+                   devicesByName[runtimePair.circuit2Model] == nil {
+                    guard layoutObservedModels.contains(runtimePair.circuit1Model),
+                          schematicObservedModels.contains(runtimePair.circuit2Model) else {
+                        unobservedRules.append(unobservedPolicyRule(
+                            rule,
+                            reasonCode: "selector-target-not-observed",
+                            message: "Netgen equate pins policy resolved to a runtime cell pair not observed on both circuit sides.",
+                            targetModels: [runtimePair.circuit1Model, runtimePair.circuit2Model]
+                        ))
+                        continue
+                    }
+                    guard mergeModelEquivalenceAlias(
+                        alias: runtimePair.circuit1Model,
+                        canonical: runtimePair.circuit1Model,
+                        into: &modelEquivalenceByModel
+                    ), mergeModelEquivalenceAlias(
+                        alias: runtimePair.circuit2Model,
+                        canonical: runtimePair.circuit1Model,
+                        into: &modelEquivalenceByModel
+                    ) else {
+                        ignoredRules.append(ignoredPolicyRule(
+                            rule,
+                            reasonCode: "conflicting-equate-pins-model-equivalence",
+                            message: "Netgen runtime equate pins policy conflicts with another model-equivalence rule."
+                        ))
+                        continue
+                    }
+                    appliedRules.append(LVSDevicePolicyAppliedRule(
+                        kind: "equate-pins",
+                        model: runtimePair.circuit1Model,
+                        pairedModel: runtimePair.circuit2Model,
+                        family: "cell",
+                        propertyMode: "pin-order",
+                        sourceLineNumber: rule.sourceLineNumber,
+                        sourceLine: rule.sourceLine
+                    ))
+                    continue
+                }
                 guard let pair = equatePinDevicePair(in: rule.arguments, devicesByName: devicesByName) else {
                     ignoredRules.append(ignoredPolicyRule(
                         rule,
@@ -351,15 +558,6 @@ extension NativeLVSBackend {
                 continue
             }
 
-            let pinGroup = numericPinGroup(in: rule.arguments)
-            guard pinGroup.count >= 2 else {
-                ignoredRules.append(ignoredPolicyRule(
-                    rule,
-                    reasonCode: "unsupported-permute-arguments",
-                    message: "Netgen permute policy did not contain at least two one-based pin indexes."
-                ))
-                continue
-            }
             let targetDevices = concreteTargetDevices(in: rule.arguments, devicesByName: devicesByName)
             guard !targetDevices.isEmpty else {
                 ignoredRules.append(ignoredPolicyRule(
@@ -388,6 +586,15 @@ extension NativeLVSBackend {
             }
 
             for device in observedTargetDevices {
+                let pinGroup = policyPinGroup(in: rule.arguments, family: device.family)
+                guard pinGroup.count >= 2 else {
+                    ignoredRules.append(ignoredPolicyRule(
+                        rule,
+                        reasonCode: "unsupported-permute-arguments",
+                        message: "Netgen permute policy did not contain a supported numeric or family pin group."
+                    ))
+                    continue
+                }
                 guard let nativeKind = nativeComponentKind(for: device.family) else {
                     ignoredRules.append(ignoredPolicyRule(
                         rule,
@@ -409,6 +616,7 @@ extension NativeLVSBackend {
                     sourceLineNumber: rule.sourceLineNumber,
                     sourceLine: rule.sourceLine
                 ))
+            }
             }
         }
 
@@ -453,6 +661,8 @@ extension NativeLVSBackend {
                 seriesPolicyByModel: seriesPolicyByModel,
                 blackboxedModels: blackboxedModels
             ),
+            ignoredLayoutModels: ignoredLayoutModels,
+            ignoredSchematicModels: ignoredSchematicModels,
             report: report,
             diagnostics: diagnostics
         )
@@ -596,13 +806,140 @@ extension NativeLVSBackend {
         }
     }
 
-    private func numericPinGroup(in arguments: [String]) -> [Int] {
-        selectorTokens(in: arguments).compactMap { token in
+    private func resolveRuntimePolicyRule(
+        _ rule: NetgenLVSPolicyRule,
+        layoutRuntimeCellModels: Set<String>,
+        schematicRuntimeCellModels: Set<String>
+    ) -> RuntimePolicyResolution {
+        guard let predicate = rule.runtimePredicate else {
+            return RuntimePolicyResolution(rules: [rule], failureReason: nil)
+        }
+        let expression: NSRegularExpression
+        do {
+            expression = try NSRegularExpression(pattern: predicate.pattern)
+        } catch {
+            return RuntimePolicyResolution(
+                rules: [],
+                failureReason: "Netgen runtime selector regex is invalid: \(error.localizedDescription)"
+            )
+        }
+        let argumentsText = rule.arguments.joined(separator: " ").lowercased()
+        let variableToken = "$\(predicate.variableName.lowercased())"
+        let usesCircuit1 = argumentsText.contains("-circuit1 \(variableToken)")
+        let usesCircuit2 = argumentsText.contains("-circuit2 \(variableToken)")
+        let candidates: Set<String>
+        if usesCircuit1, !usesCircuit2 {
+            candidates = layoutRuntimeCellModels
+        } else if usesCircuit2, !usesCircuit1 {
+            candidates = schematicRuntimeCellModels
+        } else {
+            candidates = layoutRuntimeCellModels.union(schematicRuntimeCellModels)
+        }
+        var resolvedRules: [NetgenLVSPolicyRule] = []
+        for candidate in candidates.sorted() {
+            let range = NSRange(candidate.startIndex..<candidate.endIndex, in: candidate)
+            guard let match = expression.firstMatch(in: candidate, range: range) else {
+                continue
+            }
+            var bindings = [predicate.variableName: candidate]
+            for (offset, variableName) in predicate.captureVariableNames.enumerated() {
+                let captureIndex = offset + 1
+                guard captureIndex < match.numberOfRanges,
+                      let captureRange = Range(match.range(at: captureIndex), in: candidate) else {
+                    continue
+                }
+                bindings[variableName] = String(candidate[captureRange])
+            }
+            resolvedRules.append(NetgenLVSPolicyRule(
+                kind: rule.kind,
+                arguments: rule.arguments.map { substituteRuntimeBindings(bindings, in: $0) },
+                sourceLineNumber: rule.sourceLineNumber,
+                sourceLine: substituteRuntimeBindings(bindings, in: rule.sourceLine)
+            ))
+        }
+        return RuntimePolicyResolution(rules: resolvedRules, failureReason: nil)
+    }
+
+    private func substituteRuntimeBindings(
+        _ bindings: [String: String],
+        in value: String
+    ) -> String {
+        bindings.keys.sorted { $0.count > $1.count }.reduce(value) { result, variableName in
+            guard let replacement = bindings[variableName] else { return result }
+            return result
+                .replacingOccurrences(of: "${\(variableName)}", with: replacement)
+                .replacingOccurrences(of: "$\(variableName)", with: replacement)
+        }
+    }
+
+    private func circuitModelTargets(in arguments: [String]) -> [CircuitModelTarget] {
+        let tokens = flattenedPolicyTokens(in: arguments).map(cleanPolicyToken)
+        var targets: [CircuitModelTarget] = []
+        var index = tokens.startIndex
+        while index < tokens.endIndex {
+            let token = tokens[index].lowercased()
+            let valueIndex = tokens.index(after: index)
+            if token == "-circuit1", valueIndex < tokens.endIndex {
+                targets.append(CircuitModelTarget(circuit: 1, model: normalizedPolicyName(tokens[valueIndex])))
+                index = tokens.index(after: valueIndex)
+                continue
+            }
+            if token == "-circuit2", valueIndex < tokens.endIndex {
+                targets.append(CircuitModelTarget(circuit: 2, model: normalizedPolicyName(tokens[valueIndex])))
+                index = tokens.index(after: valueIndex)
+                continue
+            }
+            index = valueIndex
+        }
+        return targets.filter { !$0.model.isEmpty && !$0.model.contains("$") }
+    }
+
+    private func circuitModelPair(
+        in arguments: [String],
+        command: String
+    ) -> CircuitModelPair? {
+        let tokens = flattenedPolicyTokens(in: arguments).map(cleanPolicyToken)
+        guard tokens.contains(where: { $0.lowercased() == command }) else { return nil }
+        let targets = circuitModelTargets(in: arguments)
+        guard let circuit1 = targets.first(where: { $0.circuit == 1 }),
+              let circuit2 = targets.first(where: { $0.circuit == 2 }) else {
+            return nil
+        }
+        return CircuitModelPair(
+            circuit1Model: normalizedPolicyName(circuit1.model),
+            circuit2Model: normalizedPolicyName(circuit2.model)
+        )
+    }
+
+    private func cleanPolicyToken(_ token: String) -> String {
+        token.trimmingCharacters(in: CharacterSet(charactersIn: "\"'{}"))
+    }
+
+    private func policyPinGroup(in arguments: [String], family: String) -> [Int] {
+        let tokens: [String] = selectorTokens(in: arguments)
+        let numericPins: [Int] = tokens.compactMap { token -> Int? in
             guard let value = Int(token), value > 0 else {
                 return nil
             }
             return value - 1
         }
+        if numericPins.count >= 2 { return numericPins }
+        let namedPins = Set(tokens.map { $0.lowercased() })
+        if family == "resistor", namedPins.isSuperset(of: ["end_a", "end_b"]) {
+            return [0, 1]
+        }
+        return []
+    }
+
+    private func isPermuteDefault(_ arguments: [String]) -> Bool {
+        flattenedPolicyTokens(in: arguments).map(cleanPolicyToken).map { $0.lowercased() } == ["default"]
+    }
+
+    private func globalPropertyMode(_ arguments: [String]) -> String? {
+        let tokens = flattenedPolicyTokens(in: arguments).map(cleanPolicyToken).map { $0.lowercased() }
+        if tokens == ["default"] { return "native-default" }
+        if tokens == ["parallel", "none"] { return "parallel-disabled" }
+        return nil
     }
 
     private func concreteTargetDevices(
@@ -625,10 +962,20 @@ extension NativeLVSBackend {
         }
         for token in selectorTokens(in: arguments) {
             let normalized = normalizedPolicyName(token)
-            guard let device = devicesByName[normalized],
-                  !seen.contains(normalized) else {
+            guard !seen.contains(normalized) else {
                 continue
             }
+            if runtimeCellModels.contains(normalized) {
+                seen.insert(normalized)
+                devices.append(NetgenLVSDeviceDescriptor(
+                    deviceName: normalized,
+                    family: "cell",
+                    sourceLineNumber: 0,
+                    sourceLine: "resolved runtime selector"
+                ))
+                continue
+            }
+            guard let device = devicesByName[normalized] else { continue }
             seen.insert(normalized)
             devices.append(device)
         }
@@ -687,7 +1034,13 @@ extension NativeLVSBackend {
             result[normalizedPolicyName(device.deviceName)] = device
         }
         var result: Set<String> = []
-        for rule in seed.policyRules {
+        for sourceRule in seed.policyRules {
+            let resolution = resolveRuntimePolicyRule(
+                sourceRule,
+                layoutRuntimeCellModels: runtimeCellModels,
+                schematicRuntimeCellModels: runtimeCellModels
+            )
+            for rule in resolution.rules {
             if rule.kind == "property",
                propertyCommand(in: rule.arguments) == "blackbox" {
                 result.formUnion(concreteTargetDevices(
@@ -704,6 +1057,12 @@ extension NativeLVSBackend {
                     result.formUnion(runtimeCellModels)
                 }
                 result.formUnion(blackboxModelNames(in: rule.arguments))
+            }
+            if rule.kind == "ignore-class" {
+                result.formUnion(circuitModelTargets(in: rule.arguments).map {
+                    normalizedPolicyName($0.model)
+                })
+            }
             }
         }
         return result
@@ -938,6 +1297,17 @@ extension NativeLVSBackend {
 
     private func devicePolicyDiagnostics(report: LVSDevicePolicyApplicationReport) -> [LVSDiagnostic] {
         var diagnostics: [LVSDiagnostic] = []
+        if report.status != .complete {
+            diagnostics.append(LVSDiagnostic(
+                severity: .error,
+                message: "LVS device policy application is \(report.status.rawValue); equivalence is not established.",
+                ruleID: "LVS_DEVICE_POLICY_\(report.status.rawValue.uppercased())",
+                category: "devicePolicyReadiness",
+                suggestedFix: "Resolve every ignored or unsupported policy rule before relying on native LVS.",
+                rawLine: "policy=\(report.policyPath) status=\(report.status.rawValue)",
+                waiverDisposition: .nonWaivable
+            ))
+        }
         if report.appliedRuleCount > 0 {
             diagnostics.append(LVSDiagnostic(
                 severity: .info,

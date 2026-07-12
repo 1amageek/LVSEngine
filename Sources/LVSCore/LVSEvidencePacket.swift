@@ -1,12 +1,14 @@
 import Foundation
 
 public struct LVSEvidencePacket: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 1
+    public static let currentSchemaVersion = 2
 
     public let schemaVersion: Int
     public let packetID: String
     public let domain: String
     public let subject: LVSEvidenceSubject
+    public let qualificationScope: LVSImplementationIdentity?
+    public let oracleScopes: [LVSImplementationIdentity]?
     public let intent: LVSEvidenceIntent
     public let inputs: [LVSEvidenceArtifactRef]
     public let readiness: [LVSEvidenceReadiness]
@@ -16,7 +18,7 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
     public let diagnostics: [LVSEvidenceDiagnostic]
     public let confidence: LVSEvidenceConfidence
     public let decisionHints: [LVSEvidenceDecisionHint]
-    public let coverageTags: [String]
+    public let observedAssertions: [String]
     public let relatedEvidenceIDs: [String]
 
     public init(
@@ -24,6 +26,8 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
         packetID: String,
         domain: String,
         subject: LVSEvidenceSubject,
+        qualificationScope: LVSImplementationIdentity? = nil,
+        oracleScopes: [LVSImplementationIdentity]? = nil,
         intent: LVSEvidenceIntent,
         inputs: [LVSEvidenceArtifactRef] = [],
         readiness: [LVSEvidenceReadiness] = [],
@@ -33,13 +37,15 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
         diagnostics: [LVSEvidenceDiagnostic] = [],
         confidence: LVSEvidenceConfidence,
         decisionHints: [LVSEvidenceDecisionHint] = [],
-        coverageTags: [String] = [],
+        observedAssertions: [String] = [],
         relatedEvidenceIDs: [String] = []
     ) {
         self.schemaVersion = schemaVersion
         self.packetID = packetID
         self.domain = domain
         self.subject = subject
+        self.qualificationScope = qualificationScope
+        self.oracleScopes = oracleScopes
         self.intent = intent
         self.inputs = inputs
         self.readiness = readiness
@@ -49,19 +55,56 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
         self.diagnostics = diagnostics
         self.confidence = confidence
         self.decisionHints = decisionHints
-        self.coverageTags = Array(Set(coverageTags.filter { !$0.isEmpty })).sorted()
+        self.observedAssertions = Array(Set(observedAssertions.filter { !$0.isEmpty })).sorted()
         self.relatedEvidenceIDs = Array(Set(relatedEvidenceIDs.filter { !$0.isEmpty })).sorted()
     }
 
     public func validateIntegrity() -> [LVSEvidenceIntegrityIssue] {
         var issues: [LVSEvidenceIntegrityIssue] = []
         appendRequiredFieldIssues(&issues)
+        appendQualificationScopeIssues(&issues)
         appendArtifactIssues(&issues)
         appendMetricIssues(&issues)
         appendDiagnosticIssues(&issues)
         appendDecisionHintIssues(&issues)
         appendConfidenceIssues(&issues)
         return issues
+    }
+
+    private func appendQualificationScopeIssues(_ issues: inout [LVSEvidenceIntegrityIssue]) {
+        if let qualificationScope, !qualificationScope.isComplete {
+            issues.append(.issue(
+                code: "lvs_evidence_qualification_scope_incomplete",
+                fieldPath: "qualificationScope",
+                message: "LVS evidence qualification scope must include implementation, build, algorithm, process, and deck identity.",
+                suggestedActions: ["regenerate_lvs_evidence_packet", "inspect_lvs_implementation_identity"]
+            ))
+        }
+        if let oracleScopes,
+           oracleScopes.contains(where: { !$0.isComplete }) {
+            issues.append(.issue(
+                code: "lvs_evidence_oracle_scope_incomplete",
+                fieldPath: "oracleScopes",
+                message: "Every LVS oracle scope must include implementation, build, algorithm, process, and deck identity.",
+                suggestedActions: ["regenerate_lvs_evidence_packet", "inspect_lvs_oracle_identity"]
+            ))
+        }
+        if confidence.level == .high, qualificationScope == nil {
+            issues.append(.issue(
+                code: "lvs_evidence_high_confidence_scope_missing",
+                fieldPath: "qualificationScope",
+                message: "High-confidence LVS evidence requires a complete qualification scope.",
+                suggestedActions: ["regenerate_lvs_evidence_packet", "retain_lvs_implementation_identity"]
+            ))
+        }
+        if confidence.level == .high, oracleScopes?.isEmpty != false {
+            issues.append(.issue(
+                code: "lvs_evidence_high_confidence_oracle_scope_missing",
+                fieldPath: "oracleScopes",
+                message: "High-confidence LVS evidence requires at least one independent oracle scope.",
+                suggestedActions: ["run_lvs_corpus_with_independent_oracle", "regenerate_lvs_evidence_packet"]
+            ))
+        }
     }
 
     private func appendRequiredFieldIssues(_ issues: inout [LVSEvidenceIntegrityIssue]) {

@@ -8,14 +8,38 @@ extension LVSCLIOptionsTests {
     let options = try LVSCorpusEvidenceCLIOptions(arguments: [
       "--evidence-from-corpus-report", "/tmp/lvs-corpus-report.json",
       "--evidence-id", "lvs-release-corpus",
+      "--out", "/tmp/lvs-tool-evidence.json",
       "--checked-at", "2026-06-18T00:00:00Z",
       "--json",
     ])
 
     #expect(options.reportURL.path(percentEncoded: false) == "/tmp/lvs-corpus-report.json")
     #expect(options.evidenceID == "lvs-release-corpus")
+    #expect(options.outputURL?.path(percentEncoded: false) == "/tmp/lvs-tool-evidence.json")
     #expect(options.checkedAt.timeIntervalSince1970 == 1_781_740_800)
     #expect(options.emitJSON)
+  }
+
+  @Test func corpusEvidenceCLIWritesRetainedArtifact() async throws {
+    let root = try makeTemporaryDirectory()
+    defer { removeTemporaryDirectory(root) }
+    let report = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let reportURL = root.appending(path: "lvs-corpus-report.json")
+    let evidenceURL = root.appending(path: "lvs-tool-evidence.json")
+    try writeJSON(report, to: reportURL)
+
+    let exitCode = await LVSCLI.run(arguments: [
+      "--evidence-from-corpus-report", reportURL.path(percentEncoded: false),
+      "--out", evidenceURL.path(percentEncoded: false),
+      "--checked-at", "2026-06-18T00:00:00Z",
+    ])
+
+    #expect(exitCode == 0)
+    let output = try JSONDecoder().decode(
+      LVSCorpusToolEvidenceExport.self,
+      from: Data(contentsOf: evidenceURL)
+    )
+    #expect(output.toolEvidence.qualification.qualified)
   }
 
   @Test func corpusEvidenceOptionsRejectOptionTokenAsEvidenceID() throws {
@@ -83,11 +107,125 @@ extension LVSCLIOptionsTests {
   }
 
   @Test func corpusToolEvidenceExportMatchesRuntimeEvidenceShape() throws {
+    let report = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let reportDigest = String(repeating: "a", count: 64)
+
+    let export = LVSCorpusToolEvidenceExport(
+      reportPath: "/tmp/lvs-corpus-report.json",
+      reportSHA256: reportDigest,
+      report: report,
+      evidenceID: "lvs-release-corpus",
+      checkedAt: Date(timeIntervalSince1970: 1_781_740_800)
+    )
+
+    #expect(export.schemaVersion == 2)
+    #expect(export.status == "passed")
+    #expect(export.toolEvidence.evidenceID == "lvs-release-corpus")
+    #expect(export.toolEvidence.kind == "corpus")
+    #expect(export.toolEvidence.checkedAt == "2026-06-18T00:00:00Z")
+    #expect(export.toolEvidence.artifact.kind == "report")
+    #expect(export.toolEvidence.artifact.format == "JSON")
+    #expect(export.toolEvidence.artifact.sha256 == reportDigest)
+    #expect(export.toolEvidence.qualification.qualified)
+    #expect(export.toolEvidence.qualification.policyID == "strict")
+    #expect(export.toolEvidence.qualification.observedMetrics["passRate"] == 1)
+    #expect(export.toolEvidence.qualification.observedMetrics["durationBudgetPassRate"] == 1)
+    #expect(export.toolEvidence.qualification.observedMetrics["oracleAgreementRate"] == 1)
+    #expect(export.toolEvidence.qualification.observedCounts["caseCount"] == 2)
+    #expect(export.toolEvidence.qualification.observedCounts["observedAssertionKindCount"] == 3)
+    #expect(
+      export.toolEvidence.qualification.observedCounts["oracleReadinessBlockedCaseCount"] == 0)
+    #expect(export.toolEvidence.qualification.observedCounts["requiredObservedAssertionCount"] == 3)
+    #expect(export.toolEvidence.qualification.failureCodes.isEmpty)
+    #expect(export.toolEvidence.qualification.scope?.implementationID == "lvsengine-native")
+    #expect(export.toolEvidence.qualification.scope?.processProfileID == "sky130.production")
+    #expect(export.toolEvidence.qualification.scope?.deckDigest == String(repeating: "1", count: 64))
+    #expect(export.toolEvidence.qualification.observedCounts["independentOracleCaseCount"] == 2)
+    #expect(export.toolEvidence.qualification.observedCounts["nonIndependentOracleCaseCount"] == 0)
+    #expect(export.toolEvidence.qualification.observedCounts["reportIntegrityFailureCount"] == 0)
+    #expect(export.oracleScopes.map(\.implementationID) == ["netgen-external"])
+
+    let encoded = try JSONEncoder().encode(export)
+    let payload = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    let toolEvidence = try #require(payload["toolEvidence"] as? [String: Any])
+    let qualification = try #require(toolEvidence["qualification"] as? [String: Any])
+    let scope = try #require(qualification["scope"] as? [String: Any])
+    #expect(scope["binaryDigest"] as? String == String(repeating: "a", count: 64))
+    #expect(scope["algorithmVersion"] as? String == "canonical-graph-v2")
+  }
+
+  @Test func corpusToolEvidenceExportRejectsSelfOracle() {
+    let primaryIdentity = nativePrimaryIdentity()
+    let report = qualifiedEvidenceReport(oracleIdentity: primaryIdentity)
+
+    let export = LVSCorpusToolEvidenceExport(
+      reportPath: "/tmp/lvs-corpus-report.json",
+      reportSHA256: String(repeating: "a", count: 64),
+      report: report
+    )
+
+    #expect(export.status == "failed")
+    #expect(!export.toolEvidence.qualification.qualified)
+    #expect(
+      export.toolEvidence.qualification.failureCodes.contains(
+        "oracle_implementation_not_independent"
+      )
+    )
+    #expect(export.toolEvidence.qualification.observedCounts["independentOracleCaseCount"] == 0)
+    #expect(export.toolEvidence.qualification.observedCounts["nonIndependentOracleCaseCount"] == 2)
+  }
+
+  @Test func corpusToolEvidenceUsesDeclaredPhysicalScopeWithProcessNeutralSupport() throws {
+    let base = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let physical = try #require(base.caseResults.first)
+    let semanticSource = try #require(base.caseResults.last)
+    let semanticPrimary = LVSImplementationIdentity(
+      implementationID: "lvsengine-native",
+      binaryDigest: String(repeating: "a", count: 64),
+      algorithmVersion: "canonical-graph-v2",
+      processProfileID: "process-neutral",
+      deckDigest: "no-deck"
+    )
+    let semanticOracle = LVSImplementationIdentity(
+      implementationID: "netgen-external",
+      binaryDigest: String(repeating: "b", count: 64),
+      algorithmVersion: "netgen-subprocess",
+      processProfileID: "process-neutral",
+      deckDigest: "no-deck"
+    )
+    let semantic = replacingIdentities(
+      in: semanticSource,
+      primaryIdentity: semanticPrimary,
+      oracleIdentity: semanticOracle
+    )
+    let report = LVSCorpusReport(
+      generatedAt: "2026-07-12T00:00:00Z",
+      passed: true,
+      caseCount: 2,
+      matchedCaseCount: 2,
+      totalDurationSeconds: physical.durationSeconds + semantic.durationSeconds,
+      qualificationScopeCaseID: physical.caseID,
+      caseResults: [physical, semantic]
+    )
+
+    let export = LVSCorpusToolEvidenceExport(
+      reportPath: "/tmp/lvs-corpus-report.json",
+      reportSHA256: String(repeating: "c", count: 64),
+      report: report
+    )
+
+    #expect(export.status == "passed")
+    #expect(export.toolEvidence.qualification.qualified)
+    #expect(export.toolEvidence.qualification.scope?.processProfileID == "sky130.production")
+    #expect(export.toolEvidence.qualification.scope?.deckDigest == String(repeating: "1", count: 64))
+    #expect(export.toolEvidence.qualification.observedCounts["qualificationScopeCount"] == 1)
+  }
+
+  @Test func corpusToolEvidenceExportRejectsInconsistentReportAndInvalidDigest() {
     let report = LVSCorpusReport(
       passed: true,
       caseCount: 2,
       matchedCaseCount: 2,
-      budgetExceededCaseCount: 0,
       totalDurationSeconds: 0.25,
       summary: LVSCorpusSummary(
         expectationMatchedCaseCount: 2,
@@ -96,7 +234,6 @@ extension LVSCLIOptionsTests {
         oracleCaseCount: 2,
         oracleAgreementPassedCaseCount: 2,
         oracleExecutionFailedCaseCount: 0,
-        oracleReadinessBlockedCaseCount: 0,
         failureCategoryCounts: [:],
         passRate: 1,
         oracleAgreementRate: 1
@@ -106,32 +243,101 @@ extension LVSCLIOptionsTests {
 
     let export = LVSCorpusToolEvidenceExport(
       reportPath: "/tmp/lvs-corpus-report.json",
-      reportSHA256: "abc123",
-      report: report,
-      evidenceID: "lvs-release-corpus",
-      checkedAt: Date(timeIntervalSince1970: 1_781_740_800)
+      reportSHA256: "invalid",
+      report: report
     )
 
-    #expect(export.status == "passed")
-    #expect(export.toolEvidence.evidenceID == "lvs-release-corpus")
-    #expect(export.toolEvidence.kind == "corpus")
-    #expect(export.toolEvidence.checkedAt == "2026-06-18T00:00:00Z")
-    #expect(export.toolEvidence.artifact.kind == "report")
-    #expect(export.toolEvidence.artifact.format == "JSON")
-    #expect(export.toolEvidence.artifact.sha256 == "abc123")
-    #expect(export.toolEvidence.qualification.qualified)
-    #expect(export.toolEvidence.qualification.policyID == "strict")
-    #expect(export.toolEvidence.qualification.observedMetrics["passRate"] == 1)
-    #expect(export.toolEvidence.qualification.observedMetrics["durationBudgetPassRate"] == 1)
-    #expect(export.toolEvidence.qualification.observedMetrics["oracleAgreementRate"] == 1)
-    #expect(export.toolEvidence.qualification.observedCounts["caseCount"] == 2)
-    #expect(export.toolEvidence.qualification.observedCounts["coverageTagCount"] == 0)
+    #expect(export.status == "failed")
+    #expect(!export.toolEvidence.qualification.qualified)
     #expect(
-      export.toolEvidence.qualification.observedCounts["oracleReadinessBlockedCaseCount"] == 0)
-    #expect(export.toolEvidence.qualification.observedCounts["requiredCoverageTagCount"] == 0)
+      export.toolEvidence.qualification.failureCodes.contains(
+        "report_artifact_digest_missing_or_invalid"
+      )
+    )
     #expect(
-      export.toolEvidence.qualification.observedCounts["coveredRequiredCoverageTagCount"] == 0)
-    #expect(export.toolEvidence.qualification.failureCodes.isEmpty)
+      export.toolEvidence.qualification.failureCodes.contains(
+        "report_case_count_inconsistent"
+      )
+    )
+    #expect(export.toolEvidence.qualification.observedCounts["reportIntegrityFailureCount"] != 0)
+  }
+
+  @Test func corpusEvidenceRejectsOracleIntegrityNormalization() {
+    let integrityDiagnostic = LVSCorpusOracleIntegrityDiagnostic(
+      severity: .warning,
+      code: "oracle_summary_normalized",
+      field: "diagnosticSummary",
+      message: "Oracle summary required normalization.",
+      observed: ["errorCount=1"],
+      canonical: ["errorCount=0"],
+      suggestedActions: ["regenerate_lvs_corpus_report"]
+    )
+    let report = qualifiedEvidenceReport(
+      oracleIdentity: independentOracleIdentity(),
+      oracleIntegrityDiagnostics: [integrityDiagnostic]
+    )
+    let digest = String(repeating: "d", count: 64)
+
+    let export = LVSCorpusToolEvidenceExport(
+      reportPath: "/tmp/lvs-corpus-report.json",
+      reportSHA256: digest,
+      report: report
+    )
+    let packet = LVSCorpusEvidencePacketBuilder().build(
+      report: report,
+      reportPath: "/tmp/lvs-corpus-report.json",
+      reportSHA256: digest
+    )
+
+    #expect(!export.toolEvidence.qualification.qualified)
+    #expect(
+      export.toolEvidence.qualification.failureCodes.contains(
+        "oracle_evidence_integrity_failure"
+      )
+    )
+    #expect(export.toolEvidence.qualification.observedCounts["oracleIntegrityFailureCount"] == 2)
+    #expect(packet.confidence.level == .low)
+    #expect(
+      packet.diagnostics.contains {
+        $0.diagnosticID == "qualified-case:oracle-integrity:0"
+          && $0.category == "artifact_integrity"
+      }
+    )
+  }
+
+  @Test func corpusEvidencePacketRequiresScopedIndependentOracleForHighConfidence() {
+    let digest = String(repeating: "c", count: 64)
+    let independentReport = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let independentPacket = LVSCorpusEvidencePacketBuilder().build(
+      report: independentReport,
+      reportPath: "/tmp/lvs-corpus-report.json",
+      reportSHA256: digest
+    )
+
+    #expect(independentPacket.confidence.level == .high)
+    #expect(independentPacket.qualificationScope?.implementationID == "lvsengine-native")
+    #expect(independentPacket.oracleScopes?.map(\.implementationID) == ["netgen-external"])
+    #expect(
+      independentPacket.metrics.contains {
+        $0.metricID == "summary.independent-oracle-case-count" && $0.count == 2
+      }
+    )
+    #expect(independentPacket.validateIntegrity().isEmpty)
+
+    let selfOracleReport = qualifiedEvidenceReport(oracleIdentity: nativePrimaryIdentity())
+    let selfOraclePacket = LVSCorpusEvidencePacketBuilder().build(
+      report: selfOracleReport,
+      reportPath: "/tmp/lvs-corpus-report.json",
+      reportSHA256: digest
+    )
+
+    #expect(selfOraclePacket.confidence.level == .low)
+    #expect(selfOraclePacket.diagnostics.contains { $0.category == "oracle_independence" })
+    #expect(
+      selfOraclePacket.readiness.contains {
+        $0.component == "lvs-oracle-comparison" && $0.status == .blocked
+      }
+    )
   }
 
   @Test func corpusEvidencePacketBuildsAgentDecisionMaterial() throws {
@@ -181,7 +387,7 @@ extension LVSCLIOptionsTests {
         $0.hintID == "lvs:model_mismatch"
           && $0.suggestedActions.contains("consider_model_equivalence_policy")
       })
-    #expect(packet.confidence.level == .medium)
+    #expect(packet.confidence.level == .low)
   }
 
   @Test func evidencePacketIntegrityValidationReportsBrokenReferences() throws {
@@ -404,6 +610,7 @@ extension LVSCLIOptionsTests {
       passed: true,
       caseCount: 1,
       matchedCaseCount: 1,
+      totalDurationSeconds: 0.1,
       caseResults: [
         LVSCorpusCaseResult(
           caseID: "case-safe",
@@ -485,5 +692,232 @@ private func evidenceCaseResult(caseID: String) -> LVSCorpusCaseResult {
     reportPath: nil,
     manifestPath: nil,
     extractedLayoutNetlistPath: nil
+  )
+}
+
+private func qualifiedEvidenceReport(
+  oracleIdentity: LVSImplementationIdentity,
+  oracleIntegrityDiagnostics: [LVSCorpusOracleIntegrityDiagnostic] = []
+) -> LVSCorpusReport {
+  let primaryIdentity = nativePrimaryIdentity()
+  let zeroSummary = LVSDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 0)
+  let primaryProvenance = LVSCorpusCaseProvenance(
+    backendID: "native",
+    reportPath: "/tmp/primary/lvs-report.json",
+    manifestPath: "/tmp/primary/lvs-artifact-manifest.json",
+    extractedLayoutNetlistPath: nil,
+    implementationIdentity: primaryIdentity
+  )
+  let oracleProvenance = LVSCorpusCaseProvenance(
+    backendID: oracleIdentity.implementationID,
+    reportPath: "/tmp/oracle/lvs-report.json",
+    manifestPath: "/tmp/oracle/lvs-artifact-manifest.json",
+    extractedLayoutNetlistPath: nil,
+    implementationIdentity: oracleIdentity
+  )
+  let oracleResult = LVSCorpusOracleResult(
+    backendID: oracleIdentity.implementationID,
+    passed: true,
+    activeErrorRuleIDs: [],
+    diagnosticSummary: zeroSummary,
+    integrityDiagnostics: oracleIntegrityDiagnostics,
+    durationSeconds: 0.1,
+    agreementPassed: true,
+    readinessStatus: .ready,
+    failureReasons: [],
+    reportPath: oracleProvenance.reportPath,
+    manifestPath: oracleProvenance.manifestPath,
+    extractedLayoutNetlistPath: nil,
+    provenance: oracleProvenance
+  )
+  let caseResult = LVSCorpusCaseResult(
+    caseID: "qualified-case",
+    matched: true,
+    expectedPassed: true,
+    actualPassed: true,
+    expectedActiveErrorRuleIDs: [],
+    actualActiveErrorRuleIDs: [],
+    expectationMatched: true,
+    durationSeconds: 0.2,
+    expectedMaxDurationSeconds: 1,
+    durationBudgetPassed: true,
+    failureReasons: [],
+    diagnosticSummary: zeroSummary,
+    reportPath: primaryProvenance.reportPath,
+    manifestPath: primaryProvenance.manifestPath,
+    extractedLayoutNetlistPath: nil,
+    primaryProvenance: primaryProvenance,
+    oracleResult: oracleResult,
+    observedAssertions: [
+      LVSCorpusObservedAssertion(
+        assertionID: "verdict-match",
+        kind: .verdict,
+        status: .passed,
+        expectedValue: "match",
+        observedValue: "match",
+        sourceArtifactRefs: [primaryProvenance.reportPath!]
+      ),
+      LVSCorpusObservedAssertion(
+        assertionID: "duration-match",
+        kind: .durationBudget,
+        status: .passed,
+        expectedValue: "within-budget",
+        observedValue: "0.2",
+        sourceArtifactRefs: [primaryProvenance.reportPath!]
+      ),
+    ]
+  )
+  let mismatchSummary = LVSDiagnosticSummary(infoCount: 0, warningCount: 0, errorCount: 1)
+  let mismatchOracle = LVSCorpusOracleResult(
+    backendID: oracleIdentity.implementationID,
+    passed: false,
+    activeErrorRuleIDs: ["LVS_MODEL_MISMATCH"],
+    diagnosticSummary: mismatchSummary,
+    integrityDiagnostics: oracleIntegrityDiagnostics,
+    durationSeconds: 0.1,
+    agreementPassed: true,
+    readinessStatus: .ready,
+    failureReasons: [],
+    reportPath: oracleProvenance.reportPath,
+    manifestPath: oracleProvenance.manifestPath,
+    extractedLayoutNetlistPath: nil,
+    provenance: oracleProvenance
+  )
+  let mismatchCaseResult = LVSCorpusCaseResult(
+    caseID: "qualified-mismatch-case",
+    matched: true,
+    expectedPassed: false,
+    actualPassed: false,
+    expectedActiveErrorRuleIDs: ["LVS_MODEL_MISMATCH"],
+    actualActiveErrorRuleIDs: ["LVS_MODEL_MISMATCH"],
+    expectationMatched: true,
+    durationSeconds: 0.2,
+    expectedMaxDurationSeconds: 1,
+    durationBudgetPassed: true,
+    failureReasons: [],
+    diagnosticSummary: mismatchSummary,
+    reportPath: primaryProvenance.reportPath,
+    manifestPath: primaryProvenance.manifestPath,
+    extractedLayoutNetlistPath: nil,
+    primaryProvenance: primaryProvenance,
+    oracleResult: mismatchOracle,
+    observedAssertions: [
+      LVSCorpusObservedAssertion(
+        assertionID: "verdict-mismatch",
+        kind: .verdict,
+        status: .passed,
+        expectedValue: "mismatch",
+        observedValue: "mismatch",
+        sourceArtifactRefs: [primaryProvenance.reportPath!]
+      ),
+      LVSCorpusObservedAssertion(
+        assertionID: "duration-mismatch",
+        kind: .durationBudget,
+        status: .passed,
+        expectedValue: "within-budget",
+        observedValue: "0.2",
+        sourceArtifactRefs: [primaryProvenance.reportPath!]
+      ),
+    ]
+  )
+  return LVSCorpusReport(
+    generatedAt: "2026-07-12T00:00:00Z",
+    passed: true,
+    caseCount: 2,
+    matchedCaseCount: 2,
+    totalDurationSeconds: 0.4,
+    caseResults: [caseResult, mismatchCaseResult]
+  )
+}
+
+private func nativePrimaryIdentity() -> LVSImplementationIdentity {
+  LVSImplementationIdentity(
+    implementationID: "lvsengine-native",
+    binaryDigest: String(repeating: "a", count: 64),
+    algorithmVersion: "canonical-graph-v2",
+    processProfileID: "sky130.production",
+    deckDigest: String(repeating: "1", count: 64)
+  )
+}
+
+private func independentOracleIdentity() -> LVSImplementationIdentity {
+  LVSImplementationIdentity(
+    implementationID: "netgen-external",
+    binaryDigest: String(repeating: "b", count: 64),
+    algorithmVersion: "netgen-subprocess",
+    processProfileID: "sky130.production",
+    deckDigest: String(repeating: "2", count: 64)
+  )
+}
+
+private func replacingIdentities(
+  in result: LVSCorpusCaseResult,
+  primaryIdentity: LVSImplementationIdentity,
+  oracleIdentity: LVSImplementationIdentity
+) -> LVSCorpusCaseResult {
+  let primary = result.primaryProvenance.map { provenance in
+    LVSCorpusCaseProvenance(
+      backendID: provenance.backendID,
+      inputArtifacts: provenance.inputArtifacts,
+      outputArtifacts: provenance.outputArtifacts,
+      reportPath: provenance.reportPath,
+      manifestPath: provenance.manifestPath,
+      extractedLayoutNetlistPath: provenance.extractedLayoutNetlistPath,
+      implementationIdentity: primaryIdentity
+    )
+  }
+  let oracle = result.oracleResult.map { oracle in
+    let provenance = oracle.provenance.map { provenance in
+      LVSCorpusCaseProvenance(
+        backendID: provenance.backendID,
+        inputArtifacts: provenance.inputArtifacts,
+        outputArtifacts: provenance.outputArtifacts,
+        reportPath: provenance.reportPath,
+        manifestPath: provenance.manifestPath,
+        extractedLayoutNetlistPath: provenance.extractedLayoutNetlistPath,
+        implementationIdentity: oracleIdentity
+      )
+    }
+    return LVSCorpusOracleResult(
+      backendID: oracle.backendID,
+      passed: oracle.passed,
+      activeErrorRuleIDs: oracle.activeErrorRuleIDs,
+      diagnostics: oracle.diagnostics,
+      diagnosticSummary: oracle.diagnosticSummary,
+      integrityDiagnostics: oracle.integrityDiagnostics,
+      durationSeconds: oracle.durationSeconds,
+      agreementPassed: oracle.agreementPassed,
+      readinessStatus: oracle.readinessStatus,
+      readinessDiagnostics: oracle.readinessDiagnostics,
+      failureReasons: oracle.failureReasons,
+      executionError: oracle.executionError,
+      reportPath: oracle.reportPath,
+      manifestPath: oracle.manifestPath,
+      extractedLayoutNetlistPath: oracle.extractedLayoutNetlistPath,
+      devicePolicyReport: oracle.devicePolicyReport,
+      provenance: provenance
+    )
+  }
+  return LVSCorpusCaseResult(
+    caseID: result.caseID,
+    matched: result.matched,
+    expectedPassed: result.expectedPassed,
+    actualPassed: result.actualPassed,
+    expectedActiveErrorRuleIDs: result.expectedActiveErrorRuleIDs,
+    actualActiveErrorRuleIDs: result.actualActiveErrorRuleIDs,
+    expectationMatched: result.expectationMatched,
+    durationSeconds: result.durationSeconds,
+    expectedMaxDurationSeconds: result.expectedMaxDurationSeconds,
+    durationBudgetPassed: result.durationBudgetPassed,
+    failureReasons: result.failureReasons,
+    executionError: result.executionError,
+    diagnosticSummary: result.diagnosticSummary,
+    reportPath: result.reportPath,
+    manifestPath: result.manifestPath,
+    extractedLayoutNetlistPath: result.extractedLayoutNetlistPath,
+    primaryProvenance: primary,
+    oracleResult: oracle,
+    oracleComparison: result.oracleComparison,
+    observedAssertions: result.observedAssertions
   )
 }

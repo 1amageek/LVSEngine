@@ -7,6 +7,8 @@ public enum NetgenLVSDeviceDeckImportAuditStatus: String, Codable, Sendable, Has
 }
 
 public struct NetgenLVSDeviceDeckImportAuditPolicy: Codable, Sendable, Hashable {
+    public static let currentSchemaVersion = 1
+
     public let schemaVersion: Int
     public let policyID: String
     public let minimumDeviceCount: Int
@@ -17,7 +19,7 @@ public struct NetgenLVSDeviceDeckImportAuditPolicy: Codable, Sendable, Hashable 
     public let requiredPolicyRuleCounts: [String: Int]
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = NetgenLVSDeviceDeckImportAuditPolicy.currentSchemaVersion,
         policyID: String,
         minimumDeviceCount: Int,
         minimumPolicyRuleCount: Int,
@@ -34,6 +36,82 @@ public struct NetgenLVSDeviceDeckImportAuditPolicy: Codable, Sendable, Hashable 
         self.allowPartialImport = allowPartialImport
         self.requiredDeviceFamilyCounts = requiredDeviceFamilyCounts
         self.requiredPolicyRuleCounts = requiredPolicyRuleCounts
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case policyID
+        case minimumDeviceCount
+        case minimumPolicyRuleCount
+        case maximumUnresolvedPolicyRuleCount
+        case allowPartialImport
+        case requiredDeviceFamilyCounts
+        case requiredPolicyRuleCounts
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported Netgen LVS device-deck audit policy schema version: \(schemaVersion)."
+            )
+        }
+        policyID = try container.decode(String.self, forKey: .policyID)
+        minimumDeviceCount = try container.decode(Int.self, forKey: .minimumDeviceCount)
+        minimumPolicyRuleCount = try container.decode(Int.self, forKey: .minimumPolicyRuleCount)
+        maximumUnresolvedPolicyRuleCount = try container.decode(
+            Int.self,
+            forKey: .maximumUnresolvedPolicyRuleCount
+        )
+        allowPartialImport = try container.decode(Bool.self, forKey: .allowPartialImport)
+        requiredDeviceFamilyCounts = try container.decodeIfPresent(
+            [String: Int].self,
+            forKey: .requiredDeviceFamilyCounts
+        ) ?? [:]
+        requiredPolicyRuleCounts = try container.decodeIfPresent(
+            [String: Int].self,
+            forKey: .requiredPolicyRuleCounts
+        ) ?? [:]
+        guard validationErrors.isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .policyID,
+                in: container,
+                debugDescription: validationErrors.joined(separator: " ")
+            )
+        }
+    }
+
+    package var validationErrors: [String] {
+        var errors: [String] = []
+        if schemaVersion != Self.currentSchemaVersion {
+            errors.append("The device-deck audit policy schema version is unsupported.")
+        }
+        if policyID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors.append("The device-deck audit policy ID must not be empty.")
+        }
+        if minimumDeviceCount < 0 {
+            errors.append("minimumDeviceCount must be nonnegative.")
+        }
+        if minimumPolicyRuleCount < 0 {
+            errors.append("minimumPolicyRuleCount must be nonnegative.")
+        }
+        if maximumUnresolvedPolicyRuleCount < 0 {
+            errors.append("maximumUnresolvedPolicyRuleCount must be nonnegative.")
+        }
+        if requiredDeviceFamilyCounts.contains(where: {
+            $0.key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.value < 0
+        }) {
+            errors.append("Required device-family names must be nonempty and their counts must be nonnegative.")
+        }
+        if requiredPolicyRuleCounts.contains(where: {
+            $0.key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.value < 0
+        }) {
+            errors.append("Required policy-rule names must be nonempty and their counts must be nonnegative.")
+        }
+        return errors
     }
 
     public static var deviceSeedReadiness: NetgenLVSDeviceDeckImportAuditPolicy {
@@ -161,14 +239,24 @@ public struct NetgenLVSDeviceDeckImportAuditor: Sendable {
         checkedAt: String? = nil
     ) -> NetgenLVSDeviceDeckImportAudit {
         let unresolvedCount = seed.policyRules.filter {
-            $0.arguments.joined(separator: " ").contains("$")
+            !$0.unresolvedVariableNames.isEmpty
         }.count
-        let requirements = requirements(
+        var requirements = requirements(
             seed: seed,
             report: report,
             unresolvedCount: unresolvedCount,
             policy: policy
         )
+        if !policy.validationErrors.isEmpty {
+            requirements.insert(NetgenLVSDeviceDeckImportAuditRequirement(
+                requirementID: "audit-policy-validity",
+                category: "policy-validity",
+                status: .blocked,
+                observed: 0,
+                required: 1,
+                message: policy.validationErrors.joined(separator: " ")
+            ), at: 0)
+        }
         let blockedCount = requirements.filter { $0.status == .blocked }.count
         let incompleteCount = requirements.filter { $0.status == .incomplete }.count
         let satisfiedCount = requirements.filter { $0.status == .satisfied }.count

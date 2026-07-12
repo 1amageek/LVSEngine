@@ -1,6 +1,8 @@
 import Foundation
 
 public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
+    public static let currentSchemaVersion = 2
+
     public struct FileReference: Sendable, Hashable, Codable {
         public let path: String
         public let kind: String
@@ -26,19 +28,38 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         public let observedMetrics: [String: Double]
         public let observedCounts: [String: Int]
         public let failureCodes: [String]
+        public let scope: QualificationScope?
 
         public init(
             qualified: Bool,
             policyID: String?,
             observedMetrics: [String: Double],
             observedCounts: [String: Int],
-            failureCodes: [String]
+            failureCodes: [String],
+            scope: QualificationScope?
         ) {
             self.qualified = qualified
             self.policyID = policyID
             self.observedMetrics = observedMetrics
             self.observedCounts = observedCounts
             self.failureCodes = failureCodes
+            self.scope = scope
+        }
+    }
+
+    public struct QualificationScope: Sendable, Hashable, Codable {
+        public let implementationID: String
+        public let binaryDigest: String
+        public let algorithmVersion: String
+        public let processProfileID: String
+        public let deckDigest: String
+
+        public init(identity: LVSImplementationIdentity) {
+            implementationID = identity.implementationID
+            binaryDigest = identity.binaryDigest
+            algorithmVersion = identity.algorithmVersion
+            processProfileID = identity.processProfileID
+            deckDigest = identity.deckDigest
         }
     }
 
@@ -70,29 +91,43 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
     public let reportSHA256: String?
     public let summary: LVSCorpusSummary
     public let toolEvidence: ToolEvidence
+    public let oracleScopes: [QualificationScope]
 
     public init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = LVSCorpusToolEvidenceExport.currentSchemaVersion,
         reportPath: String,
         reportSHA256: String? = nil,
         report: LVSCorpusReport,
         evidenceID: String? = nil,
         checkedAt: Date = Date()
     ) {
+        let assessment = LVSCorpusEvidenceAssessment(report: report)
+        var failureCodes = report.qualification.failures.map(\.code) + assessment.failureCodes
+        if !Self.isValidSHA256(reportSHA256) {
+            failureCodes.append("report_artifact_digest_missing_or_invalid")
+        }
+        if reportPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            failureCodes.append("report_artifact_path_missing")
+        }
+        failureCodes = Array(Set(failureCodes)).sorted()
+        let qualified = assessment.qualified && failureCodes.isEmpty
+
         self.schemaVersion = schemaVersion
-        self.status = report.qualification.qualified ? "passed" : "failed"
+        self.status = qualified ? "passed" : "failed"
         self.reportPath = reportPath
         self.reportSHA256 = reportSHA256
         self.summary = report.summary
+        self.oracleScopes = assessment.oracleIdentities.map(QualificationScope.init(identity:))
         self.toolEvidence = ToolEvidence(
             evidenceID: evidenceID ?? Self.defaultEvidenceID(reportPath: reportPath),
             artifact: FileReference(path: reportPath, sha256: reportSHA256),
             qualification: QualificationSummary(
-                qualified: report.qualification.qualified,
+                qualified: qualified,
                 policyID: report.qualification.policy == .strict ? "strict" : "custom",
-                observedMetrics: Self.observedMetrics(report),
-                observedCounts: Self.observedCounts(report),
-                failureCodes: report.qualification.failures.map(\.code)
+                observedMetrics: Self.observedMetrics(report, assessment: assessment),
+                observedCounts: Self.observedCounts(report, assessment: assessment),
+                failureCodes: failureCodes,
+                scope: assessment.qualificationScope.map(QualificationScope.init(identity:))
             ),
             checkedAt: Self.iso8601String(from: checkedAt)
         )
@@ -103,7 +138,10 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         return filename.isEmpty ? "lvs-corpus" : "lvs-corpus:\(filename)"
     }
 
-    private static func observedMetrics(_ report: LVSCorpusReport) -> [String: Double] {
+    private static func observedMetrics(
+        _ report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment
+    ) -> [String: Double] {
         var metrics = [
             "passRate": report.summary.passRate,
             "durationBudgetPassRate": report.caseCount == 0
@@ -114,10 +152,17 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         if let oracleAgreementRate = report.summary.oracleAgreementRate {
             metrics["oracleAgreementRate"] = oracleAgreementRate
         }
+        if report.summary.oracleCaseCount > 0 {
+            metrics["independentOracleRate"] = Double(assessment.independentOracleCaseCount)
+                / Double(report.summary.oracleCaseCount)
+        }
         return metrics
     }
 
-    private static func observedCounts(_ report: LVSCorpusReport) -> [String: Int] {
+    private static func observedCounts(
+        _ report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment
+    ) -> [String: Int] {
         [
             "caseCount": report.caseCount,
             "matchedCaseCount": report.matchedCaseCount,
@@ -128,19 +173,32 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
             "primaryExecutionFailedCaseCount": report.summary.primaryExecutionFailedCaseCount,
             "oracleExecutionFailedCaseCount": report.summary.oracleExecutionFailedCaseCount,
             "oracleReadinessBlockedCaseCount": report.summary.oracleReadinessBlockedCaseCount,
-            "coverageTagCount": report.summary.coverageTagCounts.count,
-            "requiredCoverageTagCount": report.qualification.policy.requiredCoverageTags.count,
-            "coveredRequiredCoverageTagCount": coveredRequiredCoverageTagCount(report),
+            "observedAssertionKindCount": report.summary.observedAssertionCounts.count,
+            "failedAssertionCount": report.summary.failedAssertionCount,
+            "blockedAssertionCount": report.summary.blockedAssertionCount,
+            "requiredObservedAssertionCount": report.qualification.policy.requiredObservedAssertions.count,
+            "completePrimaryIdentityCaseCount": assessment.completePrimaryIdentityCaseCount,
+            "independentOracleCaseCount": assessment.independentOracleCaseCount,
+            "independentOracleAgreementPassedCaseCount": assessment.independentOracleAgreementPassedCaseCount,
+            "nonIndependentOracleCaseCount": assessment.nonIndependentOracleCaseCount,
+            "oracleIntegrityFailureCount": assessment.oracleIntegrityFailureCount,
+            "reportIntegrityFailureCount": assessment.reportIntegrityFailureCodes.count,
+            "qualificationScopeCount": assessment.qualificationScope == nil ? 0 : 1,
         ]
-    }
-
-    private static func coveredRequiredCoverageTagCount(_ report: LVSCorpusReport) -> Int {
-        report.qualification.policy.requiredCoverageTags.filter { report.summary.coverageTagCounts[$0] != nil }.count
     }
 
     private static func iso8601String(from date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.string(from: date)
+    }
+
+    private static func isValidSHA256(_ digest: String?) -> Bool {
+        guard let digest else { return false }
+        let normalized = digest.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count == 64 else { return false }
+        return normalized.allSatisfy { character in
+            character.isNumber || ("a"..."f").contains(character.lowercased())
+        }
     }
 }

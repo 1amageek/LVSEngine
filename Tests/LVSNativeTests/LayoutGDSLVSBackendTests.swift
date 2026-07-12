@@ -4,6 +4,7 @@ import LVSCore
 import LayoutAutoGen
 import LayoutCore
 import LayoutIO
+import LayoutLVSExtraction
 import LayoutTech
 @testable import LVSNative
 
@@ -151,6 +152,19 @@ struct LayoutGDSLVSBackendTests {
             tech: tech
         )
         pmos.name = "PMOS_DEVICE"
+        let m1 = LayoutLayerID(name: "M1", purpose: "drawing")
+        nmos.shapes.append(LayoutShape(
+            layer: m1,
+            geometry: .rect(LayoutRect(
+                origin: LayoutPoint(x: 50, y: 0),
+                size: LayoutSize(width: 1, height: 1)
+            ))
+        ))
+        nmos.labels.append(LayoutLabel(
+            text: "INTERNAL_ONLY",
+            position: LayoutPoint(x: 50.5, y: 0.5),
+            layer: m1
+        ))
 
         let nmosTransform = LayoutTransform()
         let nmosPlaced = translatedCell(nmos, by: nmosTransform.translation)
@@ -161,7 +175,6 @@ struct LayoutGDSLVSBackendTests {
         )
         let pmosPlaced = translatedCell(pmos, by: pmosTransform.translation)
 
-        let m1 = LayoutLayerID(name: "M1", purpose: "drawing")
         let m1Width = max(tech.ruleSet(for: m1)?.minWidth ?? 0.2, 0.2)
         let routes = try [
             m1Bridge(
@@ -193,6 +206,28 @@ struct LayoutGDSLVSBackendTests {
         let top = LayoutCell(
             name: "TOP",
             shapes: routes,
+            labels: try [
+                LayoutLabel(
+                    text: "in",
+                    position: pin("gate", in: nmosPlaced).position,
+                    layer: pin("gate", in: nmosPlaced).layer
+                ),
+                LayoutLabel(
+                    text: "out",
+                    position: pin("drain", in: nmosPlaced).position,
+                    layer: pin("drain", in: nmosPlaced).layer
+                ),
+                LayoutLabel(
+                    text: "vss",
+                    position: pin("source", in: nmosPlaced).position,
+                    layer: pin("source", in: nmosPlaced).layer
+                ),
+                LayoutLabel(
+                    text: "vdd",
+                    position: pin("source", in: pmosPlaced).position,
+                    layer: pin("source", in: pmosPlaced).layer
+                ),
+            ],
             instances: [
                 LayoutInstance(cellID: nmos.id, name: "XM2", transform: nmosTransform),
                 LayoutInstance(cellID: pmos.id, name: "XM1", transform: pmosTransform),
@@ -219,6 +254,15 @@ struct LayoutGDSLVSBackendTests {
         macro.name = "hard_macro"
         let top = LayoutCell(
             name: "TOP",
+            labels: try [
+                ("drain", "d"),
+                ("gate", "g"),
+                ("source", "s"),
+                ("bulk", "b"),
+            ].map { pinName, netName in
+                let macroPin = try pin(pinName, in: macro)
+                return LayoutLabel(text: netName, position: macroPin.position, layer: macroPin.layer)
+            },
             instances: [
                 LayoutInstance(cellID: macro.id, name: "XU1")
             ]
@@ -259,7 +303,15 @@ struct LayoutGDSLVSBackendTests {
             name: "TOP",
             shapes: directPlaced.shapes,
             vias: directPlaced.vias,
-            labels: directPlaced.labels,
+            labels: directPlaced.labels + (try [
+                ("drain", "d"),
+                ("gate", "g"),
+                ("source", "s"),
+                ("bulk", "b"),
+            ].map { pinName, netName in
+                let macroPin = try pin(pinName, in: macro)
+                return LayoutLabel(text: netName, position: macroPin.position, layer: macroPin.layer)
+            }),
             instances: [
                 LayoutInstance(cellID: macro.id, name: "XU1")
             ]
@@ -368,6 +420,14 @@ struct LayoutGDSLVSBackendTests {
             name: "TOP",
             shapes: m2Routes.flatMap(\.shapes) + sourceBulkRoutes,
             vias: m2Routes.flatMap(\.vias),
+            labels: try [("drain", "d"), ("gate", "g"), ("source", "s")].map { pinName, netName in
+                let devicePin = try pin(pinName, in: nmos)
+                return LayoutLabel(
+                    text: netName,
+                    position: baseTransform.apply(to: devicePin.position),
+                    layer: devicePin.layer
+                )
+            },
             instances: [
                 LayoutInstance(
                     cellID: nmos.id,
@@ -672,6 +732,34 @@ struct LayoutGDSLVSBackendTests {
         #expect(FileManager.default.fileExists(atPath: execution.result.logPath))
     }
 
+    @Test func extraTopPortIsANonWaivableMismatch() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+
+        let execution = try await LayoutGDSLVSBackend().run(LVSRequest(
+            layoutGDSURL: try writeDeviceLayout(in: root),
+            schematicNetlistURL: try writeSchematic(
+                """
+                .subckt top d g s b extra
+                M1 d g s b nmos W=2u L=0.18u
+                .ends
+                """,
+                in: root
+            ),
+            topCell: "TOP",
+            technologyURL: try writeTech(in: root),
+            workingDirectory: root
+        ))
+
+        #expect(!execution.result.passed)
+        #expect(execution.result.verdict == .mismatch)
+        #expect(execution.result.readiness == .ready)
+        #expect(execution.result.diagnostics.contains {
+            $0.ruleID == "LVS_PORT_MISMATCH"
+                && $0.effectiveWaiverDisposition == .nonWaivable
+        })
+    }
+
     @Test func matchingPMOSDevicePasses() async throws {
         let root = try makeRoot()
         defer { removeTemporaryDirectory(root) }
@@ -760,6 +848,13 @@ struct LayoutGDSLVSBackendTests {
         ))
 
         #expect(execution.result.passed, "\(execution.result.diagnostics.map(\.message))")
+        let extractionReportURL = try #require(execution.extractionReportURL)
+        let extraction = try JSONDecoder().decode(
+            LayoutExtractionIR.self,
+            from: Data(contentsOf: extractionReportURL)
+        )
+        #expect(extraction.ports.map(\.name).sorted() == ["in", "out", "vdd", "vss"])
+        #expect(!extraction.ports.contains { $0.name == "INTERNAL_ONLY" })
     }
 
     @Test func matchingArrayedParallelNMOSPasses() async throws {
@@ -949,6 +1044,60 @@ struct LayoutGDSLVSBackendTests {
         #expect(report.appliedRules.contains {
             $0.kind == "property-parallel" && $0.parameterRoles == ["w": "add"]
         })
+    }
+
+    @Test func policyAwareExtractionPreservesPDKDimensionlessMicronConvention() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+
+        let layoutURL = try writeDeviceLayout(in: root)
+        let schematicURL = try writeSchematic(
+            """
+            .subckt top d g s b
+            M1 d g s b nmos W=2000000u L=180000u
+            .ends
+            """,
+            in: root
+        )
+        let policyURL = try writeDevicePolicySeed(
+            NetgenLVSDevicePolicySeed(
+                generatedAt: "2026-07-12T00:00:00Z",
+                sourcePath: "foundry-setup.tcl",
+                devices: [
+                    NetgenLVSDeviceDescriptor(
+                        deviceName: "nmos",
+                        family: "mos",
+                        sourceLineNumber: 1,
+                        sourceLine: "lappend devices nmos"
+                    )
+                ],
+                policyRules: [
+                    NetgenLVSPolicyRule(
+                        kind: "property",
+                        arguments: ["-circuit1 nmos", "delete", "mult"],
+                        sourceLineNumber: 2,
+                        sourceLine: "property \"-circuit1 nmos\" delete mult"
+                    )
+                ]
+            ),
+            in: root
+        )
+
+        let execution = try await LayoutGDSLVSBackend().run(LVSRequest(
+            layoutGDSURL: layoutURL,
+            schematicNetlistURL: schematicURL,
+            topCell: "TOP",
+            technologyURL: try writeTech(in: root),
+            devicePolicyURL: policyURL,
+            workingDirectory: root
+        ))
+
+        #expect(execution.result.passed, "\(execution.result.diagnostics.map(\.message))")
+        let extractedURL = try #require(execution.extractedLayoutNetlistURL)
+        let extracted = try String(contentsOf: extractedURL, encoding: .utf8)
+        #expect(extracted.contains("W=2 L=0.18"))
+        #expect(!extracted.contains("W=2u"))
+        #expect(execution.devicePolicyReport?.status == .complete)
     }
 
     @Test func devicePolicySeriesAppliesAfterNativeGDSExtraction() async throws {
@@ -1433,7 +1582,7 @@ struct LayoutGDSLVSBackendTests {
         ))
 
         #expect(!execution.result.passed)
-        #expect(execution.result.diagnostics.contains { $0.ruleID == "compare.unmatchedReference" })
+        #expect(execution.result.diagnostics.contains { $0.ruleID == "LVS_DEVICE_SEMANTICS_MISMATCH" })
     }
 
     @Test func wrongParametersFail() async throws {
@@ -1455,7 +1604,7 @@ struct LayoutGDSLVSBackendTests {
         ))
 
         #expect(!execution.result.passed)
-        #expect(execution.result.diagnostics.contains { $0.ruleID == "compare.parameterMismatch" })
+        #expect(execution.result.diagnostics.contains { $0.ruleID == "LVS_PARAMETER_MISMATCH" })
     }
 
     @Test func devicePolicyToleranceAppliesAfterNativeGDSExtraction() async throws {

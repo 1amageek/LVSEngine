@@ -10,13 +10,24 @@ public struct LVSCorpusCoverageAuditor: Sendable {
         auditID: String? = nil,
         checkedAt: Date? = nil
     ) -> LVSCorpusCoverageAudit {
-        let observedTags = Set(report.summary.coverageTagCounts.keys)
-        let requiredTags = Set(policy.requirements.flatMap(\.requiredCoverageTags))
+        let observedAssertions = Set(report.summary.observedAssertionCounts.keys)
+        let requiredAssertions = Set(policy.requirements.flatMap(\.requiredObservedAssertions))
         var missingRequirements = missingPolicyRequirements(
             report: report,
             policy: policy,
-            observedTags: observedTags
+            observedAssertions: observedAssertions
         )
+        if !policy.validationErrors.isEmpty {
+            missingRequirements.append(LVSCorpusCoverageAudit.MissingRequirement(
+                requirementID: "coverage-policy-validity",
+                title: "Coverage policy validity",
+                missingAssertions: [],
+                observedCaseCount: 0,
+                requiredCaseCount: 1,
+                reason: policy.validationErrors.joined(separator: " "),
+                suggestedActions: ["repair_lvs_corpus_coverage_policy"]
+            ))
+        }
         let freshness = reportFreshness(
             report: report,
             policy: policy,
@@ -30,7 +41,7 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             missingRequirements.append(LVSCorpusCoverageAudit.MissingRequirement(
                 requirementID: "qualified-corpus",
                 title: "Qualified corpus",
-                missingCoverageTags: [],
+                missingAssertions: [],
                 observedCaseCount: report.matchedCaseCount,
                 requiredCaseCount: report.caseCount,
                 reason: "The corpus qualification did not pass.",
@@ -41,7 +52,7 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             missingRequirements.append(LVSCorpusCoverageAudit.MissingRequirement(
                 requirementID: "oracle-agreement",
                 title: "Oracle agreement",
-                missingCoverageTags: [],
+                missingAssertions: [],
                 observedCaseCount: 0,
                 requiredCaseCount: max(1, report.caseCount),
                 reason: "No oracle comparison cases are present.",
@@ -52,7 +63,7 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             missingRequirements.append(LVSCorpusCoverageAudit.MissingRequirement(
                 requirementID: "oracle-agreement",
                 title: "Oracle agreement",
-                missingCoverageTags: [],
+                missingAssertions: [],
                 observedCaseCount: report.summary.oracleAgreementPassedCaseCount,
                 requiredCaseCount: report.summary.oracleCaseCount,
                 reason: "One or more oracle comparison cases disagree or are blocked.",
@@ -63,7 +74,7 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             missingRequirements.append(LVSCorpusCoverageAudit.MissingRequirement(
                 requirementID: "minimum-case-count",
                 title: "Minimum case count",
-                missingCoverageTags: [],
+                missingAssertions: [],
                 observedCaseCount: report.caseCount,
                 requiredCaseCount: policy.minimumCaseCount,
                 reason: "The corpus has fewer cases than the policy requires.",
@@ -82,12 +93,13 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             }
         }
         let status: LVSCorpusCoverageAuditStatus = missingRequirements.isEmpty ? .satisfied : .incomplete
-        let coveredRequiredTags = requiredTags.intersection(observedTags)
+        let coveredRequiredAssertions = requiredAssertions.intersection(observedAssertions)
         let requiredRequirementCount = policy.requirements.count
             + (policy.requireQualifiedCorpus ? 1 : 0)
             + (policy.requireOracleAgreement ? 1 : 0)
             + (policy.maxReportAgeSeconds == nil ? 0 : 1)
             + (policy.minimumCaseCount > 0 ? 1 : 0)
+            + (policy.validationErrors.isEmpty ? 0 : 1)
         return LVSCorpusCoverageAudit(
             auditID: auditID ?? defaultAuditID(reportPath: reportPath, policyID: policy.policyID),
             status: status,
@@ -102,14 +114,14 @@ public struct LVSCorpusCoverageAuditor: Sendable {
                 requiredRequirementCount: requiredRequirementCount,
                 satisfiedRequirementCount: max(0, requiredRequirementCount - missingRequirementIDs.count),
                 missingRequirementCount: missingRequirementIDs.count,
-                observedCoverageTagCount: observedTags.count,
-                requiredCoverageTagCount: requiredTags.count,
-                coveredRequiredCoverageTagCount: coveredRequiredTags.count,
+                observedAssertionCount: observedAssertions.count,
+                requiredAssertionCount: requiredAssertions.count,
+                coveredRequiredAssertionCount: coveredRequiredAssertions.count,
                 reportGeneratedAt: report.generatedAt,
                 checkedAt: freshness.checkedAtString,
                 reportAgeSeconds: freshness.ageSeconds
             ),
-            observedCoverageTags: observedTags.sorted(),
+            observedAssertions: observedAssertions.sorted(),
             missingRequirements: missingRequirements,
             suggestedActions: uniqueSuggestedActions(suggestedActions)
         )
@@ -118,27 +130,30 @@ public struct LVSCorpusCoverageAuditor: Sendable {
     private func missingPolicyRequirements(
         report: LVSCorpusReport,
         policy: LVSCorpusCoverageAuditPolicy,
-        observedTags: Set<String>
+        observedAssertions: Set<String>
     ) -> [LVSCorpusCoverageAudit.MissingRequirement] {
         policy.requirements.compactMap { requirement in
-            let requiredTags = Set(requirement.requiredCoverageTags)
-            let missingTags = requiredTags.subtracting(observedTags).sorted()
+            let requiredAssertions = Set(requirement.requiredObservedAssertions)
             let observedCaseCount = report.caseResults.filter { result in
-                let resultTags = Set(result.coverageTags)
-                return requiredTags.isEmpty || !resultTags.intersection(requiredTags).isEmpty
+                let resultAssertions = Set(result.observedAssertions.filter { $0.status == .passed }.map(\.coverageKey))
+                return result.matched && requiredAssertions.isSubset(of: resultAssertions)
             }.count
-            guard !missingTags.isEmpty || observedCaseCount < requirement.minimumCaseCount else {
+            let jointlyObservedAssertions = Set(report.caseResults.filter(\.matched).flatMap { result in
+                result.observedAssertions.filter { $0.status == .passed }.map(\.coverageKey)
+            })
+            let missingAssertions = requiredAssertions.subtracting(jointlyObservedAssertions).sorted()
+            guard !missingAssertions.isEmpty || observedCaseCount < requirement.minimumCaseCount else {
                 return nil
             }
             return LVSCorpusCoverageAudit.MissingRequirement(
                 requirementID: requirement.requirementID,
                 title: requirement.title,
-                missingCoverageTags: missingTags,
+                missingAssertions: missingAssertions,
                 observedCaseCount: observedCaseCount,
                 requiredCaseCount: requirement.minimumCaseCount,
-                reason: missingTags.isEmpty
-                    ? "The required coverage tags exist, but too few cases contain this requirement coverage."
-                    : "Required coverage tags are missing from the corpus report.",
+                reason: missingAssertions.isEmpty
+                    ? "The required observed assertions exist, but too few cases contain this requirement coverage."
+                    : "Required observed assertions are missing from the corpus report.",
                 suggestedActions: requirement.suggestedActions
             )
         }
@@ -245,9 +260,9 @@ public struct LVSCorpusCoverageAuditor: Sendable {
         LVSCorpusCoverageAudit.MissingRequirement(
             requirementID: "retained-report-freshness",
             title: "Retained report freshness",
-            missingCoverageTags: [],
-            observedCaseCount: observedAgeSeconds.map { max(0, Int($0)) } ?? 0,
-            requiredCaseCount: Int(requiredAgeSeconds),
+            missingAssertions: [],
+            observedCaseCount: observedAgeSeconds.map(boundedNonnegativeInt) ?? 0,
+            requiredCaseCount: boundedNonnegativeInt(requiredAgeSeconds),
             reason: reason,
             suggestedActions: ["rerun_lvs_corpus_and_retain_report"]
         )
@@ -268,5 +283,11 @@ public struct LVSCorpusCoverageAuditor: Sendable {
 
     private func iso8601String(from date: Date) -> String {
         ISO8601DateFormatter().string(from: date)
+    }
+
+    private func boundedNonnegativeInt(_ value: Double) -> Int {
+        guard value.isFinite, value > 0 else { return 0 }
+        guard value < Double(Int.max) else { return Int.max }
+        return Int(value)
     }
 }

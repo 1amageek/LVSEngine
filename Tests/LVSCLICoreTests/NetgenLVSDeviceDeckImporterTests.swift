@@ -85,6 +85,71 @@ struct NetgenLVSDeviceDeckImporterTests {
         })
     }
 
+    @Test func importsRuntimePredicatesAndIgnoreClassWithoutLosingDeckSemantics() throws {
+        let result = NetgenLVSDeviceDeckImporter.importDeviceDeck(
+            text: """
+            catch {format $env(NETGEN_COLUMNS)}
+            set devices {}
+            lappend devices sky130_fd_io__condiode
+            foreach dev $devices {
+                permute "-circuit1 $dev" 1 2
+                property "-circuit1 $dev" parallel enable
+                equate pins "-circuit1 $dev" "-circuit2 $dev"
+                ignore class "-circuit1 $dev"
+            }
+            foreach cell $cells1 {
+                if {[regexp {sky130_fd_sc_[^_]+__fill_[[:digit:]]+} $cell match]} {
+                    ignore class "-circuit1 $cell"
+                    property "-circuit1 $cell" parallel enable
+                }
+                if {[regexp "(.+)__(.+)" $cell match library cellname]} {
+                    equate classes "-circuit1 $cell" "-circuit2 $cellname"
+                    equate pins "-circuit1 $cell" "-circuit2 $cellname"
+                }
+            }
+            """,
+            sourcePath: "/tmp/sky130A_setup.tcl",
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+
+        #expect(result.report.status == .complete)
+        #expect(result.report.skippedLineCount == 0)
+        #expect(result.report.policyRuleCounts["ignore-class"] == 2)
+        #expect(result.report.policyRuleCounts["equate"] == 1)
+        #expect(result.report.policyRuleCounts["equate-pins"] == 2)
+        let fillRule = try #require(result.seed.policyRules.first {
+            $0.kind == "ignore-class" && $0.arguments.contains("-circuit1 $cell")
+        })
+        #expect(fillRule.runtimePredicate?.variableName == "cell")
+        #expect(fillRule.runtimePredicate?.pattern.contains("__fill_") == true)
+        let renameRule = try #require(result.seed.policyRules.first { $0.kind == "equate" })
+        #expect(renameRule.runtimePredicate?.captureVariableNames == ["library", "cellname"])
+
+        let audit = NetgenLVSDeviceDeckImportAuditor().audit(
+            seed: result.seed,
+            report: result.report,
+            policy: NetgenLVSDeviceDeckImportAuditPolicy(
+                policyID: "runtime-policy-readiness",
+                minimumDeviceCount: 1,
+                minimumPolicyRuleCount: 1,
+                maximumUnresolvedPolicyRuleCount: 0,
+                allowPartialImport: false,
+                requiredPolicyRuleCounts: [
+                    "equate-pins": 1,
+                    "ignore-class": 1,
+                    "permute": 1,
+                    "property": 1,
+                ]
+            )
+        )
+        #expect(audit.status == .satisfied)
+        #expect(audit.summary.unresolvedPolicyRuleCount == 0)
+
+        let encoded = try JSONEncoder().encode(result.seed)
+        let decoded = try JSONDecoder().decode(NetgenLVSDevicePolicySeed.self, from: encoded)
+        #expect(decoded == result.seed)
+    }
+
     @Test func unsupportedNetgenSetupCommandMakesImportPartial() {
         let result = NetgenLVSDeviceDeckImporter.importDeviceDeck(
             text: """
@@ -154,6 +219,74 @@ struct NetgenLVSDeviceDeckImporterTests {
         })
         #expect(audit.requirements.contains {
             $0.requirementID == "policy-rule-permute" && $0.status == .incomplete
+        })
+    }
+
+    @Test func auditPolicyRejectsUnsupportedSchemaAndNegativeThresholds() {
+        let unsupportedSchema = Data("""
+        {
+          "schemaVersion": 2,
+          "policyID": "device-policy",
+          "minimumDeviceCount": 1,
+          "minimumPolicyRuleCount": 1,
+          "maximumUnresolvedPolicyRuleCount": 0,
+          "allowPartialImport": false
+        }
+        """.utf8)
+        let negativeThreshold = Data("""
+        {
+          "schemaVersion": 1,
+          "policyID": "device-policy",
+          "minimumDeviceCount": -1,
+          "minimumPolicyRuleCount": 1,
+          "maximumUnresolvedPolicyRuleCount": 0,
+          "allowPartialImport": false
+        }
+        """.utf8)
+
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                NetgenLVSDeviceDeckImportAuditPolicy.self,
+                from: unsupportedSchema
+            )
+        }
+        #expect(throws: DecodingError.self) {
+            _ = try JSONDecoder().decode(
+                NetgenLVSDeviceDeckImportAuditPolicy.self,
+                from: negativeThreshold
+            )
+        }
+    }
+
+    @Test func auditBlocksInvalidProgrammaticPolicy() {
+        let result = NetgenLVSDeviceDeckImporter.importDeviceDeck(
+            text: """
+            lappend devices sky130_fd_pr__nfet_01v8
+            permute "-circuit1 sky130_fd_pr__nfet_01v8" 1 2
+            property "-circuit1 sky130_fd_pr__nfet_01v8" parallel enable
+            equate pins "-circuit1 sky130_fd_pr__nfet_01v8" "-circuit2 sky130_fd_pr__nfet_01v8"
+            """,
+            sourcePath: "/tmp/sky130A_setup.tcl",
+            generatedAt: "2026-07-12T00:00:00Z"
+        )
+        let invalidPolicy = NetgenLVSDeviceDeckImportAuditPolicy(
+            schemaVersion: 99,
+            policyID: " ",
+            minimumDeviceCount: -1,
+            minimumPolicyRuleCount: -1,
+            maximumUnresolvedPolicyRuleCount: 0,
+            allowPartialImport: true
+        )
+
+        let audit = NetgenLVSDeviceDeckImportAuditor().audit(
+            seed: result.seed,
+            report: result.report,
+            policy: invalidPolicy
+        )
+
+        #expect(audit.status == .blocked)
+        #expect(audit.requirements.contains {
+            $0.requirementID == "audit-policy-validity" && $0.status == .blocked
         })
     }
 }

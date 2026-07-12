@@ -1,0 +1,32 @@
+.subckt hierarchy_inv a y vdd vss
+M1 y a vdd vdd sky130_fd_pr__pfet_01v8_hvt l=150n w=420n
+M0 y a vss vss sky130_fd_pr__nfet_01v8 l=150n w=420n
+.ends hierarchy_inv
+
+.subckt hierarchy_chain input output vdd vss
+X1 middle output vdd vss hierarchy_inv
+X0 input middle vdd vss hierarchy_inv
+.ends hierarchy_chain
+
+.subckt hierarchy_repeated input output0 output1 vdd vss
+X1 input output1 vdd vss hierarchy_inv
+X0 input output0 vdd vss hierarchy_inv
+.ends hierarchy_repeated
+
+.subckt hierarchy_pair input output vdd vss
+X1 pair_middle output vdd vss hierarchy_inv
+X0 input pair_middle vdd vss hierarchy_inv
+.ends hierarchy_pair
+
+.subckt hierarchy_three_level input output vdd vss
+X1 upper_middle output vdd vss hierarchy_pair
+X0 input upper_middle vdd vss hierarchy_pair
+.ends hierarchy_three_level
+
+.subckt hierarchy_parameterized_cell drain gate source bulk width=420n
+M0 drain gate source bulk sky130_fd_pr__nfet_01v8 l=150n w={width}
+.ends hierarchy_parameterized_cell
+
+.subckt hierarchy_parameterized input output vss
+X0 output input vss vss hierarchy_parameterized_cell width=840n
+.ends hierarchy_parameterized

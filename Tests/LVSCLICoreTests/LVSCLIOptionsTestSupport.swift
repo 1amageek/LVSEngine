@@ -72,7 +72,6 @@ func failingLVSCorpusReport() -> LVSCorpusReport {
                 actualPassed: false,
                 expectedActiveErrorRuleIDs: ["LVS_MATCH"],
                 actualActiveErrorRuleIDs: ["LVS_MODEL_MISMATCH"],
-                coverageTags: ["diagnostic.rule-id", "failure.expected", "lvs.model-mismatch"],
                 expectationMatched: false,
                 durationSeconds: 0.21,
                 expectedMaxDurationSeconds: 1,
@@ -110,159 +109,6 @@ func failingLVSCorpusReport() -> LVSCorpusReport {
                 )
             ),
         ]
-    )
-}
-
-func netgenExpandedCoverageReport(
-    generatedAt: String? = nil,
-    extraCoverageCases: [(String, [String])] = []
-) -> LVSCorpusReport {
-    let baseCases: [(String, Bool, [String], [String])] = [
-        ("inverter-netgen-lvs", true, [], ["external.netgen", "layout.spice", "lvs.match"]),
-        (
-            "netgen-model-mismatch",
-            false,
-            ["LVS_MISMATCH"],
-            ["diagnostic.rule-id", "external.netgen", "failure.expected", "layout.spice", "lvs.model-mismatch"]
-        ),
-        (
-            "netgen-hierarchical-model-mismatch",
-            false,
-            ["LVS_MISMATCH"],
-            [
-                "diagnostic.rule-id",
-                "external.netgen",
-                "failure.expected",
-                "layout.spice",
-                "lvs.hierarchy",
-                "lvs.model-mismatch.hierarchical",
-            ]
-        ),
-        (
-            "netgen-symmetric-terminals",
-            true,
-            [],
-            [
-                "external.netgen",
-                "layout.spice",
-                "lvs.match",
-                "lvs.mos-source-drain-permutation",
-                "lvs.passive-terminal-permutation",
-                "lvs.symmetric-terminals",
-            ]
-        ),
-        (
-            "netgen-device-breadth",
-            true,
-            [],
-            ["external.netgen", "layout.spice", "lvs.bjt", "lvs.device-breadth", "lvs.diode", "lvs.match"]
-        ),
-        (
-            "netgen-source-breadth",
-            true,
-            [],
-            [
-                "external.netgen",
-                "layout.spice",
-                "lvs.controlled-sources",
-                "lvs.device-breadth",
-                "lvs.independent-sources",
-                "lvs.inductor",
-                "lvs.match",
-                "lvs.sources",
-            ]
-        ),
-        (
-            "netgen-global-supply-policy-gap",
-            false,
-            ["LVS_MISMATCH"],
-            [
-                "diagnostic.rule-id",
-                "external.netgen",
-                "failure.expected",
-                "layout.spice",
-                "lvs.global-nets",
-                "lvs.netgen.policy-gap.global-nets",
-            ]
-        ),
-        (
-            "netgen-multiplicity-policy-gap",
-            false,
-            ["LVS_MISMATCH"],
-            [
-                "diagnostic.rule-id",
-                "external.netgen",
-                "failure.expected",
-                "layout.spice",
-                "lvs.multiplicity",
-                "lvs.netgen.policy-gap.multiplicity",
-                "lvs.parallel-devices",
-            ]
-        ),
-    ]
-    var caseResults = baseCases.map { caseResult(
-        caseID: $0.0,
-        passed: $0.1,
-        activeRuleIDs: $0.2,
-        coverageTags: $0.3
-    ) }
-    caseResults.append(contentsOf: extraCoverageCases.map { caseResult(
-        caseID: $0.0,
-        passed: true,
-        activeRuleIDs: [],
-        coverageTags: $0.1
-    ) })
-    return LVSCorpusReport(
-        generatedAt: generatedAt,
-        passed: true,
-        caseCount: caseResults.count,
-        matchedCaseCount: caseResults.count,
-        budgetExceededCaseCount: 0,
-        totalDurationSeconds: 1,
-        caseResults: caseResults
-    )
-}
-
-func caseResult(
-    caseID: String,
-    passed: Bool,
-    activeRuleIDs: [String],
-    coverageTags: [String]
-) -> LVSCorpusCaseResult {
-    let summary = LVSDiagnosticSummary(
-        infoCount: 0,
-        warningCount: 0,
-        errorCount: activeRuleIDs.isEmpty ? 0 : 1
-    )
-    return LVSCorpusCaseResult(
-        caseID: caseID,
-        matched: true,
-        expectedPassed: passed,
-        actualPassed: passed,
-        expectedActiveErrorRuleIDs: activeRuleIDs,
-        actualActiveErrorRuleIDs: activeRuleIDs,
-        coverageTags: coverageTags,
-        expectationMatched: true,
-        durationSeconds: 0.1,
-        expectedMaxDurationSeconds: 30,
-        durationBudgetPassed: true,
-        failureReasons: [],
-        diagnosticSummary: summary,
-        reportPath: "/tmp/\(caseID)/lvs-report.json",
-        manifestPath: "/tmp/\(caseID)/lvs-artifact-manifest.json",
-        extractedLayoutNetlistPath: nil,
-        oracleResult: LVSCorpusOracleResult(
-            backendID: "netgen",
-            passed: passed,
-            activeErrorRuleIDs: activeRuleIDs,
-            diagnosticSummary: summary,
-            durationSeconds: 0.1,
-            agreementPassed: true,
-            failureReasons: [],
-            reportPath: "/tmp/\(caseID)/oracle-netgen/lvs-report.json",
-            manifestPath: "/tmp/\(caseID)/oracle-netgen/lvs-artifact-manifest.json",
-            extractedLayoutNetlistPath: nil
-        )
     )
 }
 
@@ -304,8 +150,9 @@ func makeRepairHintExecutionResult() -> LVSExecutionResult {
         result: LVSResult(
             backendID: "native",
             toolName: "NativeLVS",
-            success: true,
-            completed: true,
+            executionStatus: .completed,
+            verdict: .mismatch,
+            readiness: .ready,
             logPath: "",
             diagnostics: [
                 LVSDiagnostic(

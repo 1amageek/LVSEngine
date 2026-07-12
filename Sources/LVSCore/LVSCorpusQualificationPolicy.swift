@@ -1,5 +1,11 @@
 public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
-    public static let strict = LVSCorpusQualificationPolicy()
+    public static let strict = LVSCorpusQualificationPolicy(
+        requiredObservedAssertions: [
+            "durationBudget:within-budget",
+            "verdict:match",
+            "verdict:mismatch",
+        ]
+    )
 
     public let requireCorpusPassed: Bool
     public let minimumPassRate: Double
@@ -8,7 +14,9 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
     public let minimumOracleAgreementRate: Double?
     public let allowPrimaryExecutionFailures: Bool
     public let allowOracleExecutionFailures: Bool
-    public let requiredCoverageTags: [String]
+    public let requiredObservedAssertions: [String]
+    public let allowBlockedAssertions: Bool
+    public let allowFailedAssertions: Bool
 
     private enum CodingKeys: String, CodingKey {
         case requireCorpusPassed
@@ -18,7 +26,9 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         case minimumOracleAgreementRate
         case allowPrimaryExecutionFailures
         case allowOracleExecutionFailures
-        case requiredCoverageTags
+        case requiredObservedAssertions
+        case allowBlockedAssertions
+        case allowFailedAssertions
     }
 
     public init(
@@ -29,7 +39,9 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         minimumOracleAgreementRate: Double? = nil,
         allowPrimaryExecutionFailures: Bool = false,
         allowOracleExecutionFailures: Bool = false,
-        requiredCoverageTags: [String] = []
+        requiredObservedAssertions: [String] = [],
+        allowBlockedAssertions: Bool = false,
+        allowFailedAssertions: Bool = false
     ) {
         self.requireCorpusPassed = requireCorpusPassed
         self.minimumPassRate = minimumPassRate
@@ -38,7 +50,9 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         self.minimumOracleAgreementRate = minimumOracleAgreementRate
         self.allowPrimaryExecutionFailures = allowPrimaryExecutionFailures
         self.allowOracleExecutionFailures = allowOracleExecutionFailures
-        self.requiredCoverageTags = Self.normalizedCoverageTags(requiredCoverageTags)
+        self.requiredObservedAssertions = Self.normalizedAssertions(requiredObservedAssertions)
+        self.allowBlockedAssertions = allowBlockedAssertions
+        self.allowFailedAssertions = allowFailedAssertions
     }
 
     public init(from decoder: Decoder) throws {
@@ -59,10 +73,18 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             Bool.self,
             forKey: .allowOracleExecutionFailures
         ) ?? false
-        requiredCoverageTags = Self.normalizedCoverageTags(try container.decodeIfPresent(
+        requiredObservedAssertions = Self.normalizedAssertions(try container.decodeIfPresent(
             [String].self,
-            forKey: .requiredCoverageTags
+            forKey: .requiredObservedAssertions
         ) ?? [])
+        allowBlockedAssertions = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .allowBlockedAssertions
+        ) ?? false
+        allowFailedAssertions = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .allowFailedAssertions
+        ) ?? false
     }
 
     public func evaluate(
@@ -147,15 +169,33 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
                 requiredCount: 0
             ))
         }
-        let missingCoverageTags = requiredCoverageTags.filter { summary.coverageTagCounts[$0] == nil }
-        if !missingCoverageTags.isEmpty {
+        let missingAssertions = requiredObservedAssertions.filter {
+            summary.observedAssertionCounts[$0] == nil
+        }
+        if !missingAssertions.isEmpty {
             failures.append(LVSCorpusQualificationFailure(
-                code: "required_coverage_missing",
-                message: "The corpus is missing one or more required coverage tags.",
-                observedCount: requiredCoverageTags.count - missingCoverageTags.count,
-                requiredCount: requiredCoverageTags.count,
-                observedText: summary.coverageTagCounts.keys.sorted().joined(separator: ","),
-                requiredText: missingCoverageTags.joined(separator: ",")
+                code: "required_observed_assertion_missing",
+                message: "The corpus is missing one or more successful observed assertions.",
+                observedCount: requiredObservedAssertions.count - missingAssertions.count,
+                requiredCount: requiredObservedAssertions.count,
+                observedText: summary.observedAssertionCounts.keys.sorted().joined(separator: ","),
+                requiredText: missingAssertions.joined(separator: ",")
+            ))
+        }
+        if !allowFailedAssertions && summary.failedAssertionCount > 0 {
+            failures.append(LVSCorpusQualificationFailure(
+                code: "observed_assertion_failed",
+                message: "One or more required observed assertions failed.",
+                observedCount: summary.failedAssertionCount,
+                requiredCount: 0
+            ))
+        }
+        if !allowBlockedAssertions && summary.blockedAssertionCount > 0 {
+            failures.append(LVSCorpusQualificationFailure(
+                code: "observed_assertion_blocked",
+                message: "One or more required observed assertions were blocked.",
+                observedCount: summary.blockedAssertionCount,
+                requiredCount: 0
             ))
         }
         return LVSCorpusQualificationResult(policy: self, failures: failures)
@@ -200,7 +240,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         return failures
     }
 
-    private static func normalizedCoverageTags(_ tags: [String]) -> [String] {
-        Array(Set(tags.filter { !$0.isEmpty })).sorted()
+    private static func normalizedAssertions(_ assertions: [String]) -> [String] {
+        Array(Set(assertions.filter { !$0.isEmpty })).sorted()
     }
 }

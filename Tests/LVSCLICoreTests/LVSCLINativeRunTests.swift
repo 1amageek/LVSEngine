@@ -230,7 +230,9 @@ extension LVSCLIOptionsTests {
     #expect(report.result.passed)
     #expect(canonicalPath(report.artifactManifestURL) == canonicalPath(manifestURL))
     #expect(manifest.backendID == "native")
-    #expect(manifest.passed)
+    #expect(manifest.executionStatus == .completed)
+    #expect(manifest.verdict == .match)
+    #expect(manifest.readiness == .ready)
     #expect(manifest.inputs.contains { $0.id == "input-layout-netlist" && $0.sha256 != nil })
     #expect(manifest.inputs.contains { $0.id == "input-schematic-netlist" && $0.sha256 != nil })
     #expect(
@@ -363,11 +365,12 @@ extension LVSCLIOptionsTests {
       "--json",
     ])
 
-    #expect(exitCode == 0)
+    #expect(exitCode == 2)
     let reportURL = try onlyArtifact(in: outputDirectory, prefix: "lvs-report-")
     let report = try JSONDecoder().decode(
       LVSExecutionResult.self, from: Data(contentsOf: reportURL))
-    #expect(report.result.passed)
+    #expect(!report.result.passed)
+    #expect(report.result.verdict == .mismatch)
     #expect(report.result.diagnostics.allSatisfy { $0.waiverID == "waive-component-count" })
     #expect(report.waiverReport?.waivedDiagnosticCount == 1)
   }
@@ -590,8 +593,9 @@ extension LVSCLIOptionsTests {
       result: LVSResult(
         backendID: "native",
         toolName: "NativeLVS",
-        success: true,
-        completed: true,
+        executionStatus: .completed,
+        verdict: .mismatch,
+        readiness: .ready,
         logPath: "",
         diagnostics: [
           LVSDiagnostic(

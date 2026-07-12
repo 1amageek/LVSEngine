@@ -561,9 +561,8 @@ struct NativeLVSBackendTests {
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_MODEL_MISMATCH" })
         #expect(diagnostic.category == "modelMismatch")
-        #expect(diagnostic.componentSignature == "mos|out,in,vss,vss")
-        #expect(diagnostic.layoutModel == "nmos")
-        #expect(diagnostic.schematicModel == "nmos_mismatch")
+        #expect(diagnostic.componentSignature?.hasPrefix("device:") == true)
+        #expect(diagnostic.rawLine.contains("reason=device_semantics_mismatch"))
         #expect(diagnostic.suggestedFix != nil)
     }
 
@@ -661,7 +660,8 @@ struct NativeLVSBackendTests {
 
         #expect(!defaultResult.result.passed)
         #expect(defaultResult.result.diagnostics.contains {
-            $0.ruleID == "LVS_COMPONENT_MISMATCH"
+            $0.ruleID == "LVS_GRAPH_MISMATCH"
+                && $0.rawLine.contains("layoutObjectIDs=device:")
         })
 
         let policyURL = try writeTerminalEquivalencePolicy(
@@ -689,7 +689,7 @@ struct NativeLVSBackendTests {
             backendSelection: LVSBackendSelection(backendID: "native")
         ))
 
-        #expect(policyResult.result.passed, "\(policyResult.result.diagnostics.map(\.message))")
+        #expect(policyResult.result.passed)
     }
 
     @Test func parameterMismatchFails() async throws {
@@ -723,13 +723,9 @@ struct NativeLVSBackendTests {
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_PARAMETER_MISMATCH" })
         #expect(diagnostic.category == "parameterMismatch")
-        #expect(diagnostic.parameterName == "w")
-        #expect(diagnostic.layoutValue == "1u")
-        #expect(diagnostic.schematicValue == "2u")
-        #expect(diagnostic.layoutModel == "pmos")
-        #expect(diagnostic.schematicModel == "pmos")
-        #expect(diagnostic.layoutComponentName == "M1")
-        #expect(diagnostic.schematicComponentName == "M1")
+        #expect(diagnostic.componentSignature?.hasPrefix("device:") == true)
+        #expect(diagnostic.rawLine.contains("reason=device_parameter_mismatch"))
+        #expect(diagnostic.rawLine.contains("schematicObjectIDs=device:"))
     }
 
     @Test func numericEquivalentParametersMatch() async throws {
@@ -797,10 +793,8 @@ struct NativeLVSBackendTests {
 
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_PARAMETER_MISMATCH" })
-        #expect(diagnostic.parameterName == "w")
-        #expect(diagnostic.layoutValue == "1u")
-        #expect(diagnostic.schematicValue == "2u")
-        #expect(!result.result.diagnostics.contains { $0.parameterName == "l" })
+        #expect(diagnostic.rawLine.contains("reason=device_parameter_mismatch"))
+        #expect(diagnostic.componentSignature?.hasPrefix("device:") == true)
     }
 
     @Test func matchingSubcircuitInstancesPass() async throws {
@@ -891,9 +885,7 @@ struct NativeLVSBackendTests {
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_PARAMETER_MISMATCH" })
         #expect(diagnostic.category == "parameterMismatch")
-        #expect(diagnostic.parameterName == "w")
-        #expect(diagnostic.layoutValue == "1u")
-        #expect(diagnostic.schematicValue == "2u")
+        #expect(diagnostic.rawLine.contains("reason=device_parameter_mismatch"))
     }
 
     @Test func hierarchicalSubcircuitDefinitionModelMismatchFails() async throws {
@@ -935,9 +927,8 @@ struct NativeLVSBackendTests {
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_MODEL_MISMATCH" })
         #expect(diagnostic.category == "modelMismatch")
-        #expect(diagnostic.componentSignature == "mos|vss,a,y,vss")
-        #expect(diagnostic.layoutModel == "nmos")
-        #expect(diagnostic.schematicModel == "nmos_mismatch")
+        #expect(diagnostic.componentSignature?.hasPrefix("device:") == true)
+        #expect(diagnostic.rawLine.contains("reason=device_semantics_mismatch"))
     }
 
     @Test func subcircuitInstancePinMismatchFails() async throws {
@@ -979,7 +970,10 @@ struct NativeLVSBackendTests {
         ))
 
         #expect(!result.result.passed)
-        #expect(result.result.diagnostics.contains { $0.ruleID == "LVS_COMPONENT_MISMATCH" })
+        #expect(result.result.diagnostics.contains {
+            $0.ruleID == "LVS_GRAPH_MISMATCH"
+                && $0.rawLine.contains("layoutObjectIDs=device:")
+        })
     }
 
     @Test func globalSupplyNetsMatchWhenTopPortsDiffer() async throws {
@@ -1087,9 +1081,8 @@ struct NativeLVSBackendTests {
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_MODEL_MISMATCH" })
         #expect(diagnostic.category == "modelMismatch")
-        #expect(diagnostic.componentSignature == "diode|in,vss")
-        #expect(diagnostic.layoutModel == "diode_model")
-        #expect(diagnostic.schematicModel == "diode_mismatch")
+        #expect(diagnostic.componentSignature?.hasPrefix("device:") == true)
+        #expect(diagnostic.rawLine.contains("reason=device_semantics_mismatch"))
     }
 
     @Test func inductorAndSourceDevicesMatchWithNumericEquivalentValues() async throws {
@@ -1165,9 +1158,9 @@ struct NativeLVSBackendTests {
 
         #expect(!result.result.passed)
         #expect(result.result.diagnostics.contains {
-            $0.ruleID == "LVS_COMPONENT_MISMATCH"
-                && $0.category == "componentCountMismatch"
-                && $0.componentSignature?.contains("voltage-source") == true
+            $0.ruleID == "LVS_GRAPH_MISMATCH"
+                && $0.category == "graphMismatch"
+                && $0.rawLine.contains("layoutObjectIDs=device:")
         })
     }
 
@@ -1202,10 +1195,8 @@ struct NativeLVSBackendTests {
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_PARAMETER_MISMATCH" })
         #expect(diagnostic.category == "parameterMismatch")
-        #expect(diagnostic.componentSignature == "vcvs|out,vss,ctrl,ctrlb|vcvs")
-        #expect(diagnostic.parameterName == "gain")
-        #expect(diagnostic.layoutValue == "10")
-        #expect(diagnostic.schematicValue == "11")
+        #expect(diagnostic.componentSignature?.hasPrefix("device:") == true)
+        #expect(diagnostic.rawLine.contains("reason=device_parameter_mismatch"))
     }
 
     @Test func parallelDevicesMatchNumericMultiplicity() async throws {
@@ -1695,6 +1686,294 @@ struct NativeLVSBackendTests {
         #expect(ignoredRule.reasonCode == "unresolved-device-selector")
     }
 
+    @Test func devicePolicyRuntimePredicateScopesPolicyToMatchingCells() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeNetlist(
+            """
+            .subckt top in out
+            X1 in mid sky130_fd_sc_hd__fill_1 gain=1
+            X2 mid out logic_cell gain=1
+            .ends top
+            .subckt sky130_fd_sc_hd__fill_1 in out
+            R1 in out rpoly r=1k
+            .ends sky130_fd_sc_hd__fill_1
+            .subckt logic_cell in out
+            R1 in out rpoly r=1k
+            .ends logic_cell
+            """,
+            name: "layout-runtime-selector.spice",
+            in: directory
+        )
+        let schematicURL = try writeNetlist(
+            """
+            .subckt top in out
+            X1 in mid sky130_fd_sc_hd__fill_1 gain=9
+            X2 mid out logic_cell gain=1
+            .ends top
+            .subckt sky130_fd_sc_hd__fill_1 in out
+            R1 in out rpoly r=2k
+            .ends sky130_fd_sc_hd__fill_1
+            .subckt logic_cell in out
+            R1 in out rpoly r=1k
+            .ends logic_cell
+            """,
+            name: "schematic-runtime-selector.spice",
+            in: directory
+        )
+        let seed = NetgenLVSDevicePolicySeed(
+            generatedAt: "2026-07-12T00:00:00Z",
+            sourcePath: "sky130A_setup.tcl",
+            devices: [],
+            policyRules: [
+                NetgenLVSPolicyRule(
+                    kind: "property",
+                    arguments: ["-circuit1 $cell", "blackbox"],
+                    runtimePredicate: NetgenLVSRuntimePredicate(
+                        variableName: "cell",
+                        pattern: "sky130_fd_sc_[^_]+__fill_[[:digit:]]+"
+                    ),
+                    sourceLineNumber: 12,
+                    sourceLine: "property \"-circuit1 $cell\" blackbox"
+                )
+            ]
+        )
+        let policyURL = try writeDevicePolicySeed(
+            seed,
+            name: "runtime-selector-policy.json",
+            in: directory
+        )
+
+        let result = try await NativeLVSBackend().run(LVSRequest(
+            layoutNetlistURL: layoutURL,
+            schematicNetlistURL: schematicURL,
+            topCell: "top",
+            devicePolicyURL: policyURL,
+            backendSelection: LVSBackendSelection(backendID: "native")
+        ))
+
+        #expect(result.result.passed, "\(result.result.diagnostics.map(\.message))")
+        let report = try #require(result.devicePolicyReport)
+        #expect(report.status == .complete)
+        #expect(report.appliedRules.map(\.model) == ["sky130_fd_sc_hd__fill_1"])
+        #expect(!report.appliedRules.contains { $0.model == "logic_cell" })
+    }
+
+    @Test func devicePolicyIgnoreClassRemovesOnlyTheSelectedCircuitModel() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeNetlist(
+            """
+            .subckt top in out
+            XIGNORE in out ignored_cell
+            R1 in out rpoly r=1k
+            .ends top
+            .subckt ignored_cell in out
+            R1 in out rpoly r=10k
+            .ends ignored_cell
+            """,
+            name: "layout-ignore-class.spice",
+            in: directory
+        )
+        let schematicURL = try writeNetlist(
+            """
+            .subckt top in out
+            R1 in out rpoly r=1k
+            .ends top
+            """,
+            name: "schematic-ignore-class.spice",
+            in: directory
+        )
+        let seed = NetgenLVSDevicePolicySeed(
+            generatedAt: "2026-07-12T00:00:00Z",
+            sourcePath: "sky130A_setup.tcl",
+            devices: [],
+            policyRules: [
+                NetgenLVSPolicyRule(
+                    kind: "ignore-class",
+                    arguments: ["class", "-circuit1 ignored_cell"],
+                    sourceLineNumber: 24,
+                    sourceLine: "ignore class \"-circuit1 ignored_cell\""
+                )
+            ]
+        )
+        let policyURL = try writeDevicePolicySeed(
+            seed,
+            name: "ignore-class-policy.json",
+            in: directory
+        )
+
+        let result = try await NativeLVSBackend().run(LVSRequest(
+            layoutNetlistURL: layoutURL,
+            schematicNetlistURL: schematicURL,
+            topCell: "top",
+            devicePolicyURL: policyURL,
+            backendSelection: LVSBackendSelection(backendID: "native")
+        ))
+
+        #expect(result.result.passed, "\(result.result.diagnostics.map(\.message))")
+        let report = try #require(result.devicePolicyReport)
+        #expect(report.status == .complete)
+        #expect(report.appliedRules.contains {
+            $0.kind == "ignore-class"
+                && $0.model == "ignored_cell"
+                && $0.propertyMode == "circuit1"
+        })
+    }
+
+    @Test func devicePolicyRuntimeEquateClassesResolvesCapturedCellName() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeNetlist(
+            """
+            .subckt top in out
+            X1 in out library__macro
+            .ends top
+            .subckt library__macro in out
+            R1 in out rpoly r=1k
+            .ends library__macro
+            """,
+            name: "layout-equate-runtime.spice",
+            in: directory
+        )
+        let schematicURL = try writeNetlist(
+            """
+            .subckt top in out
+            X1 in out macro
+            .ends top
+            .subckt macro in out
+            R1 in out rpoly r=1k
+            .ends macro
+            """,
+            name: "schematic-equate-runtime.spice",
+            in: directory
+        )
+        let predicate = NetgenLVSRuntimePredicate(
+            variableName: "cell",
+            pattern: "(.+)__(.+)",
+            captureVariableNames: ["library", "cellname"]
+        )
+        let seed = NetgenLVSDevicePolicySeed(
+            generatedAt: "2026-07-12T00:00:00Z",
+            sourcePath: "sky130A_setup.tcl",
+            devices: [],
+            policyRules: [
+                NetgenLVSPolicyRule(
+                    kind: "equate",
+                    arguments: ["classes", "-circuit1 $cell", "-circuit2 $cellname"],
+                    runtimePredicate: predicate,
+                    sourceLineNumber: 31,
+                    sourceLine: "equate classes \"-circuit1 $cell\" \"-circuit2 $cellname\""
+                ),
+                NetgenLVSPolicyRule(
+                    kind: "equate-pins",
+                    arguments: ["pins", "-circuit1 $cell", "-circuit2 $cellname"],
+                    runtimePredicate: predicate,
+                    sourceLineNumber: 32,
+                    sourceLine: "equate pins \"-circuit1 $cell\" \"-circuit2 $cellname\""
+                ),
+            ]
+        )
+        let policyURL = try writeDevicePolicySeed(
+            seed,
+            name: "runtime-equate-policy.json",
+            in: directory
+        )
+
+        let result = try await NativeLVSBackend().run(LVSRequest(
+            layoutNetlistURL: layoutURL,
+            schematicNetlistURL: schematicURL,
+            topCell: "top",
+            devicePolicyURL: policyURL,
+            backendSelection: LVSBackendSelection(backendID: "native")
+        ))
+
+        #expect(result.result.passed, "\(result.result.diagnostics.map(\.message))")
+        let report = try #require(result.devicePolicyReport)
+        #expect(report.status == .complete)
+        #expect(report.appliedRuleCountsByKind["equate-classes"] == 1)
+        #expect(report.appliedRuleCountsByKind["equate-pins"] == 1)
+        #expect(report.ignoredRuleCount == 0)
+    }
+
+    @Test func devicePolicyConsumesNetgenDefaultsAndNamedResistorPins() async throws {
+        let directory = try makeTemporaryDirectory()
+        let layoutURL = try writeNetlist(
+            """
+            .subckt top a b
+            R1 a b sky130_fd_pr__res_generic_m1 r=1k
+            .ends top
+            """,
+            name: "layout-default-policy.spice",
+            in: directory
+        )
+        let schematicURL = try writeNetlist(
+            """
+            .subckt top a b
+            R1 b a sky130_fd_pr__res_generic_m1 r=1k
+            .ends top
+            """,
+            name: "schematic-default-policy.spice",
+            in: directory
+        )
+        let seed = NetgenLVSDevicePolicySeed(
+            generatedAt: "2026-07-12T00:00:00Z",
+            sourcePath: "sky130A_setup.tcl",
+            devices: [
+                NetgenLVSDeviceDescriptor(
+                    deviceName: "sky130_fd_pr__res_generic_m1",
+                    family: "resistor",
+                    sourceLineNumber: 1,
+                    sourceLine: "lappend devices sky130_fd_pr__res_generic_m1"
+                )
+            ],
+            policyRules: [
+                NetgenLVSPolicyRule(
+                    kind: "permute",
+                    arguments: ["default"],
+                    sourceLineNumber: 2,
+                    sourceLine: "permute default"
+                ),
+                NetgenLVSPolicyRule(
+                    kind: "property",
+                    arguments: ["default"],
+                    sourceLineNumber: 3,
+                    sourceLine: "property default"
+                ),
+                NetgenLVSPolicyRule(
+                    kind: "property",
+                    arguments: ["parallel", "none"],
+                    sourceLineNumber: 4,
+                    sourceLine: "property parallel none"
+                ),
+                NetgenLVSPolicyRule(
+                    kind: "permute",
+                    arguments: ["-circuit1 sky130_fd_pr__res_generic_m1", "end_a", "end_b"],
+                    sourceLineNumber: 5,
+                    sourceLine: "permute \"-circuit1 sky130_fd_pr__res_generic_m1\" end_a end_b"
+                ),
+            ]
+        )
+        let policyURL = try writeDevicePolicySeed(
+            seed,
+            name: "default-policy.json",
+            in: directory
+        )
+
+        let result = try await NativeLVSBackend().run(LVSRequest(
+            layoutNetlistURL: layoutURL,
+            schematicNetlistURL: schematicURL,
+            topCell: "top",
+            devicePolicyURL: policyURL,
+            backendSelection: LVSBackendSelection(backendID: "native")
+        ))
+
+        #expect(result.result.passed, "\(result.result.diagnostics.map(\.message))")
+        let report = try #require(result.devicePolicyReport)
+        #expect(report.status == .complete)
+        #expect(report.appliedRuleCountsByKind["permute-default"] == 1)
+        #expect(report.appliedRuleCountsByKind["property-default"] == 2)
+        #expect(report.appliedRuleCountsByKind["permute"] == 1)
+        #expect(report.ignoredRuleCount == 0)
+    }
+
     @Test func devicePolicyPropertySeriesAddsLengthAcrossSeriesMOSDevices() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutURL = try writeNetlist(
@@ -1901,14 +2180,10 @@ struct NativeLVSBackendTests {
 
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first {
-            $0.ruleID == "LVS_MULTIPLICITY_MISMATCH"
+            $0.ruleID == "LVS_COMPONENT_COUNT_MISMATCH"
         })
-        #expect(diagnostic.category == "multiplicityMismatch")
-        #expect(diagnostic.parameterName == "m")
-        #expect(diagnostic.layoutValue == "3")
-        #expect(diagnostic.schematicValue == "2")
-        #expect(diagnostic.layoutCount == 3)
-        #expect(diagnostic.schematicCount == 2)
+        #expect(diagnostic.category == "componentCount")
+        #expect(diagnostic.rawLine.contains("reason=device_count_mismatch"))
     }
 
     @Test func modelEquivalencePolicyMatchesAliasModels() async throws {
@@ -1989,8 +2264,7 @@ struct NativeLVSBackendTests {
         #expect(!result.result.passed)
         let diagnostic = try #require(result.result.diagnostics.first { $0.ruleID == "LVS_MODEL_MISMATCH" })
         #expect(diagnostic.category == "modelMismatch")
-        #expect(diagnostic.layoutModel == "sky130_fd_pr__nfet_01v8")
-        #expect(diagnostic.schematicModel == "nmos")
+        #expect(diagnostic.rawLine.contains("reason=device_semantics_mismatch"))
     }
 
     @Test func devicePolicySeedPermuteRuleMatchesSwappedDiodeTerminals() async throws {
@@ -2097,7 +2371,8 @@ struct NativeLVSBackendTests {
         ))
         #expect(!defaultResult.result.passed)
         #expect(defaultResult.result.diagnostics.contains {
-            $0.ruleID == "LVS_PARAMETER_MISMATCH" && ($0.parameterName == "as" || $0.parameterName == "ad")
+            $0.ruleID == "LVS_PARAMETER_MISMATCH"
+                && $0.rawLine.contains("reason=device_parameter_mismatch")
         })
 
         let importedPolicy = NetgenLVSDeviceDeckImporter.importDeviceDeck(
@@ -2254,7 +2529,11 @@ struct NativeLVSBackendTests {
             backendSelection: LVSBackendSelection(backendID: "native")
         ))
 
-        #expect(policyResult.result.passed, "\(policyResult.result.diagnostics.map(\.message))")
+        #expect(!policyResult.result.passed)
+        #expect(policyResult.result.executionStatus == .completed)
+        #expect(policyResult.result.verdict == .blocked)
+        #expect(policyResult.result.readiness == .blocked)
+        #expect(policyResult.result.blockingReasons.map(\.code) == ["device_policy_partial"])
         let report = try #require(policyResult.devicePolicyReport)
         #expect(report.status == .partial)
         #expect(report.knownDeviceCount == 4)
@@ -2278,6 +2557,10 @@ struct NativeLVSBackendTests {
         })
         #expect(policyResult.result.diagnostics.contains { $0.ruleID == "LVS_DEVICE_POLICY_APPLIED" })
         #expect(policyResult.result.diagnostics.contains { $0.ruleID == "LVS_DEVICE_POLICY_IGNORED" })
+        #expect(policyResult.result.diagnostics.contains {
+            $0.ruleID == "LVS_DEVICE_POLICY_PARTIAL"
+                && $0.effectiveWaiverDisposition == .nonWaivable
+        })
         #expect(policyResult.result.diagnostics.contains { $0.ruleID == "LVS_DEVICE_POLICY_UNOBSERVED" })
         #expect(policyResult.result.diagnostics.contains {
             $0.ruleID == "LVS_DEVICE_POLICY_IGNORED_UNRESOLVED_DEVICE_SELECTOR"
@@ -2382,7 +2665,8 @@ struct NativeLVSBackendTests {
         ))
         #expect(!outOfToleranceResult.result.passed)
         #expect(outOfToleranceResult.result.diagnostics.contains {
-            $0.ruleID == "LVS_PARAMETER_MISMATCH" && $0.parameterName == "w"
+            $0.ruleID == "LVS_PARAMETER_MISMATCH"
+                && $0.rawLine.contains("reason=device_parameter_mismatch")
         })
 
         let suffixOutOfToleranceLayoutURL = try writeNetlist(
@@ -2412,7 +2696,8 @@ struct NativeLVSBackendTests {
         ))
         #expect(!suffixOutOfToleranceResult.result.passed)
         #expect(suffixOutOfToleranceResult.result.diagnostics.contains {
-            $0.ruleID == "LVS_PARAMETER_MISMATCH" && $0.parameterName == "w"
+            $0.ruleID == "LVS_PARAMETER_MISMATCH"
+                && $0.rawLine.contains("reason=device_parameter_mismatch")
         })
     }
 

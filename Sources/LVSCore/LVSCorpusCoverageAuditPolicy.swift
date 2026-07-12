@@ -1,7 +1,7 @@
 import Foundation
 
 public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 1
+    public static let currentSchemaVersion = 2
 
     public let schemaVersion: Int
     public let policyID: String
@@ -24,125 +24,107 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         self.policyID = policyID
         self.requireQualifiedCorpus = requireQualifiedCorpus
         self.requireOracleAgreement = requireOracleAgreement
-        self.minimumCaseCount = max(0, minimumCaseCount)
-        if let maxReportAgeSeconds, maxReportAgeSeconds.isFinite, maxReportAgeSeconds >= 0 {
-            self.maxReportAgeSeconds = maxReportAgeSeconds
-        } else {
-            self.maxReportAgeSeconds = nil
-        }
+        self.minimumCaseCount = minimumCaseCount
+        self.maxReportAgeSeconds = maxReportAgeSeconds
         self.requirements = requirements.sorted { $0.requirementID < $1.requirementID }
     }
 
     public static var netgenFoundryExpansion: LVSCorpusCoverageAuditPolicy {
         LVSCorpusCoverageAuditPolicy(
-            policyID: "lvs.netgen-foundry-expansion.v1",
-            minimumCaseCount: 8,
+            policyID: "lvs.production-observed-assertions.v2",
+            minimumCaseCount: 7,
             requirements: [
                 Requirement(
-                    requirementID: "netgen-oracle-baseline",
-                    title: "Netgen oracle lane baseline",
-                    requiredCoverageTags: ["external.netgen", "layout.spice", "lvs.match"],
-                    suggestedActions: ["retain_netgen_external_oracle_lane"]
+                    requirementID: "independent-oracle",
+                    title: "Independent oracle agreement",
+                    requiredObservedAssertions: ["oracleAgreement:true", "oracleIndependence:ready"],
+                    suggestedActions: ["run_lvs_corpus_with_netgen_oracle"]
                 ),
                 Requirement(
-                    requirementID: "netlist-mismatch-verdicts",
-                    title: "Netlist mismatch verdicts",
-                    requiredCoverageTags: ["diagnostic.rule-id", "failure.expected", "lvs.model-mismatch"],
-                    suggestedActions: ["add_netgen_mismatch_cases"]
+                    requirementID: "match-verdict",
+                    title: "Positive equivalence verdict",
+                    requiredObservedAssertions: ["verdict:match"],
+                    suggestedActions: ["add_positive_lvs_case"]
                 ),
                 Requirement(
-                    requirementID: "hierarchy-coverage",
-                    title: "Hierarchy coverage",
-                    requiredCoverageTags: ["lvs.hierarchy"],
-                    suggestedActions: ["add_hierarchical_netgen_case"]
+                    requirementID: "mismatch-verdict",
+                    title: "Negative equivalence verdict",
+                    requiredObservedAssertions: ["verdict:mismatch"],
+                    suggestedActions: ["add_negative_lvs_case"]
                 ),
                 Requirement(
-                    requirementID: "device-breadth-coverage",
-                    title: "Device breadth coverage",
-                    requiredCoverageTags: ["lvs.device-breadth", "lvs.bjt", "lvs.diode", "lvs.sources"],
-                    suggestedActions: ["add_device_family_netgen_cases"]
+                    requirementID: "model-fault-diagnostic",
+                    title: "Model fault diagnostic",
+                    requiredObservedAssertions: ["diagnosticRule:LVS_MODEL_MISMATCH"],
+                    suggestedActions: ["add_model_fault_lvs_case"]
                 ),
                 Requirement(
-                    requirementID: "source-device-breadth-coverage",
-                    title: "Source device breadth coverage",
-                    requiredCoverageTags: [
-                        "external.netgen",
-                        "lvs.controlled-sources",
-                        "lvs.independent-sources",
-                        "lvs.inductor",
-                        "lvs.sources",
+                    requirementID: "bounded-execution",
+                    title: "Bounded execution",
+                    requiredObservedAssertions: ["durationBudget:within-budget", "cancellation:cancelled"],
+                    suggestedActions: ["run_lvs_bounded_execution_probes"]
+                ),
+                Requirement(
+                    requirementID: "deterministic-result",
+                    title: "Deterministic normalized result",
+                    requiredObservedAssertions: ["determinism:stable"],
+                    suggestedActions: ["run_lvs_determinism_probe"]
+                ),
+                Requirement(
+                    requirementID: "review-artifacts",
+                    title: "Reviewable correspondence artifacts",
+                    requiredObservedAssertions: ["reportArtifact", "manifestArtifact", "correspondenceArtifact"],
+                    suggestedActions: ["retain_lvs_review_artifacts"]
+                ),
+                Requirement(
+                    requirementID: "layout-extraction",
+                    title: "Layout extraction artifact",
+                    requiredObservedAssertions: [
+                        "extractionArtifact",
+                        "extractionProductionEligibility:eligible",
                     ],
-                    suggestedActions: ["add_source_device_family_netgen_cases"]
+                    suggestedActions: ["run_native_gds_lvs_case"]
                 ),
                 Requirement(
-                    requirementID: "terminal-permutation-coverage",
-                    title: "Terminal permutation coverage",
-                    requiredCoverageTags: [
-                        "external.netgen",
-                        "lvs.mos-source-drain-permutation",
-                        "lvs.passive-terminal-permutation",
-                        "lvs.symmetric-terminals",
+                    requirementID: "sky130-digital-cell-matrix",
+                    title: "Sky130 digital MOS cell matrix",
+                    requiredObservedAssertions: [
+                        "extractionProductionEligibility:eligible",
+                        "oracleAgreement:true",
+                        "verdict:match",
                     ],
-                    suggestedActions: ["add_symmetric_terminal_netgen_case"]
+                    minimumCaseCount: 20,
+                    suggestedActions: ["run_sky130_digital_cell_matrix"]
                 ),
                 Requirement(
-                    requirementID: "netgen-policy-gap-coverage",
-                    title: "Netgen policy gap coverage",
-                    requiredCoverageTags: [
-                        "lvs.netgen.policy-gap.global-nets",
-                        "lvs.netgen.policy-gap.multiplicity",
+                    requirementID: "sky130-foundry-device-deck",
+                    title: "Sky130 foundry device policy deck",
+                    requiredObservedAssertions: [
+                        "devicePolicyApplication:complete",
+                        "devicePolicyImport:satisfied",
+                        "devicePolicyRule:blackbox",
+                        "devicePolicyRule:equate",
+                        "devicePolicyRule:equate-pins",
+                        "devicePolicyRule:ignore-class",
+                        "devicePolicyRule:permute",
+                        "devicePolicyRule:property",
                     ],
-                    suggestedActions: ["retain_oracle_policy_gap_verdicts"]
+                    minimumCaseCount: 20,
+                    suggestedActions: ["run_sky130_foundry_device_deck_matrix"]
                 ),
                 Requirement(
-                    requirementID: "parallel-device-policy-gap-coverage",
-                    title: "Parallel device policy gap coverage",
-                    requiredCoverageTags: [
-                        "external.netgen",
-                        "lvs.netgen.policy-gap.multiplicity",
-                        "lvs.parallel-devices",
-                    ],
-                    suggestedActions: ["retain_parallel_device_policy_gap_verdicts"]
+                    requirementID: "hierarchy-matrix",
+                    title: "Nested hierarchy matrix",
+                    requiredObservedAssertions: ["hierarchyDepth:1"],
+                    minimumCaseCount: 5,
+                    suggestedActions: ["run_hierarchical_lvs_matrix"]
                 ),
                 Requirement(
-                    requirementID: "standard-layout-extraction-coverage",
-                    title: "Standard layout extraction coverage",
-                    requiredCoverageTags: [
-                        "layout.gds",
-                        "lvs.extract.connectivity",
-                        "lvs.extract.devices",
-                        "lvs.input.gds",
-                    ],
-                    suggestedActions: ["add_extracted_layout_netgen_oracle_cases"]
-                ),
-                Requirement(
-                    requirementID: "pin-policy-coverage",
-                    title: "Pin and terminal policy coverage",
-                    requiredCoverageTags: [
-                        "lvs.netgen.policy-gap.terminal-equivalence",
-                        "lvs.terminal-equivalence-policy",
-                    ],
-                    suggestedActions: ["add_terminal_equivalence_netgen_oracle_case"]
-                ),
-                Requirement(
-                    requirementID: "diode-terminal-policy-gap-coverage",
-                    title: "Diode terminal policy gap coverage",
-                    requiredCoverageTags: [
-                        "external.netgen",
-                        "lvs.diode-terminal-equivalence",
-                        "lvs.netgen.policy-gap.terminal-equivalence",
-                        "lvs.terminal-equivalence-policy",
-                    ],
-                    suggestedActions: ["retain_diode_terminal_policy_gap_verdicts"]
-                ),
-                Requirement(
-                    requirementID: "parameter-policy-coverage",
-                    title: "Parameter policy coverage",
-                    requiredCoverageTags: [
-                        "lvs.netgen.policy-gap.parameter-mismatch",
-                        "lvs.parameter-mismatch",
-                    ],
-                    suggestedActions: ["add_parameter_policy_netgen_oracle_case"]
+                    requirementID: "analog-structure-matrix",
+                    title: "Analog structure matrix",
+                    requiredObservedAssertions: ["structureClass:analog"],
+                    minimumCaseCount: 10,
+                    suggestedActions: ["run_analog_structure_lvs_matrix"]
                 ),
             ]
         )
@@ -160,48 +142,87 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
-            ?? LVSCorpusCoverageAuditPolicy.currentSchemaVersion
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported LVS corpus coverage audit policy schema version: \(schemaVersion)."
+            )
+        }
         policyID = try container.decode(String.self, forKey: .policyID)
         requireQualifiedCorpus = try container.decodeIfPresent(Bool.self, forKey: .requireQualifiedCorpus) ?? true
         requireOracleAgreement = try container.decodeIfPresent(Bool.self, forKey: .requireOracleAgreement) ?? true
-        minimumCaseCount = max(0, try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1)
-        if let decodedMaxReportAgeSeconds = try container.decodeIfPresent(
+        minimumCaseCount = try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1
+        maxReportAgeSeconds = try container.decodeIfPresent(
             Double.self,
             forKey: .maxReportAgeSeconds
-        ), decodedMaxReportAgeSeconds.isFinite, decodedMaxReportAgeSeconds >= 0 {
-            maxReportAgeSeconds = decodedMaxReportAgeSeconds
-        } else {
-            maxReportAgeSeconds = nil
-        }
+        )
         requirements = try container.decodeIfPresent([Requirement].self, forKey: .requirements) ?? []
+        guard validationErrors.isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .policyID,
+                in: container,
+                debugDescription: validationErrors.joined(separator: " ")
+            )
+        }
+    }
+
+    package var validationErrors: [String] {
+        var errors: [String] = []
+        if schemaVersion != Self.currentSchemaVersion {
+            errors.append("The coverage policy schema version is unsupported.")
+        }
+        if policyID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors.append("The coverage policy ID must not be empty.")
+        }
+        if minimumCaseCount < 1 {
+            errors.append("The coverage policy minimumCaseCount must be at least one.")
+        }
+        if let maxReportAgeSeconds,
+           !maxReportAgeSeconds.isFinite || maxReportAgeSeconds < 0 {
+            errors.append("The coverage policy maxReportAgeSeconds must be finite and nonnegative.")
+        }
+        if requirements.isEmpty {
+            errors.append("The coverage policy must declare at least one observed-assertion requirement.")
+        }
+        let requirementIDs = requirements.map {
+            $0.requirementID.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if Set(requirementIDs).count != requirementIDs.count {
+            errors.append("Coverage policy requirement IDs must be unique.")
+        }
+        for requirement in requirements {
+            errors.append(contentsOf: requirement.validationErrors)
+        }
+        return errors
     }
 
     public struct Requirement: Sendable, Hashable, Codable {
         public let requirementID: String
         public let title: String
-        public let requiredCoverageTags: [String]
+        public let requiredObservedAssertions: [String]
         public let minimumCaseCount: Int
         public let suggestedActions: [String]
 
         public init(
             requirementID: String,
             title: String,
-            requiredCoverageTags: [String],
+            requiredObservedAssertions: [String],
             minimumCaseCount: Int = 1,
             suggestedActions: [String] = []
         ) {
             self.requirementID = requirementID
             self.title = title
-            self.requiredCoverageTags = Self.normalized(requiredCoverageTags)
-            self.minimumCaseCount = max(1, minimumCaseCount)
+            self.requiredObservedAssertions = Self.normalized(requiredObservedAssertions)
+            self.minimumCaseCount = minimumCaseCount
             self.suggestedActions = Self.normalized(suggestedActions)
         }
 
         private enum CodingKeys: String, CodingKey {
             case requirementID
             case title
-            case requiredCoverageTags
+            case requiredObservedAssertions
             case minimumCaseCount
             case suggestedActions
         }
@@ -210,11 +231,11 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             requirementID = try container.decode(String.self, forKey: .requirementID)
             title = try container.decode(String.self, forKey: .title)
-            requiredCoverageTags = Self.normalized(try container.decodeIfPresent(
+            requiredObservedAssertions = Self.normalized(try container.decodeIfPresent(
                 [String].self,
-                forKey: .requiredCoverageTags
+                forKey: .requiredObservedAssertions
             ) ?? [])
-            minimumCaseCount = max(1, try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1)
+            minimumCaseCount = try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1
             suggestedActions = Self.normalized(try container.decodeIfPresent(
                 [String].self,
                 forKey: .suggestedActions
@@ -224,6 +245,24 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
         private static func normalized(_ values: [String]) -> [String] {
             Array(Set(values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }))
                 .sorted()
+        }
+
+        fileprivate var validationErrors: [String] {
+            var errors: [String] = []
+            let normalizedID = requirementID.trimmingCharacters(in: .whitespacesAndNewlines)
+            if normalizedID.isEmpty {
+                errors.append("A coverage policy requirement ID is empty.")
+            }
+            if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                errors.append("Coverage policy requirement '\(normalizedID)' has an empty title.")
+            }
+            if requiredObservedAssertions.isEmpty {
+                errors.append("Coverage policy requirement '\(normalizedID)' has no observed assertions.")
+            }
+            if minimumCaseCount < 1 {
+                errors.append("Coverage policy requirement '\(normalizedID)' must require at least one case.")
+            }
+            return errors
         }
     }
 }

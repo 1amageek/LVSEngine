@@ -28,19 +28,56 @@ public struct NetgenLVSDeviceDescriptor: Codable, Sendable, Hashable {
 public struct NetgenLVSPolicyRule: Codable, Sendable, Hashable {
     public let kind: String
     public let arguments: [String]
+    public let runtimePredicate: NetgenLVSRuntimePredicate?
     public let sourceLineNumber: Int
     public let sourceLine: String
 
     public init(
         kind: String,
         arguments: [String],
+        runtimePredicate: NetgenLVSRuntimePredicate? = nil,
         sourceLineNumber: Int,
         sourceLine: String
     ) {
         self.kind = kind
         self.arguments = arguments
+        self.runtimePredicate = runtimePredicate
         self.sourceLineNumber = sourceLineNumber
         self.sourceLine = sourceLine
+    }
+
+    package var unresolvedVariableNames: Set<String> {
+        let names = Set(arguments.flatMap(Self.variableNames))
+        return names.subtracting(runtimePredicate?.resolvableVariableNames ?? [])
+    }
+
+    private static func variableNames(in value: String) -> [String] {
+        var names: [String] = []
+        var index = value.startIndex
+        while index < value.endIndex {
+            guard value[index] == "$" else {
+                index = value.index(after: index)
+                continue
+            }
+            let nameStart = value.index(after: index)
+            guard nameStart < value.endIndex else { break }
+            if value[nameStart] == "{" {
+                let contentStart = value.index(after: nameStart)
+                guard let end = value[contentStart...].firstIndex(of: "}") else { break }
+                let name = String(value[contentStart..<end])
+                if !name.isEmpty { names.append(name) }
+                index = value.index(after: end)
+                continue
+            }
+            var end = nameStart
+            while end < value.endIndex,
+                  value[end].isLetter || value[end].isNumber || value[end] == "_" {
+                end = value.index(after: end)
+            }
+            if end > nameStart { names.append(String(value[nameStart..<end])) }
+            index = end > nameStart ? end : value.index(after: nameStart)
+        }
+        return names
     }
 }
 
@@ -168,11 +205,13 @@ public enum NetgenLVSDeviceDeckImporter {
         var skippedLineCount = 0
         var currentDeviceNames: [String] = []
         var activeForeach: ForeachContext?
+        var activeRuntimePredicate: RuntimePredicateContext?
 
         for line in makeLogicalLines(from: text) {
             let tokens = splitTCL(line.text)
             guard let command = tokens.first else {
                 activeForeach = updateForeach(activeForeach, after: line)
+                activeRuntimePredicate = updateRuntimePredicate(activeRuntimePredicate, after: line)
                 continue
             }
             if command == "set", tokens.count >= 2, tokens[1] == "devices" {
@@ -204,23 +243,68 @@ public enum NetgenLVSDeviceDeckImporter {
                 }
                 continue
             }
-            if command == "foreach", tokens.count >= 3, tokens[2] == "$devices" {
+            if command == "foreach", tokens.count >= 3 {
+                let collection = cleanToken(tokens[2])
+                let variableName = cleanToken(tokens[1])
+                let values = collection == "$devices" ? currentDeviceNames : []
+                let runtimePredicate: NetgenLVSRuntimePredicate?
+                if collection == "$cells1" || collection == "$cells2" {
+                    runtimePredicate = NetgenLVSRuntimePredicate(
+                        variableName: variableName,
+                        pattern: ".*"
+                    )
+                } else {
+                    runtimePredicate = nil
+                }
                 activeForeach = ForeachContext(
-                    variableName: cleanToken(tokens[1]),
-                    values: currentDeviceNames,
+                    variableName: variableName,
+                    values: values,
+                    runtimePredicate: runtimePredicate,
                     braceDepth: max(1, braceDelta(in: line.text))
                 )
+                continue
+            }
+            if command == "if", let predicate = runtimePredicate(in: line.text) {
+                activeRuntimePredicate = RuntimePredicateContext(
+                    predicate: predicate,
+                    braceDepth: max(1, braceDelta(in: line.text))
+                )
+                activeForeach = updateForeach(activeForeach, after: line)
                 continue
             }
             if command == "permute" || command == "property" || command == "equate" {
                 let rule = NetgenLVSPolicyRule(
                     kind: command == "equate" && tokens.dropFirst().first == "pins" ? "equate-pins" : command,
                     arguments: tokens.dropFirst().map(cleanToken),
+                    runtimePredicate: policyRuntimePredicate(
+                        arguments: tokens.dropFirst().map(cleanToken),
+                        activeRuntimePredicate: activeRuntimePredicate?.predicate,
+                        activeForeach: activeForeach
+                    ),
                     sourceLineNumber: line.lineNumber,
                     sourceLine: line.text
                 )
                 policyRules.append(contentsOf: expandPolicyRule(rule, foreach: activeForeach))
                 activeForeach = updateForeach(activeForeach, after: line)
+                activeRuntimePredicate = updateRuntimePredicate(activeRuntimePredicate, after: line)
+                continue
+            }
+            if command == "ignore", tokens.dropFirst().first == "class" {
+                let arguments = tokens.dropFirst().map(cleanToken)
+                let rule = NetgenLVSPolicyRule(
+                    kind: "ignore-class",
+                    arguments: arguments,
+                    runtimePredicate: policyRuntimePredicate(
+                        arguments: arguments,
+                        activeRuntimePredicate: activeRuntimePredicate?.predicate,
+                        activeForeach: activeForeach
+                    ),
+                    sourceLineNumber: line.lineNumber,
+                    sourceLine: line.text
+                )
+                policyRules.append(contentsOf: expandPolicyRule(rule, foreach: activeForeach))
+                activeForeach = updateForeach(activeForeach, after: line)
+                activeRuntimePredicate = updateRuntimePredicate(activeRuntimePredicate, after: line)
                 continue
             }
             if line.text.contains("model blackbox") {
@@ -231,6 +315,7 @@ public enum NetgenLVSDeviceDeckImporter {
                     sourceLine: line.text
                 ))
                 activeForeach = updateForeach(activeForeach, after: line)
+                activeRuntimePredicate = updateRuntimePredicate(activeRuntimePredicate, after: line)
                 continue
             }
             if !isIgnoredTCLControlCommand(command) {
@@ -243,6 +328,7 @@ public enum NetgenLVSDeviceDeckImporter {
                 ))
             }
             activeForeach = updateForeach(activeForeach, after: line)
+            activeRuntimePredicate = updateRuntimePredicate(activeRuntimePredicate, after: line)
         }
 
         if devices.isEmpty {
@@ -297,6 +383,12 @@ public enum NetgenLVSDeviceDeckImporter {
     private struct ForeachContext: Sendable, Hashable {
         let variableName: String
         let values: [String]
+        let runtimePredicate: NetgenLVSRuntimePredicate?
+        let braceDepth: Int
+    }
+
+    private struct RuntimePredicateContext: Sendable, Hashable {
+        let predicate: NetgenLVSRuntimePredicate
         let braceDepth: Int
     }
 
@@ -391,6 +483,7 @@ public enum NetgenLVSDeviceDeckImporter {
             "switch",
             "set",
             "foreach",
+            "catch",
             "puts",
             "return",
         ].contains(command)
@@ -413,6 +506,7 @@ public enum NetgenLVSDeviceDeckImporter {
                 arguments: rule.arguments.map {
                     replaceVariable(context.variableName, with: value, in: $0)
                 },
+                runtimePredicate: rule.runtimePredicate,
                 sourceLineNumber: rule.sourceLineNumber,
                 sourceLine: replaceVariable(context.variableName, with: value, in: rule.sourceLine)
             )
@@ -436,7 +530,76 @@ public enum NetgenLVSDeviceDeckImporter {
         return ForeachContext(
             variableName: context.variableName,
             values: context.values,
+            runtimePredicate: context.runtimePredicate,
             braceDepth: nextDepth
+        )
+    }
+
+    private static func updateRuntimePredicate(
+        _ context: RuntimePredicateContext?,
+        after line: LogicalLine
+    ) -> RuntimePredicateContext? {
+        guard let context else { return nil }
+        let nextDepth = context.braceDepth + braceDelta(in: line.text)
+        guard nextDepth > 0 else { return nil }
+        return RuntimePredicateContext(
+            predicate: context.predicate,
+            braceDepth: nextDepth
+        )
+    }
+
+    private static func policyRuntimePredicate(
+        arguments: [String],
+        activeRuntimePredicate: NetgenLVSRuntimePredicate?,
+        activeForeach: ForeachContext?
+    ) -> NetgenLVSRuntimePredicate? {
+        let candidates = [activeRuntimePredicate, activeForeach?.runtimePredicate].compactMap { $0 }
+        return candidates.first { predicate in
+            let variableNames = predicate.resolvableVariableNames
+            return arguments.contains { argument in
+                variableNames.contains { variableName in
+                    argument.contains("$\(variableName)") || argument.contains("${\(variableName)}")
+                }
+            }
+        }
+    }
+
+    private static func runtimePredicate(in line: String) -> NetgenLVSRuntimePredicate? {
+        guard let regexpRange = line.range(of: "regexp") else { return nil }
+        var remainder = line[regexpRange.upperBound...]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let first = remainder.first else { return nil }
+        let pattern: String
+        if first == "{" {
+            remainder.removeFirst()
+            guard let end = remainder.firstIndex(of: "}") else { return nil }
+            pattern = String(remainder[..<end])
+            remainder = remainder[remainder.index(after: end)...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if first == "\"" {
+            remainder.removeFirst()
+            guard let end = remainder.firstIndex(of: "\"") else { return nil }
+            pattern = String(remainder[..<end])
+            remainder = remainder[remainder.index(after: end)...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            return nil
+        }
+        let tokens = remainder.split(whereSeparator: { $0.isWhitespace }).map { token in
+            String(token).trimmingCharacters(in: CharacterSet(charactersIn: "[]{}"))
+        }
+        guard let input = tokens.first, input.hasPrefix("$"), input.count > 1 else {
+            return nil
+        }
+        let variableName = String(input.dropFirst())
+        let captures = tokens.dropFirst().filter { token in
+            !token.isEmpty
+                && token.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+        }
+        return NetgenLVSRuntimePredicate(
+            variableName: variableName,
+            pattern: pattern,
+            captureVariableNames: Array(captures.dropFirst())
         )
     }
 

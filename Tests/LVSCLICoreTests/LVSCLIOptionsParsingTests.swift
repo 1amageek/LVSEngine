@@ -187,24 +187,27 @@ extension LVSCLIOptionsTests {
   @Test func capabilitySnapshotDescribesStandaloneEngineSurface() throws {
     let snapshot = LVSCapabilitySnapshotProvider().snapshot()
 
-    #expect(snapshot.schemaVersion == 1)
+    #expect(snapshot.schemaVersion == 3)
     #expect(snapshot.engineID == "lvsengine")
     #expect(snapshot.ownerPackage == "LVSEngine")
-    #expect(snapshot.status == "standalone-native-core")
-    #expect(snapshot.preferredBackendID == "native-gds")
+    #expect(snapshot.qualificationBinding.evidenceArtifactID == "lvs-tool-evidence-export")
+    #expect(snapshot.qualificationBinding.requiredIdentityFields.contains("processProfileID"))
+    #expect(snapshot.qualificationBinding.requiredIdentityFields.contains("extractionDeckDigest"))
     #expect(snapshot.actionDomain.domainID == "lvs-signoff")
     #expect(
       snapshot.corpus.committedSpecPath
-        == "Tests/LVSCLICoreTests/Fixtures/LVSCorpus/lvs-corpus.json")
+        == "Tests/LVSCLICoreTests/Fixtures/ExternalOracle/lvs-production-corpus.json")
     #expect(snapshot.corpus.reportArtifact == "lvs-corpus-report")
-    #expect(snapshot.corpus.requiredCoverageTags.contains("lvs.input.gds"))
-    #expect(snapshot.corpus.requiredCoverageTags.contains("lvs.input.oasis"))
-    #expect(snapshot.corpus.requiredCoverageTags.contains("lvs.input.cif"))
-    #expect(snapshot.corpus.requiredCoverageTags.contains("lvs.input.dxf"))
-    #expect(snapshot.corpus.requiredCoverageTags.contains("lvs.extract.policy"))
-    #expect(snapshot.corpus.requiredCoverageTags.contains("lvs.device-policy.parallel"))
-    #expect(snapshot.corpus.requiredCoverageTags.contains("lvs.device-policy.series"))
-    #expect(snapshot.corpus.requiredCoverageTags.contains("spice.param-expression"))
+    #expect(snapshot.corpus.requiredObservedAssertions.contains("oracleAgreement:true"))
+    #expect(snapshot.corpus.requiredObservedAssertions.contains("oracleIndependence:ready"))
+    #expect(snapshot.corpus.requiredObservedAssertions.contains("determinism:stable"))
+    #expect(snapshot.corpus.requiredObservedAssertions.contains("cancellation:cancelled"))
+    #expect(snapshot.corpus.requiredObservedAssertions.contains("extractionArtifact"))
+    #expect(
+      snapshot.corpus.requiredObservedAssertions.contains(
+        "extractionProductionEligibility:eligible"
+      )
+    )
 
     let nativeGDS = try #require(snapshot.backends.first { $0.backendID == "native-gds" })
     #expect(nativeGDS.executionMode == "in-process")
@@ -213,18 +216,12 @@ extension LVSCLIOptionsTests {
     #expect(nativeGDS.inputFormats.contains("oasis"))
     #expect(nativeGDS.inputFormats.contains("cif"))
     #expect(nativeGDS.inputFormats.contains("dxf"))
-    #expect(nativeGDS.qualificationTags.contains("lvs.input.gds"))
-    #expect(nativeGDS.qualificationTags.contains("lvs.input.oasis"))
-    #expect(nativeGDS.qualificationTags.contains("lvs.input.cif"))
-    #expect(nativeGDS.qualificationTags.contains("lvs.input.dxf"))
-    #expect(nativeGDS.qualificationTags.contains("lvs.extract.cmos-inverter"))
-    #expect(nativeGDS.qualificationTags.contains("lvs.extract.policy"))
     #expect(nativeGDS.requiredInputs.contains("technology-json"))
     #expect(nativeGDS.producedArtifacts.contains("extracted-layout-netlist"))
+    #expect(nativeGDS.limitations.contains { $0.contains("sky130.open-pdk.digital-mos.signoff") })
 
     let netgen = try #require(snapshot.backends.first { $0.backendID == "netgen" })
     #expect(netgen.requiresExternalTool)
-    #expect(netgen.maturity == "external-oracle-adapter")
 
     #expect(snapshot.artifacts.contains { $0.artifactID == "lvs-summary" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "lvs-repair-hints" })
@@ -242,6 +239,12 @@ extension LVSCLIOptionsTests {
     #expect(snapshot.artifacts.contains { $0.artifactID == "policy-artifact" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "design-diff" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "planning-problem" })
+    #expect(snapshot.artifacts.first {
+      $0.artifactID == "model-equivalence-policy"
+    }?.producer == "Xcircuite.XcircuiteCandidatePlanExecutor")
+    #expect(snapshot.artifacts.first {
+      $0.artifactID == "planning-problem"
+    }?.producer == "Xcircuite.XcircuiteDiagnosticPlanningProblemBuilder")
     #expect(snapshot.agentContracts.contains { $0.contains("typed request/result") })
     #expect(snapshot.agentContracts.contains { $0.contains("repair-hint") })
     #expect(snapshot.agentContracts.contains { $0.contains("--audit-corpus-coverage") })
@@ -252,11 +255,23 @@ extension LVSCLIOptionsTests {
     #expect(!snapshot.agentContracts.contains { $0.contains("--import-sky130-netgen-devices") })
     #expect(snapshot.agentContracts.contains { $0.contains("seedSummary") })
     #expect(snapshot.agentContracts.contains { $0.contains("lvsengine --device-policy") })
-    #expect(snapshot.openMilestones.contains { $0.contains("native-gds extraction") })
-
     let data = try JSONEncoder().encode(snapshot)
+    let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(object["status"] == nil)
+    #expect(object["preferredBackendID"] == nil)
+    #expect(object["openMilestones"] == nil)
+    let encodedBackends = try #require(object["backends"] as? [[String: Any]])
+    #expect(encodedBackends.allSatisfy { $0["qualificationTags"] == nil })
+    #expect(encodedBackends.allSatisfy { $0["maturity"] == nil })
     let decoded = try JSONDecoder().decode(LVSCapabilitySnapshot.self, from: data)
     #expect(decoded == snapshot)
+
+    var unsupportedV1Payload = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    unsupportedV1Payload["schemaVersion"] = 1
+    let unsupportedV1Data = try JSONSerialization.data(withJSONObject: unsupportedV1Payload)
+    #expect(throws: DecodingError.self) {
+      _ = try JSONDecoder().decode(LVSCapabilitySnapshot.self, from: unsupportedV1Data)
+    }
   }
 
   @Test func capabilitySnapshotCoversProducedArtifactContracts() throws {

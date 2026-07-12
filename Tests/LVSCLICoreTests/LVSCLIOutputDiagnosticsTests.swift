@@ -43,8 +43,9 @@ extension LVSCLIOptionsTests {
         result: LVSResult(
             backendID: "native",
             toolName: "NativeLVS",
-            success: true,
-            completed: true,
+            executionStatus: .completed,
+            verdict: .mismatch,
+            readiness: .ready,
             logPath: "",
             diagnostics: [diagnostic]
         ),
@@ -91,8 +92,9 @@ extension LVSCLIOptionsTests {
     let result = LVSResult(
         backendID: "native",
         toolName: "NativeLVS",
-        success: true,
-        completed: true,
+        executionStatus: .completed,
+        verdict: .mismatch,
+        readiness: .ready,
         logPath: "",
         diagnostics: [blankIDDiagnostic, missingReasonDiagnostic]
     )

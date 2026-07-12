@@ -10,6 +10,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         packetID: String? = nil,
         allowedArtifactRootPath: String? = nil
     ) -> LVSEvidencePacket {
+        let assessment = LVSCorpusEvidenceAssessment(report: report)
         let caseContexts = caseContexts(report.caseResults)
         let inputs = inputRefs(reportPath: reportPath, reportSHA256: reportSHA256)
         let artifactBuild = artifactRefs(
@@ -17,9 +18,12 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             allowedArtifactRootPath: allowedArtifactRootPath
         )
         let artifacts = artifactBuild.refs
-        let integrityDiagnostics = caseContexts.flatMap(\.diagnostics) + artifactBuild.diagnostics
+        let integrityDiagnostics = caseContexts.flatMap(\.diagnostics)
+            + artifactBuild.diagnostics
+            + reportDigestDiagnostics(reportSHA256: reportSHA256)
         let diagnostics = diagnostics(
             report: report,
+            assessment: assessment,
             contexts: caseContexts,
             artifactRefs: inputs + artifacts
         ) + integrityDiagnostics
@@ -31,6 +35,8 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 identifier: reportPath,
                 backendID: report.runOptions.oracleBackendIDOverride
             ),
+            qualificationScope: assessment.qualificationScope,
+            oracleScopes: assessment.oracleIdentities,
             intent: LVSEvidenceIntent(
                 summary: "Expose retained LVS corpus observations as decision material.",
                 designContext: "LVS corpus qualification with connectivity, model, parameter, port, policy, extraction, and oracle gates.",
@@ -43,24 +49,34 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                     "port-mismatch",
                     "layout-extraction",
                     "oracle-agreement",
-                    "coverage-tags",
+                    "observed-assertion-coverage",
                     "policy-repair-diagnostics",
                 ]
             ),
             inputs: inputs,
             readiness: readiness(
                 report: report,
+                assessment: assessment,
                 reportArtifactID: inputs.first?.artifactID,
                 artifactRefs: artifacts,
                 integrityDiagnostics: integrityDiagnostics
             ),
             artifacts: artifacts,
-            normalizedViews: normalizedViews(report: report, artifactRefs: inputs + artifacts),
-            metrics: metrics(report: report, contexts: caseContexts),
+            normalizedViews: normalizedViews(
+                report: report,
+                assessment: assessment,
+                artifactRefs: inputs + artifacts
+            ),
+            metrics: metrics(report: report, assessment: assessment, contexts: caseContexts),
             diagnostics: diagnostics,
-            confidence: confidence(report: report, diagnostics: diagnostics),
+            confidence: confidence(
+                report: report,
+                assessment: assessment,
+                reportSHA256: reportSHA256,
+                diagnostics: diagnostics
+            ),
             decisionHints: decisionHints(diagnostics: diagnostics, report: report),
-            coverageTags: report.summary.coverageTagCounts.keys.sorted(),
+            observedAssertions: report.summary.observedAssertionCounts.keys.sorted(),
             relatedEvidenceIDs: ["lvs-corpus:\(URL(filePath: reportPath).deletingPathExtension().lastPathComponent)"]
         )
     }
@@ -258,6 +274,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
 
     private func readiness(
         report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment,
         reportArtifactID: String?,
         artifactRefs: [LVSEvidenceArtifactRef],
         integrityDiagnostics: [LVSEvidenceDiagnostic]
@@ -307,6 +324,17 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 artifactIDs: [reportArtifactID].compactMap { $0 }
             )
         ]
+        values.append(LVSEvidenceReadiness(
+            component: "lvs-qualification-scope",
+            status: assessment.qualificationScope == nil ? .blocked : .ready,
+            reason: assessment.qualificationScope == nil
+                ? "The corpus does not resolve to one complete implementation, build, algorithm, process, and deck scope."
+                : "The corpus resolves to one complete qualification scope.",
+            artifactIDs: [reportArtifactID].compactMap { $0 },
+            suggestedActions: assessment.qualificationScope == nil
+                ? ["retain_lvs_implementation_identity", "split_lvs_corpus_by_qualification_scope"]
+                : []
+        ))
         if artifactRefs.contains(where: { $0.kind == "extracted-layout-netlist" }) {
             values.append(LVSEvidenceReadiness(
                 component: "lvs-layout-extraction",
@@ -315,15 +343,16 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             ))
         }
         if report.summary.oracleCaseCount > 0 {
+            let oracleReady = assessment.hasCompleteIndependentOracleEvidence
             values.append(LVSEvidenceReadiness(
                 component: "lvs-oracle-comparison",
-                status: report.summary.oracleReadinessBlockedCaseCount == 0 ? .ready : .blocked,
-                reason: report.summary.oracleReadinessBlockedCaseCount == 0
-                    ? "Oracle comparison evidence is available."
-                    : "One or more oracle comparison cases were blocked before agreement could be evaluated.",
-                suggestedActions: report.summary.oracleReadinessBlockedCaseCount == 0
+                status: oracleReady ? .ready : .blocked,
+                reason: oracleReady
+                    ? "Independent oracle comparison evidence is available and agreed."
+                    : "One or more oracle cases are blocked, non-independent, inconsistent, or disagree.",
+                suggestedActions: oracleReady
                     ? []
-                    : ["inspect_lvs_oracle_readiness", "inspect_lvs_oracle_logs"]
+                    : ["inspect_lvs_oracle_readiness", "run_lvs_corpus_with_independent_oracle"]
             ))
         } else {
             values.append(LVSEvidenceReadiness(
@@ -338,6 +367,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
 
     private func normalizedViews(
         report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment,
         artifactRefs: [LVSEvidenceArtifactRef]
     ) -> [LVSEvidenceNormalizedView] {
         [
@@ -346,7 +376,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 kind: "signoff-corpus-summary",
                 scope: "lvs-corpus",
                 summaryMetrics: summaryMetrics(report),
-                summaryCounts: summaryCounts(report),
+                summaryCounts: summaryCounts(report, assessment: assessment),
                 sourceArtifactIDs: artifactRefs.map(\.artifactID)
             )
         ]
@@ -354,6 +384,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
 
     private func metrics(
         report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment,
         contexts: [EvidenceCaseContext]
     ) -> [LVSEvidenceMetric] {
         var values: [LVSEvidenceMetric] = [
@@ -379,6 +410,26 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 metricID: "summary.budget-exceeded-case-count",
                 name: "budgetExceededCaseCount",
                 count: report.budgetExceededCaseCount
+            ),
+            LVSEvidenceMetric(
+                metricID: "summary.independent-oracle-case-count",
+                name: "independentOracleCaseCount",
+                count: assessment.independentOracleCaseCount
+            ),
+            LVSEvidenceMetric(
+                metricID: "summary.independent-oracle-agreement-passed-case-count",
+                name: "independentOracleAgreementPassedCaseCount",
+                count: assessment.independentOracleAgreementPassedCaseCount
+            ),
+            LVSEvidenceMetric(
+                metricID: "summary.oracle-integrity-failure-count",
+                name: "oracleIntegrityFailureCount",
+                count: assessment.oracleIntegrityFailureCount
+            ),
+            LVSEvidenceMetric(
+                metricID: "summary.report-integrity-failure-count",
+                name: "reportIntegrityFailureCount",
+                count: assessment.reportIntegrityFailureCodes.count
             ),
         ]
         if let oracleAgreementRate = report.summary.oracleAgreementRate {
@@ -433,6 +484,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
 
     private func diagnostics(
         report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment,
         contexts: [EvidenceCaseContext],
         artifactRefs: [LVSEvidenceArtifactRef]
     ) -> [LVSEvidenceDiagnostic] {
@@ -445,6 +497,26 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 message: failure.message,
                 artifactIDs: ["lvs-corpus-report"],
                 suggestedActions: suggestedActions(category: category(qualificationCode: failure.code))
+            ))
+        }
+        if assessment.qualificationScope == nil {
+            values.append(LVSEvidenceDiagnostic(
+                diagnosticID: "qualification:scope-missing-or-inconsistent",
+                severity: .error,
+                category: "artifact_integrity",
+                message: "The LVS corpus cannot be bound to one complete qualification scope.",
+                artifactIDs: ["lvs-corpus-report"],
+                suggestedActions: ["retain_lvs_implementation_identity", "split_lvs_corpus_by_qualification_scope"]
+            ))
+        }
+        if assessment.nonIndependentOracleCaseCount > 0 {
+            values.append(LVSEvidenceDiagnostic(
+                diagnosticID: "qualification:oracle-not-independent",
+                severity: .error,
+                category: "oracle_independence",
+                message: "One or more LVS oracle cases do not have an independent implementation identity.",
+                artifactIDs: ["lvs-corpus-report"],
+                suggestedActions: ["run_lvs_corpus_with_independent_oracle", "inspect_lvs_oracle_identity"]
             ))
         }
         for context in contexts {
@@ -574,6 +646,17 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 suggestedActions: suggestedActions(category: "oracle_agreement")
             ))
         }
+        for (index, integrityDiagnostic) in oracle.integrityDiagnostics.enumerated() {
+            values.append(LVSEvidenceDiagnostic(
+                diagnosticID: "\(context.caseKey):oracle-integrity:\(index)",
+                severity: integrityDiagnostic.severity == .error ? .error : .warning,
+                category: "artifact_integrity",
+                message: integrityDiagnostic.message,
+                caseID: context.payloadCaseID,
+                artifactIDs: artifactIDs,
+                suggestedActions: integrityDiagnostic.suggestedActions
+            ))
+        }
         for (index, reason) in oracle.failureReasons.enumerated() {
             let category = category(failureReason: reason)
             values.append(LVSEvidenceDiagnostic(
@@ -600,6 +683,8 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
 
     private func confidence(
         report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment,
+        reportSHA256: String?,
         diagnostics: [LVSEvidenceDiagnostic]
     ) -> LVSEvidenceConfidence {
         let evidenceCount = report.caseResults.filter { $0.executionError == nil }.count
@@ -607,6 +692,14 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             return LVSEvidenceConfidence(
                 level: .low,
                 reason: "One or more LVS corpus artifact references or evidence identifiers are unsafe to trust.",
+                evidenceCount: evidenceCount,
+                limitationCount: diagnostics.count
+            )
+        }
+        if assessment.nonIndependentOracleCaseCount > 0 {
+            return LVSEvidenceConfidence(
+                level: .low,
+                reason: "One or more oracle comparisons reuse or omit the primary implementation identity.",
                 evidenceCount: evidenceCount,
                 limitationCount: diagnostics.count
             )
@@ -627,17 +720,20 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 limitationCount: diagnostics.count
             )
         }
-        if report.qualification.qualified {
+        if report.qualification.qualified,
+           assessment.qualified,
+           assessment.hasCompleteIndependentOracleEvidence,
+           Self.isValidSHA256(reportSHA256) {
             return LVSEvidenceConfidence(
                 level: .high,
-                reason: "The LVS corpus is qualified under its policy.",
+                reason: "The LVS corpus is qualified with complete scope, artifact integrity, and independent oracle evidence.",
                 evidenceCount: evidenceCount,
                 limitationCount: diagnostics.count
             )
         }
         return LVSEvidenceConfidence(
             level: .medium,
-            reason: "The LVS corpus produced usable evidence, but qualification diagnostics remain.",
+            reason: "The LVS corpus produced usable evidence, but scoped independent-oracle qualification remains incomplete.",
             evidenceCount: evidenceCount,
             limitationCount: diagnostics.count
         )
@@ -685,7 +781,10 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         return values
     }
 
-    private func summaryCounts(_ report: LVSCorpusReport) -> [String: Int] {
+    private func summaryCounts(
+        _ report: LVSCorpusReport,
+        assessment: LVSCorpusEvidenceAssessment
+    ) -> [String: Int] {
         [
             "caseCount": report.caseCount,
             "matchedCaseCount": report.matchedCaseCount,
@@ -696,8 +795,14 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             "oracleAgreementPassedCaseCount": report.summary.oracleAgreementPassedCaseCount,
             "oracleExecutionFailedCaseCount": report.summary.oracleExecutionFailedCaseCount,
             "oracleReadinessBlockedCaseCount": report.summary.oracleReadinessBlockedCaseCount,
-            "coverageTagCount": report.summary.coverageTagCounts.count,
+            "observedAssertionKindCount": report.summary.observedAssertionCounts.count,
             "qualificationFailureCount": report.qualification.failures.count,
+            "completePrimaryIdentityCaseCount": assessment.completePrimaryIdentityCaseCount,
+            "independentOracleCaseCount": assessment.independentOracleCaseCount,
+            "independentOracleAgreementPassedCaseCount": assessment.independentOracleAgreementPassedCaseCount,
+            "nonIndependentOracleCaseCount": assessment.nonIndependentOracleCaseCount,
+            "oracleIntegrityFailureCount": assessment.oracleIntegrityFailureCount,
+            "reportIntegrityFailureCount": assessment.reportIntegrityFailureCodes.count,
             "extractedLayoutNetlistCaseCount": report.caseResults.filter { $0.extractedLayoutNetlistPath != nil }.count,
         ]
     }
@@ -710,6 +815,8 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
 
     private func category(qualificationCode: String) -> String {
         switch qualificationCode {
+        case let value where value.hasPrefix("report_"):
+            return "artifact_integrity"
         case "required_coverage_missing":
             return "coverage_gap"
         case "primary_execution_failed":
@@ -985,6 +1092,8 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             return ["inspect_lvs_oracle_logs", "verify_lvs_oracle_tool_configuration"]
         case "oracle_readiness":
             return ["inspect_lvs_oracle_readiness", "inspect_lvs_oracle_logs"]
+        case "oracle_independence":
+            return ["run_lvs_corpus_with_independent_oracle", "inspect_lvs_oracle_identity"]
         case "oracle_agreement":
             return ["compare_native_and_oracle_lvs_diagnostics", "inspect_lvs_policy_mapping"]
         case "expectation_mismatch", "rule_set_mismatch":
@@ -1012,7 +1121,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
 
     private func priority(category: String, report: LVSCorpusReport) -> LVSEvidenceDecisionPriority {
         switch category {
-        case "artifact_integrity", "primary_execution", "oracle_readiness", "oracle_execution":
+        case "artifact_integrity", "primary_execution", "oracle_readiness", "oracle_execution", "oracle_independence":
             return .high
         case "oracle_agreement",
              "coverage_gap",
@@ -1039,6 +1148,8 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             return "\(count) LVS oracle execution issue(s) need oracle tool inspection."
         case "oracle_readiness":
             return "\(count) LVS oracle readiness issue(s) blocked benchmark comparison."
+        case "oracle_independence":
+            return "\(count) LVS oracle independence issue(s) prevent qualification credit."
         case "oracle_agreement":
             return "\(count) native-vs-oracle LVS agreement issue(s) need policy or extraction inspection."
         case "coverage_gap":
@@ -1059,6 +1170,29 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             return "\(count) LVS corpus gate issue(s) prevent qualification."
         default:
             return "\(count) LVS diagnostic issue(s) need inspection."
+        }
+    }
+
+    private func reportDigestDiagnostics(reportSHA256: String?) -> [LVSEvidenceDiagnostic] {
+        guard !Self.isValidSHA256(reportSHA256) else { return [] }
+        return [
+            LVSEvidenceDiagnostic(
+                diagnosticID: "lvs-corpus-report:digest-missing-or-invalid",
+                severity: .error,
+                category: "artifact_integrity",
+                message: "The LVS corpus report is missing a valid SHA-256 digest.",
+                artifactIDs: ["lvs-corpus-report"],
+                suggestedActions: ["recompute_lvs_evidence_artifact_hash", "regenerate_lvs_evidence_packet"]
+            ),
+        ]
+    }
+
+    private static func isValidSHA256(_ digest: String?) -> Bool {
+        guard let digest else { return false }
+        let normalized = digest.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count == 64 else { return false }
+        return normalized.allSatisfy { character in
+            character.isNumber || ("a"..."f").contains(character.lowercased())
         }
     }
 }

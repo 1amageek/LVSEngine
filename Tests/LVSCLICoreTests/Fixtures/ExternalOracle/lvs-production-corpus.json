@@ -1,0 +1,3297 @@
+{
+  "schemaVersion": 2,
+  "defaultMaxDurationSeconds": 30,
+  "qualificationScopeCaseID": "production-sky130-digital-inv_1",
+  "qualificationPolicy": {
+    "requiredObservedAssertions": [
+      "cancellation:cancelled",
+      "correspondenceArtifact",
+      "determinism:stable",
+      "devicePolicyApplication:complete",
+      "devicePolicyImport:satisfied",
+      "devicePolicyRule:blackbox",
+      "devicePolicyRule:equate",
+      "devicePolicyRule:equate-pins",
+      "devicePolicyRule:ignore-class",
+      "devicePolicyRule:permute",
+      "devicePolicyRule:property",
+      "diagnosticRule:LVS_MODEL_MISMATCH",
+      "durationBudget:within-budget",
+      "extractionArtifact",
+      "extractionProductionEligibility:eligible",
+      "hierarchyDepth:1",
+      "manifestArtifact",
+      "oracleAgreement:true",
+      "oracleIndependence:ready",
+      "reportArtifact",
+      "structureClass:analog",
+      "verdict:match",
+      "verdict:mismatch"
+    ],
+    "minimumOracleCaseCount": 40,
+    "minimumOracleAgreementRate": 1
+  },
+  "cases": [
+    {
+      "caseID": "production-inverter-match",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "layout.spice",
+      "schematicNetlistPath": "matching-schematic.spice",
+      "topCell": "inv",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 20
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "determinism",
+          "kind": "determinism",
+          "expectedValue": "stable"
+        },
+        {
+          "assertionID": "cancellation",
+          "kind": "cancellation",
+          "expectedValue": "cancelled"
+        }
+      ]
+    },
+    {
+      "caseID": "production-model-mismatch",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "layout.spice",
+      "schematicNetlistPath": "model-mismatch-schematic.spice",
+      "topCell": "inv",
+      "expectedPassed": false,
+      "expectedVerdict": "mismatch",
+      "expectedActiveErrorRuleIDs": [
+        "LVS_MODEL_MISMATCH"
+      ],
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "mismatch"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "model-mismatch-rule",
+          "kind": "diagnosticRule",
+          "expectedValue": "LVS_MODEL_MISMATCH"
+        }
+      ]
+    },
+    {
+      "caseID": "production-hierarchical-model-mismatch",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "hierarchical-layout.spice",
+      "schematicNetlistPath": "hierarchical-mismatch-schematic.spice",
+      "topCell": "top",
+      "expectedPassed": false,
+      "expectedVerdict": "mismatch",
+      "expectedActiveErrorRuleIDs": [
+        "LVS_MODEL_MISMATCH"
+      ],
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "mismatch"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "hierarchical-model-mismatch-rule",
+          "kind": "diagnosticRule",
+          "expectedValue": "LVS_MODEL_MISMATCH"
+        },
+        {
+          "assertionID": "hierarchy-depth",
+          "kind": "hierarchyDepth",
+          "expectedValue": "1"
+        }
+      ]
+    },
+    {
+      "caseID": "production-symmetric-terminals",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "symmetric-layout.spice",
+      "schematicNetlistPath": "symmetric-schematic.spice",
+      "topCell": "inv",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        }
+      ]
+    },
+    {
+      "caseID": "production-device-breadth",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "device-breadth-layout.spice",
+      "schematicNetlistPath": "device-breadth-schematic.spice",
+      "topCell": "bias",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        }
+      ]
+    },
+    {
+      "caseID": "production-source-breadth",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "source-breadth-layout.spice",
+      "schematicNetlistPath": "source-breadth-schematic.spice",
+      "topCell": "mixed",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-inv_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__inv_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__inv_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-nand2_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__nand2_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__nand2_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-nor2_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__nor2_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__nor2_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-and2_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__and2_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__and2_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-or2_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__or2_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__or2_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-xor2_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__xor2_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__xor2_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-xnor2_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__xnor2_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__xnor2_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-mux2_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__mux2_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__mux2_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-a21o_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__a21o_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__a21o_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-a21oi_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__a21oi_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__a21oi_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-o21a_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__o21a_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__o21a_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-o21ai_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__o21ai_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__o21ai_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-a22o_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__a22o_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__a22o_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-a22oi_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__a22oi_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__a22oi_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-o22a_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__o22a_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__o22a_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-o22ai_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__o22ai_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__o22ai_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-nand3_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__nand3_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__nand3_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-nor3_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__nor3_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__nor3_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-buf_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__buf_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__buf_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-sky130-digital-clkbuf_1",
+      "backendID": "native-gds",
+      "oracleBackendID": "netgen",
+      "layoutGDSPath": "sky130_fd_sc_hd__clkbuf_1.gds",
+      "layoutFormat": "gds",
+      "schematicNetlistPath": "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
+      "technologyPath": "sky130-layout-tech.json",
+      "extractionDeckPath": "pdk://libs.tech/magic/sky130A.tech",
+      "devicePolicyDeckPath": "pdk://libs.tech/netgen/sky130A_setup.tcl",
+      "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+      "topCell": "sky130_fd_sc_hd__clkbuf_1",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "extraction-artifact",
+          "kind": "extractionArtifact"
+        },
+        {
+          "assertionID": "extraction-production-eligibility",
+          "kind": "extractionProductionEligibility",
+          "expectedValue": "eligible"
+        },
+        {
+          "assertionID": "device-policy-import",
+          "kind": "devicePolicyImport",
+          "expectedValue": "satisfied"
+        },
+        {
+          "assertionID": "device-policy-application",
+          "kind": "devicePolicyApplication",
+          "expectedValue": "complete"
+        },
+        {
+          "assertionID": "device-policy-permute",
+          "kind": "devicePolicyRule",
+          "expectedValue": "permute"
+        },
+        {
+          "assertionID": "device-policy-property",
+          "kind": "devicePolicyRule",
+          "expectedValue": "property"
+        },
+        {
+          "assertionID": "device-policy-equate",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate"
+        },
+        {
+          "assertionID": "device-policy-equate-pins",
+          "kind": "devicePolicyRule",
+          "expectedValue": "equate-pins"
+        },
+        {
+          "assertionID": "device-policy-ignore-class",
+          "kind": "devicePolicyRule",
+          "expectedValue": "ignore-class"
+        },
+        {
+          "assertionID": "device-policy-blackbox",
+          "kind": "devicePolicyRule",
+          "expectedValue": "blackbox"
+        }
+      ]
+    },
+    {
+      "caseID": "production-hierarchy-matrix-hierarchy_chain",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "hierarchy-matrix-layout.spice",
+      "schematicNetlistPath": "hierarchy-matrix-schematic.spice",
+      "topCell": "hierarchy_chain",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "hierarchy-depth",
+          "kind": "hierarchyDepth",
+          "expectedValue": "1"
+        }
+      ]
+    },
+    {
+      "caseID": "production-hierarchy-matrix-hierarchy_repeated",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "hierarchy-matrix-layout.spice",
+      "schematicNetlistPath": "hierarchy-matrix-schematic.spice",
+      "topCell": "hierarchy_repeated",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "hierarchy-depth",
+          "kind": "hierarchyDepth",
+          "expectedValue": "1"
+        }
+      ]
+    },
+    {
+      "caseID": "production-hierarchy-matrix-hierarchy_three_level",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "hierarchy-matrix-layout.spice",
+      "schematicNetlistPath": "hierarchy-matrix-schematic.spice",
+      "topCell": "hierarchy_three_level",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "hierarchy-depth",
+          "kind": "hierarchyDepth",
+          "expectedValue": "1"
+        }
+      ]
+    },
+    {
+      "caseID": "production-hierarchy-matrix-hierarchy_parameterized",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "hierarchy-matrix-layout.spice",
+      "schematicNetlistPath": "hierarchy-matrix-schematic.spice",
+      "topCell": "hierarchy_parameterized",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "hierarchy-depth",
+          "kind": "hierarchyDepth",
+          "expectedValue": "1"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_resistor_divider",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_resistor_divider",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_rc_filter",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_rc_filter",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_rlc_network",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_rlc_network",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_diode_clamp",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_diode_clamp",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_bjt_pair",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_bjt_pair",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_nmos_bias",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_nmos_bias",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_pmos_bias",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_pmos_bias",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_differential_pair",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_differential_pair",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_controlled_voltage",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_controlled_voltage",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    },
+    {
+      "caseID": "production-analog-matrix-analog_controlled_current",
+      "backendID": "native",
+      "oracleBackendID": "netgen",
+      "layoutNetlistPath": "analog-matrix-layout.spice",
+      "schematicNetlistPath": "analog-matrix-schematic.spice",
+      "topCell": "analog_controlled_current",
+      "expectedPassed": true,
+      "expectedVerdict": "match",
+      "oracleComparisonMode": "verdict",
+      "hardExecutionBudget": {
+        "maximumDurationSeconds": 30,
+        "maximumSearchStates": 100000,
+        "maximumSearchDepth": 100000,
+        "maximumWorkingSetBytes": 536870912,
+        "determinismRunCount": 1
+      },
+      "requiredAssertions": [
+        {
+          "assertionID": "verdict",
+          "kind": "verdict",
+          "expectedValue": "match"
+        },
+        {
+          "assertionID": "duration-budget",
+          "kind": "durationBudget",
+          "expectedValue": "within-budget"
+        },
+        {
+          "assertionID": "report-artifact",
+          "kind": "reportArtifact"
+        },
+        {
+          "assertionID": "manifest-artifact",
+          "kind": "manifestArtifact"
+        },
+        {
+          "assertionID": "correspondence-artifact",
+          "kind": "correspondenceArtifact"
+        },
+        {
+          "assertionID": "oracle-agreement",
+          "kind": "oracleAgreement",
+          "expectedValue": "true"
+        },
+        {
+          "assertionID": "oracle-independence",
+          "kind": "oracleIndependence",
+          "expectedValue": "ready"
+        },
+        {
+          "assertionID": "structure-class",
+          "kind": "structureClass",
+          "expectedValue": "analog"
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,6 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
     public let actualPassed: Bool
     public let expectedActiveErrorRuleIDs: [String]
     public let actualActiveErrorRuleIDs: [String]
-    public let coverageTags: [String]
     public let expectationMatched: Bool
     public let durationSeconds: Double
     public let expectedMaxDurationSeconds: Double?
@@ -19,6 +18,7 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
     public let primaryProvenance: LVSCorpusCaseProvenance?
     public let oracleResult: LVSCorpusOracleResult?
     public let oracleComparison: LVSCorpusOracleComparison?
+    public let observedAssertions: [LVSCorpusObservedAssertion]
 
     public init(
         caseID: String,
@@ -27,7 +27,6 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         actualPassed: Bool,
         expectedActiveErrorRuleIDs: [String],
         actualActiveErrorRuleIDs: [String],
-        coverageTags: [String] = [],
         expectationMatched: Bool,
         durationSeconds: Double,
         expectedMaxDurationSeconds: Double?,
@@ -40,7 +39,8 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         extractedLayoutNetlistPath: String?,
         primaryProvenance: LVSCorpusCaseProvenance? = nil,
         oracleResult: LVSCorpusOracleResult? = nil,
-        oracleComparison: LVSCorpusOracleComparison? = nil
+        oracleComparison: LVSCorpusOracleComparison? = nil,
+        observedAssertions: [LVSCorpusObservedAssertion] = []
     ) {
         self.caseID = caseID
         self.matched = matched
@@ -48,7 +48,6 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         self.actualPassed = actualPassed
         self.expectedActiveErrorRuleIDs = expectedActiveErrorRuleIDs
         self.actualActiveErrorRuleIDs = actualActiveErrorRuleIDs
-        self.coverageTags = coverageTags
         self.expectationMatched = expectationMatched
         self.durationSeconds = durationSeconds
         self.expectedMaxDurationSeconds = expectedMaxDurationSeconds
@@ -62,6 +61,7 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         self.primaryProvenance = primaryProvenance
         self.oracleResult = oracleResult
         self.oracleComparison = oracleComparison
+        self.observedAssertions = observedAssertions.sorted { $0.assertionID < $1.assertionID }
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -71,7 +71,6 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         case actualPassed
         case expectedActiveErrorRuleIDs
         case actualActiveErrorRuleIDs
-        case coverageTags
         case expectationMatched
         case durationSeconds
         case expectedMaxDurationSeconds
@@ -85,6 +84,7 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         case primaryProvenance
         case oracleResult
         case oracleComparison
+        case observedAssertions
     }
 
     public init(from decoder: Decoder) throws {
@@ -95,7 +95,6 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         actualPassed = try container.decode(Bool.self, forKey: .actualPassed)
         expectedActiveErrorRuleIDs = try container.decode([String].self, forKey: .expectedActiveErrorRuleIDs)
         actualActiveErrorRuleIDs = try container.decode([String].self, forKey: .actualActiveErrorRuleIDs)
-        coverageTags = try container.decode([String].self, forKey: .coverageTags)
         expectationMatched = try container.decode(Bool.self, forKey: .expectationMatched)
         durationSeconds = try container.decode(Double.self, forKey: .durationSeconds)
         expectedMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .expectedMaxDurationSeconds)
@@ -109,5 +108,9 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         primaryProvenance = try container.decodeIfPresent(LVSCorpusCaseProvenance.self, forKey: .primaryProvenance)
         oracleResult = try container.decodeIfPresent(LVSCorpusOracleResult.self, forKey: .oracleResult)
         oracleComparison = try container.decodeIfPresent(LVSCorpusOracleComparison.self, forKey: .oracleComparison)
+        observedAssertions = try container.decodeIfPresent(
+            [LVSCorpusObservedAssertion].self,
+            forKey: .observedAssertions
+        ) ?? []
     }
 }

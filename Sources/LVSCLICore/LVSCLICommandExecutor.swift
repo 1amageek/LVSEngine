@@ -158,8 +158,8 @@ struct LVSCLICommandExecutor: Sendable {
       try LVSCLI.emitJSON(snapshot)
     } else {
       print("engine=\(snapshot.engineID)")
-      print("status=\(snapshot.status)")
-      print("preferred_backend=\(snapshot.preferredBackendID)")
+      print("qualification_evidence=\(snapshot.qualificationBinding.evidenceArtifactID)")
+      print("backend_selection=evidence-bound")
       print("backends=\(snapshot.backends.map(\.backendID).joined(separator: ","))")
       print("corpus=\(snapshot.corpus.committedSpecPath)")
     }
@@ -250,12 +250,18 @@ struct LVSCLICommandExecutor: Sendable {
       evidenceID: options.evidenceID,
       checkedAt: options.checkedAt
     )
+    if let outputURL = options.outputURL {
+      try LVSCLI.writeJSON(output, to: outputURL)
+    }
     if options.emitJSON {
       try LVSCLI.emitJSON(output)
     } else {
       print("status=\(output.status)")
       print("evidence_id=\(output.toolEvidence.evidenceID)")
       print("report=\(output.reportPath)")
+      if let outputURL = options.outputURL {
+        print("evidence=\(outputURL.path(percentEncoded: false))")
+      }
     }
     return output.toolEvidence.qualification.qualified ? 0 : 2
   }
