@@ -221,31 +221,31 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
             LVSCapabilitySnapshot.ArtifactContract(
                 artifactID: "model-equivalence-policy",
                 format: "json",
-                producer: "Xcircuite.XcircuiteCandidatePlanExecutor",
+                producer: "Xcircuite.CandidatePlanExecutor",
                 consumer: ["Agent planning", "Native LVS", "Human approval gate"]
             ),
             LVSCapabilitySnapshot.ArtifactContract(
                 artifactID: "terminal-equivalence-policy",
                 format: "json",
-                producer: "Xcircuite.XcircuiteCandidatePlanExecutor",
+                producer: "Xcircuite.CandidatePlanExecutor",
                 consumer: ["Agent planning", "Native LVS", "Human approval gate"]
             ),
             LVSCapabilitySnapshot.ArtifactContract(
                 artifactID: "policy-artifact",
                 format: "json",
-                producer: "Xcircuite.XcircuiteCandidatePlanExecutor",
+                producer: "Xcircuite.CandidatePlanExecutor",
                 consumer: ["Agent planning", "Native LVS", "Human review"]
             ),
             LVSCapabilitySnapshot.ArtifactContract(
                 artifactID: "design-diff",
                 format: "json",
-                producer: "Xcircuite.XcircuiteCandidatePlanExecutor",
+                producer: "Xcircuite.CandidatePlanExecutor",
                 consumer: ["Agent planning", "Human review", "Xcircuite review bundle"]
             ),
             LVSCapabilitySnapshot.ArtifactContract(
                 artifactID: "planning-problem",
                 format: "json",
-                producer: "Xcircuite.XcircuiteDiagnosticPlanningProblemBuilder",
+                producer: "Xcircuite.DiagnosticPlanningProblemBuilder",
                 consumer: ["Agent planner", "Human review", "Xcircuite planning/problem generator"]
             ),
         ]

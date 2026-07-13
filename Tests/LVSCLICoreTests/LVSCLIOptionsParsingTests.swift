@@ -241,10 +241,10 @@ extension LVSCLIOptionsTests {
     #expect(snapshot.artifacts.contains { $0.artifactID == "planning-problem" })
     #expect(snapshot.artifacts.first {
       $0.artifactID == "model-equivalence-policy"
-    }?.producer == "Xcircuite.XcircuiteCandidatePlanExecutor")
+    }?.producer == "Xcircuite.CandidatePlanExecutor")
     #expect(snapshot.artifacts.first {
       $0.artifactID == "planning-problem"
-    }?.producer == "Xcircuite.XcircuiteDiagnosticPlanningProblemBuilder")
+    }?.producer == "Xcircuite.DiagnosticPlanningProblemBuilder")
     #expect(snapshot.agentContracts.contains { $0.contains("typed request/result") })
     #expect(snapshot.agentContracts.contains { $0.contains("repair-hint") })
     #expect(snapshot.agentContracts.contains { $0.contains("--audit-corpus-coverage") })

@@ -1,5 +1,25 @@
 # LVSEngine
 
+## CircuiteFoundation boundary
+
+LVSEngine remains an independent layout-versus-schematic engine. It owns
+netlist extraction, graph matching, equivalence policy, and LVS qualification.
+`CircuiteFoundation` supplies only the shared engine, artifact, evidence,
+provenance, diagnostic, and design-object contracts.
+
+```mermaid
+flowchart LR
+    Request["LVSRequest"] --> Engine["LVSEngineRunning"]
+    Engine --> Result["LVSExecutionResult"]
+    Result --> Domain["LVS graph / verdict / qualification"]
+    Result --> Boundary["LVSFoundationEvidence"]
+    Boundary --> Foundation["EvidenceManifest + DesignDiagnostic"]
+```
+
+`LVSFoundationEvidence` is a stable cross-engine view. It supplements rather
+than replaces the LVS evidence packet and artifact manifest, and it does not
+turn an unqualified extraction into a match.
+
 LVSEngine is a Swift layout-versus-schematic verification library and command-line tool.
 It compares circuit connectivity from SPICE netlists or standard mask data, produces
 structured diagnostics, and persists reproducible verification artifacts for developer,

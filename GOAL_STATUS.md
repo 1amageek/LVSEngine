@@ -1,0 +1,15 @@
+# LVSEngine Goal Status
+
+| Goal | Status |
+|---|---|
+| CircuiteFoundation dependency | Complete |
+| Foundation engine protocol | Complete (`LVSEngineRunning`) |
+| Foundation evidence boundary | Complete (`LVSFoundationEvidence`) |
+| Foundation top-cell identity | Complete (`LVSRequest.designObjectReference`) |
+| Existing extraction/matching behavior | Retained |
+| Fail-closed qualification behavior | Retained |
+| Project/run orchestration | Out of scope; owned by higher layers |
+| Build after migration | Passed |
+
+The next implementation agent can extend artifact collection or flow
+integration without changing the matching or qualification contracts.

@@ -20,13 +20,25 @@ let package = Package(
         .executable(name: "lvsengine", targets: ["LVSCLI"]),
     ],
     dependencies: [
+        .package(path: "../CircuiteFoundation"),
         .package(path: "../SignoffToolSupport"),
         .package(path: "../semiconductor-layout"),
     ],
     targets: [
-        .target(name: "LVSGraph"),
+        .target(
+            name: "LVSGraph",
+            dependencies: [
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
+            ]
+        ),
         .target(name: "LVSMatching", dependencies: ["LVSGraph"]),
-        .target(name: "LVSCore", dependencies: ["LVSGraph"]),
+        .target(
+            name: "LVSCore",
+            dependencies: [
+                "LVSGraph",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
+            ]
+        ),
         .target(name: "LVSNetlistParsing", dependencies: ["LVSCore"]),
         .target(
             name: "LVSNative",
@@ -74,6 +86,7 @@ let package = Package(
                 .product(name: "LayoutLVSExtraction", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
                 .product(name: "LayoutIO", package: "semiconductor-layout"),
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
             ]
         ),
         .target(
