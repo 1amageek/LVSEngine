@@ -33,6 +33,14 @@ The project is designed around a fail-closed trust model:
 - reports include implementation, process, deck, and artifact provenance;
 - production qualification requires observed corpus assertions and an independent oracle.
 
+## Xcircuite integration
+
+[`Xcircuite`](https://github.com/1amageek/Xcircuite) is the umbrella runtime
+that invokes LVSEngine through a flow stage executor and persists LVS reports,
+qualification evidence, diagnostics, and artifact references for Agent/Human
+review. LVSEngine remains independently usable and owns extraction, graph
+matching, equivalence policy, and LVS qualification.
+
 ## Capabilities
 
 | Area | Support |
