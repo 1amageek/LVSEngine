@@ -726,7 +726,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
            Self.isValidSHA256(reportSHA256) {
             return LVSEvidenceConfidence(
                 level: .high,
-                reason: "The LVS corpus is qualified with complete scope, artifact integrity, and independent oracle evidence.",
+                reason: "The LVS corpus has complete scoped evidence, artifact integrity, and independent-oracle agreement; trust remains an external decision.",
                 evidenceCount: evidenceCount,
                 limitationCount: diagnostics.count
             )
@@ -746,10 +746,10 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         if diagnostics.isEmpty {
             return [
                 LVSEvidenceDecisionHint(
-                    hintID: "lvs-corpus-qualified",
+                    hintID: "lvs-corpus-evidence-ready",
                     priority: .low,
-                    summary: "Use the qualified LVS corpus as a trusted native signoff evidence source.",
-                    suggestedActions: ["use_lvs_evidence_for_repair_gate"]
+                    summary: "Submit the complete LVS corpus evidence to the external trust gate.",
+                    suggestedActions: ["evaluate_lvs_evidence_trust"]
                 )
             ]
         }

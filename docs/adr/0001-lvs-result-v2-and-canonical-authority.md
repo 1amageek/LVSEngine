@@ -17,9 +17,9 @@ The previous native implementations inferred pass from process completion and ac
 6. Layout extraction owns a neutral, process-deck-derived extraction IR. LVSEngine adapts that IR into `LVSGraph`; the extraction package does not depend on LVSEngine.
 7. Production eligibility is process-profile and deck-digest specific. Native capabilities remain production-blocked until independent-oracle, bounded-execution, retained-run, consumer-migration, and legacy-removal gates pass.
 
-## Migration
+## Current contract
 
-Legacy boolean fields remain decode-compatible while consumers move to result v2. They are not production authority. Literal-signature and direct-comparator paths are removed after graph-local policy transformations and all consumers are migrated.
+Result v2 is the only decodable result contract. Literal-signature and direct-comparator paths have been removed after graph-local policy transformations and consumer migration.
 
 ## Removal gate
 
