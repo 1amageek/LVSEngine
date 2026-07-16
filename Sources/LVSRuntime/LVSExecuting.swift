@@ -11,3 +11,16 @@ where Request == LVSRequest, Output == LVSExecutionResult {
         cancellationCheck: LVSExecutionCancellationCheck?
     ) async throws -> LVSExecutionResult
 }
+
+public extension LVSExecuting {
+    func execute(_ request: LVSRequest) async throws -> LVSExecutionResult {
+        try await run(request)
+    }
+
+    func run(
+        _ request: LVSRequest,
+        cancellationCheck: LVSExecutionCancellationCheck?
+    ) async throws -> LVSExecutionResult {
+        try await run(request)
+    }
+}
