@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "defaultMaxDurationSeconds": 30,
   "qualificationScopeCaseID": "production-sky130-digital-inv_1",
-  "qualificationPolicy": {
+  "acceptanceCriteria": {
     "requiredObservedAssertions": [
       "cancellation:cancelled",
       "correspondenceArtifact",
@@ -18,7 +18,7 @@
       "diagnosticRule:LVS_MODEL_MISMATCH",
       "durationBudget:within-budget",
       "extractionArtifact",
-      "extractionProductionEligibility:eligible",
+      "extractionProfileReadiness:ready",
       "hierarchyDepth:1",
       "manifestArtifact",
       "oracleAgreement:true",
@@ -435,9 +435,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -541,9 +541,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -647,9 +647,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -753,9 +753,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -859,9 +859,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -965,9 +965,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1071,9 +1071,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1177,9 +1177,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1283,9 +1283,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1389,9 +1389,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1495,9 +1495,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1601,9 +1601,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1707,9 +1707,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1813,9 +1813,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -1919,9 +1919,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -2025,9 +2025,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -2131,9 +2131,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -2237,9 +2237,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -2343,9 +2343,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",
@@ -2449,9 +2449,9 @@
           "kind": "extractionArtifact"
         },
         {
-          "assertionID": "extraction-production-eligibility",
-          "kind": "extractionProductionEligibility",
-          "expectedValue": "eligible"
+          "assertionID": "extraction-profile-readiness",
+          "kind": "extractionProfileReadiness",
+          "expectedValue": "ready"
         },
         {
           "assertionID": "device-policy-import",

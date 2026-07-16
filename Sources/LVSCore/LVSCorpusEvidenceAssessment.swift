@@ -9,7 +9,7 @@ struct LVSCorpusEvidenceAssessment: Sendable {
     let oracleIntegrityFailureCount: Int
     let reportIntegrityFailureCodes: [String]
     let failureCodes: [String]
-    let qualified: Bool
+    let meetsCriteria: Bool
 
     init(report: LVSCorpusReport) {
         let completePrimaryIdentities: [LVSImplementationIdentity] = report.caseResults.compactMap {
@@ -31,7 +31,7 @@ struct LVSCorpusEvidenceAssessment: Sendable {
         })
         let independentResults = report.caseResults.filter(Self.hasIndependentOracle)
         let oracleResults = report.caseResults.compactMap(\.oracleResult)
-        let reportIntegrityCodes = report.qualification.failures
+        let reportIntegrityCodes = report.assessment.findings
             .map(\.code)
             .filter { $0.hasPrefix("report_") }
         let oracleIntegrityFailureCount = oracleResults.reduce(0) {
@@ -57,7 +57,7 @@ struct LVSCorpusEvidenceAssessment: Sendable {
         if report.caseResults.contains(where: { $0.observedAssertions.isEmpty }) {
             assessmentFailureCodes.append("observed_assertions_missing")
         }
-        if report.qualification.policy.requiredObservedAssertions.isEmpty {
+        if report.assessment.criteria.requiredObservedAssertions.isEmpty {
             assessmentFailureCodes.append("observed_assertion_policy_missing")
         }
         if report.summary.failedAssertionCount > 0 {
@@ -86,7 +86,7 @@ struct LVSCorpusEvidenceAssessment: Sendable {
         self.oracleIntegrityFailureCount = oracleIntegrityFailureCount
         reportIntegrityFailureCodes = Array(Set(reportIntegrityCodes)).sorted()
         failureCodes = Array(Set(reportIntegrityCodes + assessmentFailureCodes)).sorted()
-        qualified = report.qualification.qualified && assessmentFailureCodes.isEmpty
+        meetsCriteria = report.assessment.meetsCriteria && assessmentFailureCodes.isEmpty
     }
 
     var hasCompleteIndependentOracleEvidence: Bool {

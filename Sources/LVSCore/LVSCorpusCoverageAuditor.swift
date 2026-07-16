@@ -37,7 +37,7 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             missingRequirements.append(missingRequirement)
         }
 
-        if policy.requireQualifiedCorpus, !report.qualification.qualified {
+        if policy.requireQualifiedCorpus, !report.assessment.meetsCriteria {
             missingRequirements.append(LVSCorpusCoverageAudit.MissingRequirement(
                 requirementID: "qualified-corpus",
                 title: "Qualified corpus",
@@ -108,7 +108,7 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             summary: LVSCorpusCoverageAudit.Summary(
                 caseCount: report.caseCount,
                 matchedCaseCount: report.matchedCaseCount,
-                qualified: report.qualification.qualified,
+                meetsCriteria: report.assessment.meetsCriteria,
                 oracleCaseCount: report.summary.oracleCaseCount,
                 oracleAgreementPassedCaseCount: report.summary.oracleAgreementPassedCaseCount,
                 requiredRequirementCount: requiredRequirementCount,

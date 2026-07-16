@@ -45,7 +45,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
     public struct Summary: Sendable, Hashable, Codable {
         public let caseCount: Int
         public let matchedCaseCount: Int
-        public let qualified: Bool
+        public let meetsCriteria: Bool
         public let oracleCaseCount: Int
         public let oracleAgreementPassedCaseCount: Int
         public let requiredRequirementCount: Int
@@ -61,7 +61,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
         public init(
             caseCount: Int,
             matchedCaseCount: Int,
-            qualified: Bool,
+            meetsCriteria: Bool,
             oracleCaseCount: Int,
             oracleAgreementPassedCaseCount: Int,
             requiredRequirementCount: Int,
@@ -76,7 +76,7 @@ public struct LVSCorpusCoverageAudit: Sendable, Hashable, Codable {
         ) {
             self.caseCount = caseCount
             self.matchedCaseCount = matchedCaseCount
-            self.qualified = qualified
+            self.meetsCriteria = meetsCriteria
             self.oracleCaseCount = oracleCaseCount
             self.oracleAgreementPassedCaseCount = oracleAgreementPassedCaseCount
             self.requiredRequirementCount = requiredRequirementCount

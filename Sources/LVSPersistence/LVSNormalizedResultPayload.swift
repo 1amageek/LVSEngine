@@ -9,5 +9,5 @@ struct LVSNormalizedResultPayload: Encodable {
     let blockingReasons: [LVSBlockingReason]
     let diagnostics: [LVSDiagnostic]
     let correspondence: LVSCorrespondence?
-    let extractionQualification: LVSExtractionQualification?
+    let extractionEvidence: LVSExtractionEvidence?
 }

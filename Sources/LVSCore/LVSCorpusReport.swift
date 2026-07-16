@@ -11,7 +11,7 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
     public let runOptions: LVSCorpusRunOptions
     public let qualificationScopeCaseID: String?
     public let summary: LVSCorpusSummary
-    public let qualification: LVSCorpusQualificationResult
+    public let assessment: LVSCorpusAssessment
     public let caseResults: [LVSCorpusCaseResult]
 
     public init(
@@ -25,8 +25,8 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         runOptions: LVSCorpusRunOptions = LVSCorpusRunOptions(),
         qualificationScopeCaseID: String? = nil,
         summary: LVSCorpusSummary? = nil,
-        qualificationPolicy: LVSCorpusQualificationPolicy = .strict,
-        qualification: LVSCorpusQualificationResult? = nil,
+        acceptanceCriteria: LVSCorpusAcceptanceCriteria = .strict,
+        assessment: LVSCorpusAssessment? = nil,
         caseResults: [LVSCorpusCaseResult]
     ) {
         self.schemaVersion = schemaVersion
@@ -40,7 +40,7 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         self.qualificationScopeCaseID = qualificationScopeCaseID
         let resolvedSummary = summary ?? LVSCorpusSummary(caseResults: caseResults)
         self.summary = resolvedSummary
-        let evaluatedQualification = qualification ?? qualificationPolicy.evaluate(
+        let evaluatedAssessment = assessment ?? acceptanceCriteria.evaluate(
             passed: passed,
             caseCount: caseCount,
             summary: resolvedSummary
@@ -55,9 +55,9 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
             summary: resolvedSummary,
             caseResults: caseResults
         )
-        self.qualification = LVSCorpusQualificationResult(
-            policy: evaluatedQualification.policy,
-            failures: evaluatedQualification.failures + integrityFailures
+        self.assessment = LVSCorpusAssessment(
+            criteria: evaluatedAssessment.criteria,
+            findings: evaluatedAssessment.findings + integrityFailures
         )
     }
 
@@ -72,7 +72,7 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         case runOptions
         case qualificationScopeCaseID
         case summary
-        case qualification
+        case assessment
         case caseResults
     }
 
@@ -100,8 +100,8 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         caseResults = try container.decode([LVSCorpusCaseResult].self, forKey: .caseResults)
         summary = try container.decode(LVSCorpusSummary.self, forKey: .summary)
         let decodedQualification = try container.decode(
-            LVSCorpusQualificationResult.self,
-            forKey: .qualification
+            LVSCorpusAssessment.self,
+            forKey: .assessment
         )
         let integrityFailures = LVSCorpusReportIntegrityValidator().failures(
             passed: passed,
@@ -112,9 +112,9 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
             summary: summary,
             caseResults: caseResults
         )
-        qualification = LVSCorpusQualificationResult(
-            policy: decodedQualification.policy,
-            failures: decodedQualification.failures + integrityFailures
+        assessment = LVSCorpusAssessment(
+            criteria: decodedQualification.criteria,
+            findings: decodedQualification.findings + integrityFailures
         )
     }
 }

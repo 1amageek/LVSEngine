@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "defaultMaxDurationSeconds": 10,
-  "qualificationPolicy": {
+  "acceptanceCriteria": {
     "requiredObservedAssertions": [
       "diagnosticRule:LVS_MODEL_MISMATCH",
       "diagnosticRule:LVS_PARAMETER_MISMATCH",

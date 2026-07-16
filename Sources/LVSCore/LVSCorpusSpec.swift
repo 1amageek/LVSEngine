@@ -3,20 +3,20 @@ public struct LVSCorpusSpec: Sendable, Hashable, Codable {
 
     public let schemaVersion: Int
     public let defaultMaxDurationSeconds: Double?
-    public let qualificationPolicy: LVSCorpusQualificationPolicy
+    public let acceptanceCriteria: LVSCorpusAcceptanceCriteria
     public let qualificationScopeCaseID: String?
     public let cases: [LVSCorpusCase]
 
     public init(
         schemaVersion: Int = LVSCorpusSpec.currentSchemaVersion,
         defaultMaxDurationSeconds: Double? = nil,
-        qualificationPolicy: LVSCorpusQualificationPolicy = .strict,
+        acceptanceCriteria: LVSCorpusAcceptanceCriteria = .strict,
         qualificationScopeCaseID: String? = nil,
         cases: [LVSCorpusCase]
     ) {
         self.schemaVersion = schemaVersion
         self.defaultMaxDurationSeconds = defaultMaxDurationSeconds
-        self.qualificationPolicy = qualificationPolicy
+        self.acceptanceCriteria = acceptanceCriteria
         self.qualificationScopeCaseID = qualificationScopeCaseID
         self.cases = cases
     }
@@ -24,7 +24,7 @@ public struct LVSCorpusSpec: Sendable, Hashable, Codable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case defaultMaxDurationSeconds
-        case qualificationPolicy
+        case acceptanceCriteria
         case qualificationScopeCaseID
         case cases
     }
@@ -40,9 +40,9 @@ public struct LVSCorpusSpec: Sendable, Hashable, Codable {
             )
         }
         defaultMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .defaultMaxDurationSeconds)
-        qualificationPolicy = try container.decodeIfPresent(
-            LVSCorpusQualificationPolicy.self,
-            forKey: .qualificationPolicy
+        acceptanceCriteria = try container.decodeIfPresent(
+            LVSCorpusAcceptanceCriteria.self,
+            forKey: .acceptanceCriteria
         ) ?? .strict
         qualificationScopeCaseID = try container.decodeIfPresent(
             String.self,

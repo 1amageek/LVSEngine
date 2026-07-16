@@ -81,7 +81,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
                     title: "Layout extraction artifact",
                     requiredObservedAssertions: [
                         "extractionArtifact",
-                        "extractionProductionEligibility:eligible",
+                        "extractionProfileReadiness:ready",
                     ],
                     suggestedActions: ["run_native_gds_lvs_case"]
                 ),
@@ -89,7 +89,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
                     requirementID: "sky130-digital-cell-matrix",
                     title: "Sky130 digital MOS cell matrix",
                     requiredObservedAssertions: [
-                        "extractionProductionEligibility:eligible",
+                        "extractionProfileReadiness:ready",
                         "oracleAgreement:true",
                         "verdict:match",
                     ],

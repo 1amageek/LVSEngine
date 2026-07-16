@@ -16,24 +16,24 @@ extension LVSCLIOptionsTests {
         #expect(spec.cases.count == 40)
         #expect(Set(spec.cases.compactMap(\.backendID)) == ["native", "native-gds"])
         #expect(Set(spec.cases.compactMap(\.oracleBackendID)) == ["netgen"])
-        #expect(spec.qualificationPolicy.minimumOracleCaseCount == 40)
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("oracleAgreement:true"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("oracleIndependence:ready"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("determinism:stable"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("cancellation:cancelled"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("extractionProductionEligibility:eligible"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("hierarchyDepth:1"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("structureClass:analog"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("devicePolicyImport:satisfied"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("devicePolicyApplication:complete"))
-        #expect(spec.qualificationPolicy.requiredObservedAssertions.contains("devicePolicyRule:ignore-class"))
+        #expect(spec.acceptanceCriteria.minimumOracleCaseCount == 40)
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("oracleAgreement:true"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("oracleIndependence:ready"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("determinism:stable"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("cancellation:cancelled"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("extractionProfileReadiness:ready"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("hierarchyDepth:1"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("structureClass:analog"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("devicePolicyImport:satisfied"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("devicePolicyApplication:complete"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("devicePolicyRule:ignore-class"))
 
         let physicalDigitalCases = spec.cases.filter {
             $0.backendID == "native-gds"
                 && $0.extractionDeckPath == "pdk://libs.tech/magic/sky130A.tech"
                 && $0.requiredAssertions.contains { $0.kind == .extractionArtifact }
                 && $0.requiredAssertions.contains {
-                    $0.kind == .extractionProductionEligibility && $0.expectedValue == "eligible"
+                    $0.kind == .extractionProfileReadiness && $0.expectedValue == "ready"
                 }
                 && $0.devicePolicyDeckPath == "pdk://libs.tech/netgen/sky130A_setup.tcl"
                 && Set($0.requiredAssertions.compactMap { assertion in
@@ -271,7 +271,7 @@ extension LVSCLIOptionsTests {
             caseCount: caseResults.count,
             matchedCaseCount: caseResults.count,
             totalDurationSeconds: caseResults.reduce(0) { $0 + $1.durationSeconds },
-            qualificationPolicy: LVSCorpusQualificationPolicy(
+            acceptanceCriteria: LVSCorpusAcceptanceCriteria(
                 requireCorpusPassed: false,
                 requiredObservedAssertions: []
             ),

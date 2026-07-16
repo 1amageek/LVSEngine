@@ -32,7 +32,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
         }
     }
 
-    public struct QualificationBinding: Codable, Sendable, Hashable {
+    public struct TrustEvidenceContract: Codable, Sendable, Hashable {
         public let evidenceArtifactID: String
         public let evaluator: String
         public let backendSelectionPolicy: String
@@ -79,7 +79,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
         public let committedSpecPath: String
         public let reportArtifact: String
         public let evidenceExportFlag: String
-        public let qualificationPolicy: String
+        public let acceptanceCriteria: String
         public let requiredObservedAssertions: [String]
 
         public init(
@@ -88,7 +88,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
             committedSpecPath: String,
             reportArtifact: String,
             evidenceExportFlag: String,
-            qualificationPolicy: String,
+            acceptanceCriteria: String,
             requiredObservedAssertions: [String]
         ) {
             self.runner = runner
@@ -96,7 +96,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
             self.committedSpecPath = committedSpecPath
             self.reportArtifact = reportArtifact
             self.evidenceExportFlag = evidenceExportFlag
-            self.qualificationPolicy = qualificationPolicy
+            self.acceptanceCriteria = acceptanceCriteria
             self.requiredObservedAssertions = requiredObservedAssertions
         }
     }
@@ -104,7 +104,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
     public let schemaVersion: Int
     public let engineID: String
     public let ownerPackage: String
-    public let qualificationBinding: QualificationBinding
+    public let trustEvidenceContract: TrustEvidenceContract
     public let backends: [Backend]
     public let artifacts: [ArtifactContract]
     public let corpus: CorpusContract
@@ -115,7 +115,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
         case schemaVersion
         case engineID
         case ownerPackage
-        case qualificationBinding
+        case trustEvidenceContract
         case backends
         case artifacts
         case corpus
@@ -127,7 +127,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
         schemaVersion: Int = LVSCapabilitySnapshot.currentSchemaVersion,
         engineID: String,
         ownerPackage: String,
-        qualificationBinding: QualificationBinding,
+        trustEvidenceContract: TrustEvidenceContract,
         backends: [Backend],
         artifacts: [ArtifactContract],
         corpus: CorpusContract,
@@ -137,7 +137,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
         self.schemaVersion = schemaVersion
         self.engineID = engineID
         self.ownerPackage = ownerPackage
-        self.qualificationBinding = qualificationBinding
+        self.trustEvidenceContract = trustEvidenceContract
         self.backends = backends
         self.artifacts = artifacts
         self.corpus = corpus
@@ -157,7 +157,7 @@ public struct LVSCapabilitySnapshot: Codable, Sendable, Hashable {
         }
         engineID = try container.decode(String.self, forKey: .engineID)
         ownerPackage = try container.decode(String.self, forKey: .ownerPackage)
-        qualificationBinding = try container.decode(QualificationBinding.self, forKey: .qualificationBinding)
+        trustEvidenceContract = try container.decode(TrustEvidenceContract.self, forKey: .trustEvidenceContract)
         backends = try container.decode([Backend].self, forKey: .backends)
         artifacts = try container.decode([ArtifactContract].self, forKey: .artifacts)
         corpus = try container.decode(CorpusContract.self, forKey: .corpus)

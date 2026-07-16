@@ -199,7 +199,7 @@ public struct LVSCorpusRunner: Sendable {
             totalDurationSeconds: caseResults.reduce(0) { $0 + $1.durationSeconds },
             runOptions: options,
             qualificationScopeCaseID: spec.qualificationScopeCaseID,
-            qualificationPolicy: spec.qualificationPolicy,
+            acceptanceCriteria: spec.acceptanceCriteria,
             caseResults: caseResults
         )
         let reportURL = outputDirectory.appending(path: "lvs-corpus-report.json")
@@ -517,17 +517,17 @@ public struct LVSCorpusRunner: Sendable {
                 evaluation = artifactEvaluation(executionResult.correspondenceURL, code: "correspondence_artifact_missing")
             case .extractionArtifact:
                 evaluation = artifactEvaluation(executionResult.extractionReportURL, code: "extraction_artifact_missing")
-            case .extractionProductionEligibility:
-                guard let qualification = executionResult.extractionQualification else {
-                    evaluation = (.blocked, nil, "extraction_qualification_missing")
+            case .extractionProfileReadiness:
+                guard let evidence = executionResult.extractionEvidence else {
+                    evaluation = (.blocked, nil, "extraction_evidence_missing")
                     break
                 }
                 evaluation = (
-                    qualification.productionEligible ? .passed : .failed,
-                    qualification.productionEligible ? "eligible" : "ineligible",
-                    qualification.productionEligible
+                    evidence.profileReady ? .passed : .failed,
+                    evidence.profileReady ? "ready" : "notReady",
+                    evidence.profileReady
                         ? nil
-                        : "extraction_production_ineligible:\(qualification.blockingReasonCodes.joined(separator: ","))"
+                        : "extraction_profile_incomplete:\(evidence.blockingReasonCodes.joined(separator: ","))"
                 )
             case .structureClass:
                 let observed = observedStructureClass(in: executionResult)
@@ -976,10 +976,10 @@ public struct LVSCorpusRunner: Sendable {
             binaryDigest: digestIfReadable(executableURL) ?? "",
             algorithmVersion: algorithmVersion(for: backendID),
             processProfileID: executionResult.request.processProfileID
-                ?? executionResult.extractionQualification?.processProfileID
+                ?? executionResult.extractionEvidence?.processProfileID
                 ?? technologyDigest
                 ?? "process-neutral",
-            deckDigest: executionResult.extractionQualification?.deckDigest
+            deckDigest: executionResult.extractionEvidence?.deckDigest
                 ?? setupDigest
                 ?? technologyDigest
                 ?? "no-deck"

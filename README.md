@@ -3,7 +3,7 @@
 ## CircuiteFoundation boundary
 
 LVSEngine remains an independent layout-versus-schematic engine. It owns
-netlist extraction, graph matching, equivalence policy, and LVS qualification.
+netlist extraction, graph matching, equivalence policy, and raw LVS evidence.
 `CircuiteFoundation` supplies only the shared engine, artifact, evidence,
 provenance, diagnostic, and design-object contracts.
 
@@ -11,7 +11,7 @@ provenance, diagnostic, and design-object contracts.
 flowchart LR
     Request["LVSRequest"] --> Engine["LVSEngineRunning"]
     Engine --> Result["LVSExecutionResult"]
-    Result --> Domain["LVS graph / verdict / qualification"]
+    Result --> Domain["LVS graph / verdict / assessment"]
     Result --> Boundary["LVSFoundationEvidence"]
     Boundary --> Foundation["EvidenceManifest + DesignDiagnostic"]
 ```
@@ -31,15 +31,16 @@ The project is designed around a fail-closed trust model:
 - incomplete extraction, unsupported policy, timeout, and cancellation never become a match;
 - matching is deterministic and bounded by explicit resource budgets;
 - reports include implementation, process, deck, and artifact provenance;
-- production qualification requires observed corpus assertions and an independent oracle.
+- production trust is decided externally from observed corpus assertions, independent-oracle evidence and tool identity.
 
 ## Xcircuite integration
 
 [`Xcircuite`](https://github.com/1amageek/Xcircuite) is the umbrella runtime
 that invokes LVSEngine through a flow stage executor and persists LVS reports,
-qualification evidence, diagnostics, and artifact references for Agent/Human
+assessment evidence, diagnostics, and artifact references for Agent/Human
 review. LVSEngine remains independently usable and owns extraction, graph
-matching, equivalence policy, and LVS qualification.
+matching, equivalence policy, and raw observations. ToolQualification and the
+composing flow policy own tool trust and release decisions.
 
 ## Capabilities
 
@@ -54,7 +55,7 @@ matching, equivalence policy, and LVS qualification.
 | External tools | Netgen comparison adapter and Magic layout-netlist extraction adapter |
 | Diagnostics | Typed port, topology, model, parameter, multiplicity, readiness, and policy diagnostics |
 | Artifacts | Result report, manifest, correspondence, extraction report, transform ledger, and logs |
-| Qualification | Corpus assertions, independent-oracle comparison, coverage audit, evidence export, and evidence packet |
+| Evidence assessment | Corpus assertions, independent-oracle comparison, coverage audit, observation export, and evidence packet |
 
 ## Package products
 
@@ -289,7 +290,7 @@ active error count. Waivers cannot convert a mismatch or blocked verdict into a 
 
 Unused waiver IDs remain visible in the persisted waiver report.
 
-## Corpus qualification
+## Corpus assessment
 
 Run a corpus with:
 
@@ -312,13 +313,13 @@ A corpus can require:
 - foundry device-policy import, application, and rule-family observations.
 
 The runner writes case artifacts and a top-level `lvs-corpus-report` containing aggregate
-metrics and a durable qualification result. Missing tools and oracle failures are recorded
+metrics and a durable assessment. Missing tools and oracle failures are recorded
 as structured blocked evidence rather than aborting without a report.
 
 Re-evaluate or export a saved report without rerunning the corpus:
 
 ```bash
-swift run lvsengine --qualify-corpus-report /path/to/lvs-corpus-report.json --json
+swift run lvsengine --assess-corpus-report /path/to/lvs-corpus-report.json --json
 
 swift run lvsengine \
   --audit-corpus-coverage /path/to/lvs-corpus-report.json \
@@ -328,8 +329,9 @@ swift run lvsengine \
   --json
 
 swift run lvsengine \
-  --evidence-from-corpus-report /path/to/lvs-corpus-report.json \
-  --out /path/to/lvs-tool-evidence.json \
+  --observations-from-corpus-report /path/to/lvs-corpus-report.json \
+  --record-id lvs-release-corpus \
+  --out /path/to/lvs-corpus-observations.json \
   --json
 
 swift run lvsengine \

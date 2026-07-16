@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "defaultMaxDurationSeconds": 30,
-  "qualificationPolicy": {
+  "acceptanceCriteria": {
   },
   "cases": [
     {

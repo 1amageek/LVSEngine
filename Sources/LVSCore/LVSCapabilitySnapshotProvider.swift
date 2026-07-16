@@ -5,7 +5,7 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
         LVSCapabilitySnapshot(
             engineID: "lvsengine",
             ownerPackage: "LVSEngine",
-            qualificationBinding: qualificationBinding(),
+            trustEvidenceContract: trustEvidenceContract(),
             backends: [
                 nativeBackend(),
                 nativeGDSBackend(),
@@ -15,8 +15,8 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
             corpus: corpusContract(),
             actionDomain: LVSActionDomainExporter().snapshot(),
             agentContracts: [
-                "CLI emits structured JSON for single-run, waiver-review, corpus, qualification, coverage-audit, ToolEvidence, evidence-packet, foundry-deck semantic inventory, Netgen device seed import with compact seedSummary, Netgen device import audit, action-domain, and capability queries.",
-                "API exposes typed request/result, mismatch diagnostics, waiver-review report, summary, manifest, corpus, coverage-audit, ToolEvidence, evidence-packet, action-domain, repair-hint, and capability models.",
+                "CLI emits structured JSON for single-run, waiver-review, corpus, corpus observations, coverage-audit, evidence-packet, foundry-deck semantic inventory, Netgen device seed import with compact seedSummary, Netgen device import audit, action-domain, and capability queries.",
+                "API exposes typed request/result, mismatch diagnostics, waiver-review report, summary, manifest, corpus, coverage-audit, corpus observation export, evidence-packet, action-domain, repair-hint, and capability models.",
                 "Retained corpus reports can be converted into Agent decision material through LVSCorpusEvidencePacketBuilder and lvsengine --evidence-packet-from-corpus-report, including readiness, extracted layout netlist references, metrics, diagnostics, observed assertions, and decision hints.",
                 "Retained corpus reports can be audited through LVSCorpusCoverageAuditor and lvsengine --audit-corpus-coverage to expose missing Netgen oracle coverage dimensions without prescribing a fixed repair flow.",
                 "Foundry deck semantic inspection is exposed through lvsengine --foundry-deck-semantics and the signoff-foundry-deck-semantics artifact contract.",
@@ -24,14 +24,14 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
                 "Native LVS can consume lvs-device-policy-seed through LVSRequest.devicePolicyURL or lvsengine --device-policy, applying concrete Netgen permute, equate-pins, property-delete, property-tolerance, property-parallel, property-series, conservative blackbox, and runtime $cell selector rules resolved against defined compared subcircuit models while emitting lvs-device-policy-application-report evidence.",
                 "Native-gds routes extracted layout SPICE through the same policy-aware comparison path for equate-pins, property-blackbox, explicit model-blackbox boundary, runtime $cell blackbox boundary, mixed blackbox-plus-extracted-device top cells, property-delete, property-tolerance, property-parallel, and property-series evidence from standard mask inputs.",
                 "Diagnostics distinguish port, model, parameter, component-count, and extraction failures; actionable port, policy, parameter, and multiplicity diagnostics can be exported as typed repair hints.",
-                "Corpus reports are immutable evidence and can be requalified without rerunning the engine.",
+                "Corpus reports are immutable evidence and can be reassessed without rerunning the engine.",
             ]
         )
     }
 
-    private func qualificationBinding() -> LVSCapabilitySnapshot.QualificationBinding {
-        LVSCapabilitySnapshot.QualificationBinding(
-            evidenceArtifactID: "lvs-tool-evidence-export",
+    private func trustEvidenceContract() -> LVSCapabilitySnapshot.TrustEvidenceContract {
+        LVSCapabilitySnapshot.TrustEvidenceContract(
+            evidenceArtifactID: "lvs-corpus-observation-export",
             evaluator: "ToolQualification evidence policy",
             backendSelectionPolicy: "Select only a backend whose fresh evidence matches the requested process profile and extraction-deck digest.",
             requiredIdentityFields: [
@@ -80,9 +80,9 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
             diagnosticCategories: ["extraction", "componentCountMismatch", "modelMismatch", "parameterMismatch", "devicePolicy"],
             limitations: [
                 "The retained physical extraction scope is sky130.open-pdk.digital-mos.signoff and its exact extraction-deck digest.",
-                "Analog structures and hierarchy cases in the production corpus qualify SPICE graph semantics, not analog or hierarchical physical extraction.",
-                "CIF, DXF, and OASIS parsing support does not imply production extraction qualification without matching retained evidence.",
-                "The sample-process extractor is fixture-only and is not a production-qualified foundry deck.",
+                "Analog structures and hierarchy cases in the retained corpus validate SPICE graph semantics, not analog or hierarchical physical extraction.",
+                "CIF, DXF, and OASIS parsing support does not imply foundry extraction coverage without matching retained observations.",
+                "The sample-process extractor is fixture-only and is not a foundry deck implementation.",
             ]
         )
     }
@@ -132,12 +132,12 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
                 artifactID: "lvs-corpus-report",
                 format: "json",
                 producer: "LVSRuntime.LVSCorpusRunner",
-                consumer: ["Agent qualification", "Human review", "CI", "ToolQualification"]
+                consumer: ["ToolQualification trust evaluation", "Human review", "CI"]
             ),
             LVSCapabilitySnapshot.ArtifactContract(
-                artifactID: "lvs-tool-evidence-export",
+                artifactID: "lvs-corpus-observation-export",
                 format: "json",
-                producer: "LVSCore.LVSCorpusToolEvidenceExport",
+                producer: "LVSCore.LVSCorpusObservationExport",
                 consumer: ["ToolQualification", "Xcircuite trust gate", "CI", "Human review"]
             ),
             LVSCapabilitySnapshot.ArtifactContract(
@@ -257,8 +257,8 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
             cliFlag: "--corpus",
             committedSpecPath: "Tests/LVSCLICoreTests/Fixtures/ExternalOracle/lvs-production-corpus.json",
             reportArtifact: "lvs-corpus-report",
-            evidenceExportFlag: "--evidence-from-corpus-report",
-            qualificationPolicy: "strict unless overridden by corpus spec or --qualification-policy",
+            evidenceExportFlag: "--observations-from-corpus-report",
+            acceptanceCriteria: "strict unless overridden by corpus spec or --acceptance-criteria",
             requiredObservedAssertions: [
                 "cancellation:cancelled",
                 "correspondenceArtifact",
@@ -266,7 +266,7 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
                 "diagnosticRule:LVS_MODEL_MISMATCH",
                 "durationBudget:within-budget",
                 "extractionArtifact",
-                "extractionProductionEligibility:eligible",
+                "extractionProfileReadiness:ready",
                 "manifestArtifact",
                 "oracleAgreement:true",
                 "oracleIndependence:ready",

@@ -88,7 +88,7 @@ public struct DefaultLVSEngine: LVSEngineRunning {
                     correspondenceURL: artifacts.correspondenceURL,
                     extractionReportURL: directResult.extractionReportURL,
                     transformLedgerURL: directResult.transformLedgerURL,
-                    extractionQualification: directResult.extractionQualification
+                    extractionEvidence: directResult.extractionEvidence
                 )
             }
             return directResult
@@ -134,7 +134,7 @@ public struct DefaultLVSEngine: LVSEngineRunning {
             correspondenceURL: result.correspondenceURL,
             extractionReportURL: result.extractionReportURL,
             transformLedgerURL: result.transformLedgerURL,
-            extractionQualification: result.extractionQualification
+            extractionEvidence: result.extractionEvidence
         )
         if let directory = request.workingDirectory {
             let artifacts = try store.save(result, to: directory)
@@ -150,7 +150,7 @@ public struct DefaultLVSEngine: LVSEngineRunning {
                 correspondenceURL: artifacts.correspondenceURL,
                 extractionReportURL: result.extractionReportURL,
                 transformLedgerURL: result.transformLedgerURL,
-                extractionQualification: result.extractionQualification
+                extractionEvidence: result.extractionEvidence
             )
         }
         return result
@@ -329,7 +329,7 @@ public struct DefaultLVSEngine: LVSEngineRunning {
             correspondenceURL: executionResult.correspondenceURL,
             extractionReportURL: executionResult.extractionReportURL,
             transformLedgerURL: executionResult.transformLedgerURL,
-            extractionQualification: executionResult.extractionQualification
+            extractionEvidence: executionResult.extractionEvidence
         )
     }
 

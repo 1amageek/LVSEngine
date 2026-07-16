@@ -190,9 +190,9 @@ extension LVSCLIOptionsTests {
     #expect(snapshot.schemaVersion == 3)
     #expect(snapshot.engineID == "lvsengine")
     #expect(snapshot.ownerPackage == "LVSEngine")
-    #expect(snapshot.qualificationBinding.evidenceArtifactID == "lvs-tool-evidence-export")
-    #expect(snapshot.qualificationBinding.requiredIdentityFields.contains("processProfileID"))
-    #expect(snapshot.qualificationBinding.requiredIdentityFields.contains("extractionDeckDigest"))
+    #expect(snapshot.trustEvidenceContract.evidenceArtifactID == "lvs-corpus-observation-export")
+    #expect(snapshot.trustEvidenceContract.requiredIdentityFields.contains("processProfileID"))
+    #expect(snapshot.trustEvidenceContract.requiredIdentityFields.contains("extractionDeckDigest"))
     #expect(snapshot.actionDomain.domainID == "lvs-signoff")
     #expect(
       snapshot.corpus.committedSpecPath
@@ -205,7 +205,7 @@ extension LVSCLIOptionsTests {
     #expect(snapshot.corpus.requiredObservedAssertions.contains("extractionArtifact"))
     #expect(
       snapshot.corpus.requiredObservedAssertions.contains(
-        "extractionProductionEligibility:eligible"
+        "extractionProfileReadiness:ready"
       )
     )
 
@@ -233,7 +233,7 @@ extension LVSCLIOptionsTests {
     #expect(snapshot.artifacts.contains { $0.artifactID == "lvs-device-policy-application-report" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "lvs-corpus-coverage-audit" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "lvs-corpus-report" })
-    #expect(snapshot.artifacts.contains { $0.artifactID == "lvs-tool-evidence-export" })
+    #expect(snapshot.artifacts.contains { $0.artifactID == "lvs-corpus-observation-export" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "model-equivalence-policy" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "terminal-equivalence-policy" })
     #expect(snapshot.artifacts.contains { $0.artifactID == "policy-artifact" })

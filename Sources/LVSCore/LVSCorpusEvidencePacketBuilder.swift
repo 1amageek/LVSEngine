@@ -489,7 +489,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         artifactRefs: [LVSEvidenceArtifactRef]
     ) -> [LVSEvidenceDiagnostic] {
         var values: [LVSEvidenceDiagnostic] = []
-        for failure in report.qualification.failures {
+        for failure in report.assessment.findings {
             values.append(LVSEvidenceDiagnostic(
                 diagnosticID: "qualification:\(failure.code)",
                 severity: .error,
@@ -720,8 +720,8 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 limitationCount: diagnostics.count
             )
         }
-        if report.qualification.qualified,
-           assessment.qualified,
+        if report.assessment.meetsCriteria,
+           assessment.meetsCriteria,
            assessment.hasCompleteIndependentOracleEvidence,
            Self.isValidSHA256(reportSHA256) {
             return LVSEvidenceConfidence(
@@ -796,7 +796,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             "oracleExecutionFailedCaseCount": report.summary.oracleExecutionFailedCaseCount,
             "oracleReadinessBlockedCaseCount": report.summary.oracleReadinessBlockedCaseCount,
             "observedAssertionKindCount": report.summary.observedAssertionCounts.count,
-            "qualificationFailureCount": report.qualification.failures.count,
+            "qualificationFailureCount": report.assessment.findings.count,
             "completePrimaryIdentityCaseCount": assessment.completePrimaryIdentityCaseCount,
             "independentOracleCaseCount": assessment.independentOracleCaseCount,
             "independentOracleAgreementPassedCaseCount": assessment.independentOracleAgreementPassedCaseCount,
@@ -1134,7 +1134,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
              "corpus_gate":
             return .medium
         default:
-            return report.qualification.qualified ? .low : .medium
+            return report.assessment.meetsCriteria ? .low : .medium
         }
     }
 

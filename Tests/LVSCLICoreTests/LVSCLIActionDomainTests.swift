@@ -22,9 +22,9 @@ extension LVSCLIOptionsTests {
     #expect(operationIDs.contains("lvs.inspect-foundry-deck-semantics"))
     #expect(operationIDs.contains("lvs.import-foundry-device-seed"))
     #expect(operationIDs.contains("lvs.audit-device-import"))
-    #expect(operationIDs.contains("lvs.qualify-corpus"))
+    #expect(operationIDs.contains("lvs.assess-corpus"))
     #expect(operationIDs.contains("lvs.audit-corpus-coverage"))
-    #expect(operationIDs.contains("lvs.export-tool-evidence"))
+    #expect(operationIDs.contains("lvs.export-corpus-observations"))
     #expect(operationIDs.contains("lvs.export-evidence-packet"))
     #expect(operationIDs.contains("lvs.export-repair-hints"))
     #expect(operationIDs.contains("lvs.policy-repair"))
@@ -97,9 +97,9 @@ extension LVSCLIOptionsTests {
         "lvs.inspect-foundry-deck-semantics",
         "lvs.import-foundry-device-seed",
         "lvs.audit-device-import",
-        "lvs.qualify-corpus",
+        "lvs.assess-corpus",
         "lvs.audit-corpus-coverage",
-        "lvs.export-tool-evidence",
+        "lvs.export-corpus-observations",
         "lvs.export-evidence-packet",
         "lvs.export-repair-hints",
         "lvs.policy-repair",

@@ -30,7 +30,7 @@ extension LVSCLIOptionsTests {
     equate pins "-circuit1 sky130_fd_pr__nfet_01v8" "-circuit2 sky130_fd_pr__nfet_01v8"
     """.write(to: deckURL, atomically: true, encoding: .utf8)
     let spec = LVSCorpusSpec(
-        qualificationPolicy: LVSCorpusQualificationPolicy(
+        acceptanceCriteria: LVSCorpusAcceptanceCriteria(
             requiredObservedAssertions: [
                 "devicePolicyApplication:complete",
                 "devicePolicyImport:satisfied",
@@ -78,7 +78,7 @@ extension LVSCLIOptionsTests {
         LVSCorpusReport.self,
         from: Data(contentsOf: outputDirectory.appending(path: "lvs-corpus-report.json"))
     )
-    #expect(exitCode == 0, "\(report.qualification.failures)")
+    #expect(exitCode == 0, "\(report.assessment.findings)")
     let result = try #require(report.caseResults.first)
     let resultReportURL = URL(filePath: try #require(result.reportPath))
     let resultReport = try JSONDecoder().decode(
@@ -128,8 +128,8 @@ extension LVSCLIOptionsTests {
     #expect(report.summary.oracleExecutionFailedCaseCount == 0)
     #expect(report.summary.oracleReadinessBlockedCaseCount == 28)
     #expect(report.summary.failureCategoryCounts.isEmpty)
-    #expect(report.qualification.qualified)
-    #expect(report.qualification.policy.requiredObservedAssertions == [
+    #expect(report.assessment.meetsCriteria)
+    #expect(report.assessment.criteria.requiredObservedAssertions == [
         "diagnosticRule:LVS_MODEL_MISMATCH",
         "diagnosticRule:LVS_PARAMETER_MISMATCH",
         "diagnosticRule:LVS_PORT_MISMATCH",
@@ -137,7 +137,7 @@ extension LVSCLIOptionsTests {
         "verdict:match",
         "verdict:mismatch",
     ])
-    #expect(report.qualification.failures.isEmpty)
+    #expect(report.assessment.findings.isEmpty)
     #expect(report.caseResults.allSatisfy { $0.durationBudgetPassed })
     #expect(report.caseResults.allSatisfy { $0.expectedMaxDurationSeconds == 10 })
     #expect(report.caseResults.allSatisfy { $0.failureReasons.isEmpty })

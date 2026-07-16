@@ -95,21 +95,21 @@ public struct LVSDevicePolicySeedSummary: Sendable, Hashable, Codable {
     }
 }
 
-public struct LVSCorpusQualificationCLIOutput: Sendable, Hashable, Codable {
+public struct LVSCorpusAssessmentCLIOutput: Sendable, Hashable, Codable {
     public let status: String
     public let reportPath: String
     public let summary: LVSCorpusSummary
-    public let qualification: LVSCorpusQualificationResult
+    public let assessment: LVSCorpusAssessment
 
     public init(
         reportPath: String,
         report: LVSCorpusReport,
-        qualification: LVSCorpusQualificationResult
+        assessment: LVSCorpusAssessment
     ) {
-        self.status = qualification.qualified ? "passed" : "failed"
+        self.status = assessment.meetsCriteria ? "passed" : "failed"
         self.reportPath = reportPath
         self.summary = report.summary
-        self.qualification = qualification
+        self.assessment = assessment
     }
 }
 
@@ -119,7 +119,7 @@ public struct LVSCorpusCLIOutput: Sendable, Hashable, Codable {
     public let report: LVSCorpusReport
 
     public init(reportPath: String, report: LVSCorpusReport) {
-        self.status = report.qualification.qualified ? "passed" : "failed"
+        self.status = report.assessment.meetsCriteria ? "passed" : "failed"
         self.reportPath = reportPath
         self.report = report
     }

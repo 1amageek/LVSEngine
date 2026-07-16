@@ -35,7 +35,7 @@ commonAssertions = [
   ["oracle-agreement", "oracleAgreement", "true"],
   ["oracle-independence", "oracleIndependence", "ready"],
   ["extraction-artifact", "extractionArtifact", nil],
-  ["extraction-production-eligibility", "extractionProductionEligibility", "eligible"],
+  ["extraction-profile-readiness", "extractionProfileReadiness", "ready"],
   ["device-policy-import", "devicePolicyImport", "satisfied"],
   ["device-policy-application", "devicePolicyApplication", "complete"],
   ["device-policy-permute", "devicePolicyRule", "permute"],
@@ -183,7 +183,7 @@ analogCases.each do |topCell|
   }
 end
 
-requiredAssertions = spec["qualificationPolicy"]["requiredObservedAssertions"]
+requiredAssertions = spec["acceptanceCriteria"]["requiredObservedAssertions"]
 requiredAssertions |= [
   "hierarchyDepth:1",
   "structureClass:analog",
@@ -196,7 +196,7 @@ requiredAssertions |= [
   "devicePolicyRule:ignore-class",
   "devicePolicyRule:blackbox",
 ]
-spec["qualificationPolicy"]["requiredObservedAssertions"] = requiredAssertions.sort
+spec["acceptanceCriteria"]["requiredObservedAssertions"] = requiredAssertions.sort
 
-spec["qualificationPolicy"]["minimumOracleCaseCount"] = spec["cases"].length
+spec["acceptanceCriteria"]["minimumOracleCaseCount"] = spec["cases"].length
 File.write(path, JSON.pretty_generate(spec) + "\n")

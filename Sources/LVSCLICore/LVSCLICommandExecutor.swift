@@ -25,14 +25,14 @@ struct LVSCLICommandExecutor: Sendable {
       return try evidencePacketFromCorpusReport()
     case .auditCorpusCoverage:
       return try auditCorpusCoverage()
-    case .evidenceFromCorpusReport:
-      return try evidenceFromCorpusReport()
+    case .observationsFromCorpusReport:
+      return try observationsFromCorpusReport()
     case .repairHintsFromReport:
       return try repairHintsFromReport()
     case .reviewWaiversFromReport:
       return try reviewWaiversFromReport()
-    case .qualifyCorpusReport:
-      return try qualifyCorpusReport()
+    case .assessCorpusReport:
+      return try assessCorpusReport()
     case .corpus:
       return try await corpus()
     case .runLVS:
@@ -158,7 +158,7 @@ struct LVSCLICommandExecutor: Sendable {
       try LVSCLI.emitJSON(snapshot)
     } else {
       print("engine=\(snapshot.engineID)")
-      print("qualification_evidence=\(snapshot.qualificationBinding.evidenceArtifactID)")
+      print("trust_evidence=\(snapshot.trustEvidenceContract.evidenceArtifactID)")
       print("backend_selection=evidence-bound")
       print("backends=\(snapshot.backends.map(\.backendID).joined(separator: ","))")
       print("corpus=\(snapshot.corpus.committedSpecPath)")
@@ -240,15 +240,16 @@ struct LVSCLICommandExecutor: Sendable {
     return audit.status == .satisfied ? 0 : 2
   }
 
-  private func evidenceFromCorpusReport() throws -> Int32 {
-    let options = try LVSCorpusEvidenceCLIOptions(arguments: arguments)
+  private func observationsFromCorpusReport() throws -> Int32 {
+    let options = try LVSCorpusObservationCLIOptions(arguments: arguments)
     let decodedReport = try decoded(LVSCorpusReport.self, from: options.reportURL)
-    let output = LVSCorpusToolEvidenceExport(
-      reportPath: options.reportURL.path(percentEncoded: false),
+    let output = try LVSCorpusObservationExport(
+      reportPath: options.reportURL.lastPathComponent,
       reportSHA256: LVSCLI.sha256(data: decodedReport.data),
+      reportByteCount: UInt64(decodedReport.data.count),
       report: decodedReport.value,
-      evidenceID: options.evidenceID,
-      checkedAt: options.checkedAt
+      recordID: options.recordID,
+      observedAt: options.checkedAt
     )
     if let outputURL = options.outputURL {
       try LVSCLI.writeJSON(output, to: outputURL)
@@ -256,14 +257,14 @@ struct LVSCLICommandExecutor: Sendable {
     if options.emitJSON {
       try LVSCLI.emitJSON(output)
     } else {
-      print("status=\(output.status)")
-      print("evidence_id=\(output.toolEvidence.evidenceID)")
+      print("status=observed")
+      print("record_id=\(output.observationRecord.recordID)")
       print("report=\(output.reportPath)")
       if let outputURL = options.outputURL {
-        print("evidence=\(outputURL.path(percentEncoded: false))")
+        print("observations=\(outputURL.path(percentEncoded: false))")
       }
     }
-    return output.toolEvidence.qualification.qualified ? 0 : 2
+    return 0
   }
 
   private func repairHintsFromReport() throws -> Int32 {
@@ -308,26 +309,26 @@ struct LVSCLICommandExecutor: Sendable {
     return review.status == .blocked ? 2 : 0
   }
 
-  private func qualifyCorpusReport() throws -> Int32 {
-    let options = try LVSCorpusQualificationCLIOptions(arguments: arguments)
+  private func assessCorpusReport() throws -> Int32 {
+    let options = try LVSCorpusAssessmentCLIOptions(arguments: arguments)
     let report = try decoded(LVSCorpusReport.self, from: options.reportURL).value
-    let qualification = try corpusQualification(
-      report: report, policyURL: options.qualificationPolicyURL)
+    let assessment = try corpusAssessment(
+      report: report, policyURL: options.acceptanceCriteriaURL)
     if options.emitJSON {
-      let output = LVSCorpusQualificationCLIOutput(
+      let output = LVSCorpusAssessmentCLIOutput(
         reportPath: options.reportURL.path(percentEncoded: false),
         report: report,
-        qualification: qualification
+        assessment: assessment
       )
       try LVSCLI.emitJSON(output)
     } else {
-      print("status=\(qualification.qualified ? "passed" : "failed")")
+      print("status=\(assessment.meetsCriteria ? "passed" : "failed")")
       print("report=\(options.reportURL.path(percentEncoded: false))")
-      if !qualification.failures.isEmpty {
-        print("failures=\(qualification.failures.map(\.code).joined(separator: ","))")
+      if !assessment.findings.isEmpty {
+        print("findings=\(assessment.findings.map(\.code).joined(separator: ","))")
       }
     }
-    return qualification.qualified ? 0 : 2
+    return assessment.meetsCriteria ? 0 : 2
   }
 
   private func corpus() async throws -> Int32 {
@@ -342,10 +343,10 @@ struct LVSCLICommandExecutor: Sendable {
       try LVSCLI.emitJSON(
         LVSCorpusCLIOutput(reportPath: reportURL.path(percentEncoded: false), report: report))
     } else {
-      print("status=\(report.qualification.qualified ? "passed" : "failed")")
+      print("status=\(report.assessment.meetsCriteria ? "passed" : "failed")")
       print("report=\(reportURL.path(percentEncoded: false))")
     }
-    return report.qualification.qualified ? 0 : 2
+    return report.assessment.meetsCriteria ? 0 : 2
   }
 
   private func runLVS() async throws -> Int32 {
@@ -379,10 +380,10 @@ private enum LVSCLICommandMode: Sendable {
   case actionDomain
   case evidencePacketFromCorpusReport
   case auditCorpusCoverage
-  case evidenceFromCorpusReport
+  case observationsFromCorpusReport
   case repairHintsFromReport
   case reviewWaiversFromReport
-  case qualifyCorpusReport
+  case assessCorpusReport
   case corpus
   case runLVS
 
@@ -405,14 +406,14 @@ private enum LVSCLICommandMode: Sendable {
       self = .evidencePacketFromCorpusReport
     } else if arguments.contains("--audit-corpus-coverage") {
       self = .auditCorpusCoverage
-    } else if arguments.contains("--evidence-from-corpus-report") {
-      self = .evidenceFromCorpusReport
+    } else if arguments.contains("--observations-from-corpus-report") {
+      self = .observationsFromCorpusReport
     } else if arguments.contains("--repair-hints-from-report") {
       self = .repairHintsFromReport
     } else if arguments.contains("--review-waivers-from-report") {
       self = .reviewWaiversFromReport
-    } else if arguments.contains("--qualify-corpus-report") {
-      self = .qualifyCorpusReport
+    } else if arguments.contains("--assess-corpus-report") {
+      self = .assessCorpusReport
     } else if arguments.contains("--corpus") {
       self = .corpus
     } else {
@@ -452,14 +453,14 @@ extension LVSCLICommandExecutor {
     return try decoded(LVSCorpusCoverageAuditPolicy.self, from: policyURL).value
   }
 
-  private func corpusQualification(
+  private func corpusAssessment(
     report: LVSCorpusReport,
     policyURL: URL?
-  ) throws -> LVSCorpusQualificationResult {
+  ) throws -> LVSCorpusAssessment {
     guard let policyURL else {
-      return report.qualification
+      return report.assessment
     }
-    let policy = try decoded(LVSCorpusQualificationPolicy.self, from: policyURL).value
+    let policy = try decoded(LVSCorpusAcceptanceCriteria.self, from: policyURL).value
     return policy.evaluate(
       passed: report.passed, caseCount: report.caseCount, summary: report.summary)
   }

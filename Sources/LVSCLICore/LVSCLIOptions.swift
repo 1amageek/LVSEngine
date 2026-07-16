@@ -279,24 +279,24 @@ public struct LVSCorpusCLIOptions: Sendable, Hashable {
   }
 }
 
-public struct LVSCorpusQualificationCLIOptions: Sendable, Hashable {
+public struct LVSCorpusAssessmentCLIOptions: Sendable, Hashable {
   public let reportURL: URL
-  public let qualificationPolicyURL: URL?
+  public let acceptanceCriteriaURL: URL?
   public let emitJSON: Bool
 
   public init(arguments: [String]) throws {
     var reportURL: URL?
-    var qualificationPolicyURL: URL?
+    var acceptanceCriteriaURL: URL?
     var emitJSON = false
     var index = 0
     while index < arguments.count {
       let argument = arguments[index]
       switch argument {
-      case "--qualify-corpus-report":
+      case "--assess-corpus-report":
         reportURL = URL(
           filePath: try Self.nonEmptyPath(after: argument, in: arguments, index: &index))
-      case "--qualification-policy":
-        qualificationPolicyURL = URL(
+      case "--acceptance-criteria":
+        acceptanceCriteriaURL = URL(
           filePath: try Self.nonEmptyPath(after: argument, in: arguments, index: &index))
       case "--json":
         emitJSON = true
@@ -305,9 +305,9 @@ public struct LVSCorpusQualificationCLIOptions: Sendable, Hashable {
       }
       index += 1
     }
-    guard let reportURL else { throw LVSCLIError.missingRequired("--qualify-corpus-report") }
+    guard let reportURL else { throw LVSCLIError.missingRequired("--assess-corpus-report") }
     self.reportURL = reportURL
-    self.qualificationPolicyURL = qualificationPolicyURL
+    self.acceptanceCriteriaURL = acceptanceCriteriaURL
     self.emitJSON = emitJSON
   }
 
@@ -325,29 +325,29 @@ public struct LVSCorpusQualificationCLIOptions: Sendable, Hashable {
   }
 }
 
-public struct LVSCorpusEvidenceCLIOptions: Sendable, Hashable {
+public struct LVSCorpusObservationCLIOptions: Sendable, Hashable {
   public let reportURL: URL
   public let outputURL: URL?
-  public let evidenceID: String?
+  public let recordID: String?
   public let checkedAt: Date
   public let emitJSON: Bool
 
   public init(arguments: [String], now: Date = Date()) throws {
     var reportURL: URL?
     var outputURL: URL?
-    var evidenceID: String?
+    var recordID: String?
     var checkedAt = now
     var emitJSON = false
     var index = 0
     while index < arguments.count {
       let argument = arguments[index]
       switch argument {
-      case "--evidence-from-corpus-report":
+      case "--observations-from-corpus-report":
         reportURL = URL(
           filePath: try Self.nonEmptyPath(after: argument, in: arguments, index: &index))
-      case "--evidence-id":
-        evidenceID = try Self.nonEmptyValue(
-          after: argument, in: arguments, index: &index, expected: "non-empty evidence ID")
+      case "--record-id":
+        recordID = try Self.nonEmptyValue(
+          after: argument, in: arguments, index: &index, expected: "non-empty record ID")
       case "--out":
         outputURL = URL(
           filePath: try Self.nonEmptyPath(after: argument, in: arguments, index: &index))
@@ -361,10 +361,10 @@ public struct LVSCorpusEvidenceCLIOptions: Sendable, Hashable {
       }
       index += 1
     }
-    guard let reportURL else { throw LVSCLIError.missingRequired("--evidence-from-corpus-report") }
+    guard let reportURL else { throw LVSCLIError.missingRequired("--observations-from-corpus-report") }
     self.reportURL = reportURL
     self.outputURL = outputURL
-    self.evidenceID = evidenceID
+    self.recordID = recordID
     self.checkedAt = checkedAt
     self.emitJSON = emitJSON
   }

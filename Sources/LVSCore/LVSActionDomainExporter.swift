@@ -80,7 +80,7 @@ public struct LVSActionDomainExporter: Sendable {
 
     private func qualifyCorpusOperation() -> LVSActionDomainOperation {
         LVSActionDomainOperation(
-            operationID: "lvs.qualify-corpus",
+            operationID: "lvs.assess-corpus",
             maturity: "implemented",
             inputRefs: ["lvs-corpus-spec", "optional-oracle-backend"],
             preconditions: ["corpus-spec-valid", "observed-assertion-requirements-declared"],
@@ -106,13 +106,13 @@ public struct LVSActionDomainExporter: Sendable {
 
     private func exportEvidenceOperation() -> LVSActionDomainOperation {
         LVSActionDomainOperation(
-            operationID: "lvs.export-tool-evidence",
+            operationID: "lvs.export-corpus-observations",
             maturity: "implemented",
             inputRefs: ["lvs-corpus-report"],
-            preconditions: ["qualified-corpus-report-readable"],
-            effects: ["tool-evidence-produced"],
-            producedArtifacts: ["lvs-tool-evidence-export"],
-            verificationGates: ["tool-evidence-qualification"],
+            preconditions: ["corpus-report-readable"],
+            effects: ["corpus-observation-export-produced"],
+            producedArtifacts: ["lvs-corpus-observation-export"],
+            verificationGates: ["artifact-integrity", "observation-schema"],
             reversible: true
         )
     }

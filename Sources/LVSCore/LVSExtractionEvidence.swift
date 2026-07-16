@@ -1,18 +1,18 @@
-public struct LVSExtractionQualification: Sendable, Hashable, Codable {
+public struct LVSExtractionEvidence: Sendable, Hashable, Codable {
     public let processProfileID: String
     public let deckDigest: String
-    public let productionEligible: Bool
+    public let profileReady: Bool
     public let blockingReasonCodes: [String]
 
     public init(
         processProfileID: String,
         deckDigest: String,
-        productionEligible: Bool,
+        profileReady: Bool,
         blockingReasonCodes: [String] = []
     ) {
         self.processProfileID = processProfileID
         self.deckDigest = deckDigest
-        self.productionEligible = productionEligible
+        self.profileReady = profileReady
         self.blockingReasonCodes = Array(Set(blockingReasonCodes)).sorted()
     }
 }

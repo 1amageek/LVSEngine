@@ -1,7 +1,7 @@
 import LVSCore
 import Testing
 
-struct LVSCorpusQualificationV2Tests {
+struct LVSCorpusAssessmentTests {
     @Test
     func coverageRequiresAnObservedPassingAssertion() {
         let failed = caseResult(
@@ -44,7 +44,7 @@ struct LVSCorpusQualificationV2Tests {
     }
 
     @Test
-    func inconsistentReportCannotRemainQualified() {
+    func inconsistentReportCannotMeetAcceptanceCriteria() {
         let result = caseResult(
             caseID: "retained",
             matched: false,
@@ -68,15 +68,15 @@ struct LVSCorpusQualificationV2Tests {
             matchedCaseCount: 1,
             totalDurationSeconds: result.durationSeconds,
             summary: forgedSummary,
-            qualification: LVSCorpusQualificationResult(
-                policy: .strict,
-                failures: []
+            assessment: LVSCorpusAssessment(
+                criteria: .strict,
+                findings: []
             ),
             caseResults: [result]
         )
 
-        #expect(!report.qualification.qualified)
-        let failureCodes = Set(report.qualification.failures.map(\.code))
+        #expect(!report.assessment.meetsCriteria)
+        let failureCodes = Set(report.assessment.findings.map(\.code))
         #expect(failureCodes.contains("report_passed_inconsistent"))
         #expect(failureCodes.contains("report_matched_case_count_inconsistent"))
         #expect(failureCodes.contains("report_summary_inconsistent"))

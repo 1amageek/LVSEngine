@@ -30,7 +30,7 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
                 correspondenceURL: correspondenceURL,
                 extractionReportURL: executionResult.extractionReportURL,
                 transformLedgerURL: executionResult.transformLedgerURL,
-                extractionQualification: executionResult.extractionQualification
+                extractionEvidence: executionResult.extractionEvidence
             )
             let data = try encoder.encode(storedResult)
             try data.write(to: reportURL, options: [.atomic])
@@ -188,7 +188,7 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
             diagnosticSummary: diagnosticSummary(executionResult.result.diagnostics),
             waiverReport: executionResult.waiverReport,
             devicePolicyReport: executionResult.devicePolicyReport,
-            extractionQualification: executionResult.extractionQualification
+            extractionEvidence: executionResult.extractionEvidence
         )
     }
 
@@ -236,7 +236,7 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
                 ($0.ruleID ?? "", $0.rawLine) < ($1.ruleID ?? "", $1.rawLine)
             },
             correspondence: executionResult.correspondence,
-            extractionQualification: executionResult.extractionQualification
+            extractionEvidence: executionResult.extractionEvidence
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]

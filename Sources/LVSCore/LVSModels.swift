@@ -370,7 +370,7 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
     public let correspondenceURL: URL?
     public let extractionReportURL: URL?
     public let transformLedgerURL: URL?
-    public let extractionQualification: LVSExtractionQualification?
+    public let extractionEvidence: LVSExtractionEvidence?
 
     public init(
         request: LVSRequest,
@@ -384,7 +384,7 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
         correspondenceURL: URL? = nil,
         extractionReportURL: URL? = nil,
         transformLedgerURL: URL? = nil,
-        extractionQualification: LVSExtractionQualification? = nil
+        extractionEvidence: LVSExtractionEvidence? = nil
     ) {
         self.request = request
         self.result = result
@@ -397,7 +397,7 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
         self.correspondenceURL = correspondenceURL
         self.extractionReportURL = extractionReportURL
         self.transformLedgerURL = transformLedgerURL
-        self.extractionQualification = extractionQualification
+        self.extractionEvidence = extractionEvidence
     }
 }
 
@@ -420,7 +420,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
     public let diagnosticSummary: LVSDiagnosticSummary
     public let waiverReport: LVSWaiverApplicationReport?
     public let devicePolicyReport: LVSDevicePolicyApplicationReport?
-    public let extractionQualification: LVSExtractionQualification?
+    public let extractionEvidence: LVSExtractionEvidence?
 
     public init(
         schemaVersion: Int = LVSArtifactManifest.currentSchemaVersion,
@@ -439,7 +439,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         diagnosticSummary: LVSDiagnosticSummary,
         waiverReport: LVSWaiverApplicationReport? = nil,
         devicePolicyReport: LVSDevicePolicyApplicationReport? = nil,
-        extractionQualification: LVSExtractionQualification? = nil
+        extractionEvidence: LVSExtractionEvidence? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.generatedAt = generatedAt
@@ -457,7 +457,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         self.diagnosticSummary = diagnosticSummary
         self.waiverReport = waiverReport
         self.devicePolicyReport = devicePolicyReport
-        self.extractionQualification = extractionQualification
+        self.extractionEvidence = extractionEvidence
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -477,7 +477,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         case diagnosticSummary
         case waiverReport
         case devicePolicyReport
-        case extractionQualification
+        case extractionEvidence
     }
 
     public init(from decoder: Decoder) throws {
@@ -505,7 +505,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         diagnosticSummary = try container.decode(LVSDiagnosticSummary.self, forKey: .diagnosticSummary)
         waiverReport = try container.decodeIfPresent(LVSWaiverApplicationReport.self, forKey: .waiverReport)
         devicePolicyReport = try container.decodeIfPresent(LVSDevicePolicyApplicationReport.self, forKey: .devicePolicyReport)
-        extractionQualification = try container.decodeIfPresent(LVSExtractionQualification.self, forKey: .extractionQualification)
+        extractionEvidence = try container.decodeIfPresent(LVSExtractionEvidence.self, forKey: .extractionEvidence)
     }
 }
 

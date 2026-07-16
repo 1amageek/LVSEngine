@@ -9,8 +9,8 @@ public struct LVSCorpusReportIntegrityValidator: Sendable {
         totalDurationSeconds: Double,
         summary: LVSCorpusSummary,
         caseResults: [LVSCorpusCaseResult]
-    ) -> [LVSCorpusQualificationFailure] {
-        var failures: [LVSCorpusQualificationFailure] = []
+    ) -> [LVSCorpusAssessmentFinding] {
+        var failures: [LVSCorpusAssessmentFinding] = []
         let canonicalSummary = LVSCorpusSummary(caseResults: caseResults)
         appendCountFailure(
             code: "report_case_count_inconsistent",
@@ -35,7 +35,7 @@ public struct LVSCorpusReportIntegrityValidator: Sendable {
         )
         let canonicalPassed = !caseResults.isEmpty && caseResults.allSatisfy(\.matched)
         if passed != canonicalPassed {
-            failures.append(LVSCorpusQualificationFailure(
+            failures.append(LVSCorpusAssessmentFinding(
                 code: "report_passed_inconsistent",
                 message: "Report passed does not match the retained case results.",
                 observedText: "\(passed)",
@@ -44,7 +44,7 @@ public struct LVSCorpusReportIntegrityValidator: Sendable {
         }
         let canonicalDuration = caseResults.reduce(0) { $0 + $1.durationSeconds }
         if !totalDurationSeconds.isFinite || abs(totalDurationSeconds - canonicalDuration) > 1e-9 {
-            failures.append(LVSCorpusQualificationFailure(
+            failures.append(LVSCorpusAssessmentFinding(
                 code: "report_duration_inconsistent",
                 message: "Report totalDurationSeconds does not match the retained case results.",
                 observedDouble: totalDurationSeconds,
@@ -52,7 +52,7 @@ public struct LVSCorpusReportIntegrityValidator: Sendable {
             ))
         }
         if summary != canonicalSummary {
-            failures.append(LVSCorpusQualificationFailure(
+            failures.append(LVSCorpusAssessmentFinding(
                 code: "report_summary_inconsistent",
                 message: "Report summary does not match values derived from retained case results."
             ))
@@ -65,10 +65,10 @@ public struct LVSCorpusReportIntegrityValidator: Sendable {
         message: String,
         observed: Int,
         canonical: Int,
-        to failures: inout [LVSCorpusQualificationFailure]
+        to failures: inout [LVSCorpusAssessmentFinding]
     ) {
         guard observed != canonical else { return }
-        failures.append(LVSCorpusQualificationFailure(
+        failures.append(LVSCorpusAssessmentFinding(
             code: code,
             message: message,
             observedCount: observed,

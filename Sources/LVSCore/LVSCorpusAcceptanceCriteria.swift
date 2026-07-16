@@ -1,5 +1,5 @@
-public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
-    public static let strict = LVSCorpusQualificationPolicy(
+public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
+    public static let strict = LVSCorpusAcceptanceCriteria(
         requiredObservedAssertions: [
             "durationBudget:within-budget",
             "verdict:match",
@@ -91,10 +91,10 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         passed: Bool,
         caseCount: Int,
         summary: LVSCorpusSummary
-    ) -> LVSCorpusQualificationResult {
-        var failures = validationFailures()
+    ) -> LVSCorpusAssessment {
+        var findings = validationFailures()
         if caseCount == 0 {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "empty_corpus",
                 message: "The corpus did not run any cases.",
                 observedCount: 0,
@@ -102,13 +102,13 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if requireCorpusPassed && !passed {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "corpus_not_passed",
                 message: "The corpus did not pass every case, duration budget, and oracle agreement gate."
             ))
         }
         if summary.passRate < minimumPassRate {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "pass_rate_below_minimum",
                 message: "The corpus pass rate is below the required threshold.",
                 observedDouble: summary.passRate,
@@ -119,7 +119,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ? 0
             : Double(summary.durationBudgetPassedCaseCount) / Double(caseCount)
         if durationBudgetPassRate < minimumDurationBudgetPassRate {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "duration_budget_pass_rate_below_minimum",
                 message: "The corpus duration-budget pass rate is below the required threshold.",
                 observedDouble: durationBudgetPassRate,
@@ -128,7 +128,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         }
         if let minimumOracleCaseCount,
            summary.oracleCaseCount < minimumOracleCaseCount {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "oracle_case_count_below_minimum",
                 message: "The corpus did not run enough oracle comparison cases.",
                 observedCount: summary.oracleCaseCount,
@@ -137,15 +137,15 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         }
         if let minimumOracleAgreementRate {
             guard let oracleAgreementRate = summary.oracleAgreementRate else {
-                failures.append(LVSCorpusQualificationFailure(
+                findings.append(LVSCorpusAssessmentFinding(
                     code: "oracle_agreement_rate_missing",
-                    message: "The corpus qualification policy requires oracle agreement, but no oracle cases ran.",
+                    message: "The corpus acceptance criteria requires oracle agreement, but no oracle cases ran.",
                     observedCount: summary.oracleCaseCount
                 ))
-                return LVSCorpusQualificationResult(policy: self, failures: failures)
+                return LVSCorpusAssessment(criteria: self, findings: findings)
             }
             if oracleAgreementRate < minimumOracleAgreementRate {
-                failures.append(LVSCorpusQualificationFailure(
+                findings.append(LVSCorpusAssessmentFinding(
                     code: "oracle_agreement_rate_below_minimum",
                     message: "The corpus oracle agreement rate is below the required threshold.",
                     observedDouble: oracleAgreementRate,
@@ -154,7 +154,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             }
         }
         if !allowPrimaryExecutionFailures && summary.primaryExecutionFailedCaseCount > 0 {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "primary_execution_failed",
                 message: "One or more primary corpus cases failed to execute.",
                 observedCount: summary.primaryExecutionFailedCaseCount,
@@ -162,7 +162,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if !allowOracleExecutionFailures && summary.oracleExecutionFailedCaseCount > 0 {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "oracle_execution_failed",
                 message: "One or more oracle corpus cases failed to execute.",
                 observedCount: summary.oracleExecutionFailedCaseCount,
@@ -173,7 +173,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             summary.observedAssertionCounts[$0] == nil
         }
         if !missingAssertions.isEmpty {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "required_observed_assertion_missing",
                 message: "The corpus is missing one or more successful observed assertions.",
                 observedCount: requiredObservedAssertions.count - missingAssertions.count,
@@ -183,7 +183,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if !allowFailedAssertions && summary.failedAssertionCount > 0 {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "observed_assertion_failed",
                 message: "One or more required observed assertions failed.",
                 observedCount: summary.failedAssertionCount,
@@ -191,20 +191,20 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
             ))
         }
         if !allowBlockedAssertions && summary.blockedAssertionCount > 0 {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "observed_assertion_blocked",
                 message: "One or more required observed assertions were blocked.",
                 observedCount: summary.blockedAssertionCount,
                 requiredCount: 0
             ))
         }
-        return LVSCorpusQualificationResult(policy: self, failures: failures)
+        return LVSCorpusAssessment(criteria: self, findings: findings)
     }
 
-    private func validationFailures() -> [LVSCorpusQualificationFailure] {
-        var failures: [LVSCorpusQualificationFailure] = []
+    private func validationFailures() -> [LVSCorpusAssessmentFinding] {
+        var findings: [LVSCorpusAssessmentFinding] = []
         if minimumPassRate < 0 || minimumPassRate > 1 || !minimumPassRate.isFinite {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "invalid_minimum_pass_rate",
                 message: "minimumPassRate must be a finite value between 0 and 1.",
                 observedDouble: minimumPassRate
@@ -213,7 +213,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         if minimumDurationBudgetPassRate < 0
             || minimumDurationBudgetPassRate > 1
             || !minimumDurationBudgetPassRate.isFinite {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "invalid_minimum_duration_budget_pass_rate",
                 message: "minimumDurationBudgetPassRate must be a finite value between 0 and 1.",
                 observedDouble: minimumDurationBudgetPassRate
@@ -223,7 +223,7 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
            minimumOracleAgreementRate < 0
             || minimumOracleAgreementRate > 1
             || !minimumOracleAgreementRate.isFinite {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "invalid_minimum_oracle_agreement_rate",
                 message: "minimumOracleAgreementRate must be a finite value between 0 and 1.",
                 observedDouble: minimumOracleAgreementRate
@@ -231,13 +231,13 @@ public struct LVSCorpusQualificationPolicy: Sendable, Hashable, Codable {
         }
         if let minimumOracleCaseCount,
            minimumOracleCaseCount < 0 {
-            failures.append(LVSCorpusQualificationFailure(
+            findings.append(LVSCorpusAssessmentFinding(
                 code: "invalid_minimum_oracle_case_count",
                 message: "minimumOracleCaseCount must be zero or greater.",
                 observedCount: minimumOracleCaseCount
             ))
         }
-        return failures
+        return findings
     }
 
     private static func normalizedAssertions(_ assertions: [String]) -> [String] {

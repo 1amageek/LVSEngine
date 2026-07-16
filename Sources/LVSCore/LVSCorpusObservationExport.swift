@@ -1,53 +1,32 @@
 import Foundation
+import CircuiteFoundation
 
-public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 2
+public struct LVSCorpusObservationExport: Sendable, Hashable, Codable {
+    public static let currentSchemaVersion = 3
 
-    public struct FileReference: Sendable, Hashable, Codable {
-        public let path: String
-        public let kind: String
-        public let format: String
-        public let sha256: String?
-
-        public init(
-            path: String,
-            kind: String = "report",
-            format: String = "JSON",
-            sha256: String? = nil
-        ) {
-            self.path = path
-            self.kind = kind
-            self.format = format
-            self.sha256 = sha256
-        }
-    }
-
-    public struct QualificationSummary: Sendable, Hashable, Codable {
-        public let qualified: Bool
-        public let policyID: String?
+    public struct ObservationSet: Sendable, Hashable, Codable {
+        public let acceptanceCriteriaID: String?
         public let observedMetrics: [String: Double]
         public let observedCounts: [String: Int]
-        public let failureCodes: [String]
-        public let scope: QualificationScope?
+        public let findingCodes: [String]
+        public let implementationScope: ImplementationScope?
 
         public init(
-            qualified: Bool,
-            policyID: String?,
+            acceptanceCriteriaID: String?,
             observedMetrics: [String: Double],
             observedCounts: [String: Int],
-            failureCodes: [String],
-            scope: QualificationScope?
+            findingCodes: [String],
+            implementationScope: ImplementationScope?
         ) {
-            self.qualified = qualified
-            self.policyID = policyID
+            self.acceptanceCriteriaID = acceptanceCriteriaID
             self.observedMetrics = observedMetrics
             self.observedCounts = observedCounts
-            self.failureCodes = failureCodes
-            self.scope = scope
+            self.findingCodes = findingCodes
+            self.implementationScope = implementationScope
         }
     }
 
-    public struct QualificationScope: Sendable, Hashable, Codable {
+    public struct ImplementationScope: Sendable, Hashable, Codable {
         public let implementationID: String
         public let binaryDigest: String
         public let algorithmVersion: String
@@ -63,77 +42,78 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         }
     }
 
-    public struct ToolEvidence: Sendable, Hashable, Codable {
-        public let evidenceID: String
-        public let kind: String
-        public let artifact: FileReference
-        public let qualification: QualificationSummary
-        public let checkedAt: String
+    public struct ObservationRecord: Sendable, Hashable, Codable {
+        public let recordID: String
+        public let artifact: ArtifactReference
+        public let observations: ObservationSet
+        public let observedAt: String
 
         public init(
-            evidenceID: String,
-            kind: String = "corpus",
-            artifact: FileReference,
-            qualification: QualificationSummary,
-            checkedAt: String
+            recordID: String,
+            artifact: ArtifactReference,
+            observations: ObservationSet,
+            observedAt: String
         ) {
-            self.evidenceID = evidenceID
-            self.kind = kind
+            self.recordID = recordID
             self.artifact = artifact
-            self.qualification = qualification
-            self.checkedAt = checkedAt
+            self.observations = observations
+            self.observedAt = observedAt
         }
     }
 
     public let schemaVersion: Int
-    public let status: String
-    public let reportPath: String
-    public let reportSHA256: String?
+    public let reportArtifact: ArtifactReference
     public let summary: LVSCorpusSummary
-    public let toolEvidence: ToolEvidence
-    public let oracleScopes: [QualificationScope]
+    public let observationRecord: ObservationRecord
+    public let oracleScopes: [ImplementationScope]
 
     public init(
-        schemaVersion: Int = LVSCorpusToolEvidenceExport.currentSchemaVersion,
+        schemaVersion: Int = LVSCorpusObservationExport.currentSchemaVersion,
         reportPath: String,
-        reportSHA256: String? = nil,
+        reportSHA256: String,
+        reportByteCount: UInt64,
         report: LVSCorpusReport,
-        evidenceID: String? = nil,
-        checkedAt: Date = Date()
-    ) {
+        recordID: String? = nil,
+        observedAt: Date = Date()
+    ) throws {
         let assessment = LVSCorpusEvidenceAssessment(report: report)
-        var failureCodes = report.qualification.failures.map(\.code) + assessment.failureCodes
-        if !Self.isValidSHA256(reportSHA256) {
-            failureCodes.append("report_artifact_digest_missing_or_invalid")
-        }
-        if reportPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            failureCodes.append("report_artifact_path_missing")
-        }
+        var failureCodes = report.assessment.findings.map(\.code) + assessment.failureCodes
         failureCodes = Array(Set(failureCodes)).sorted()
-        let qualified = assessment.qualified && failureCodes.isEmpty
-
         self.schemaVersion = schemaVersion
-        self.status = qualified ? "passed" : "failed"
-        self.reportPath = reportPath
-        self.reportSHA256 = reportSHA256
+        self.reportArtifact = ArtifactReference(
+            id: try ArtifactID(rawValue: "lvs-corpus-report"),
+            locator: ArtifactLocator(
+                location: try ArtifactLocation(workspaceRelativePath: reportPath),
+                role: .input,
+                kind: .report,
+                format: .json
+            ),
+            digest: try ContentDigest(
+                algorithm: .sha256,
+                hexadecimalValue: reportSHA256
+            ),
+            byteCount: reportByteCount
+        )
         self.summary = report.summary
-        self.oracleScopes = assessment.oracleIdentities.map(QualificationScope.init(identity:))
-        self.toolEvidence = ToolEvidence(
-            evidenceID: evidenceID ?? Self.defaultEvidenceID(reportPath: reportPath),
-            artifact: FileReference(path: reportPath, sha256: reportSHA256),
-            qualification: QualificationSummary(
-                qualified: qualified,
-                policyID: report.qualification.policy == .strict ? "strict" : "custom",
+        self.oracleScopes = assessment.oracleIdentities.map(ImplementationScope.init(identity:))
+        self.observationRecord = ObservationRecord(
+            recordID: recordID ?? Self.defaultRecordID(reportPath: reportPath),
+            artifact: reportArtifact,
+            observations: ObservationSet(
+                acceptanceCriteriaID: report.assessment.criteria == .strict ? "strict" : "custom",
                 observedMetrics: Self.observedMetrics(report, assessment: assessment),
                 observedCounts: Self.observedCounts(report, assessment: assessment),
-                failureCodes: failureCodes,
-                scope: assessment.qualificationScope.map(QualificationScope.init(identity:))
+                findingCodes: failureCodes,
+                implementationScope: assessment.qualificationScope.map(ImplementationScope.init(identity:))
             ),
-            checkedAt: Self.iso8601String(from: checkedAt)
+            observedAt: Self.iso8601String(from: observedAt)
         )
     }
 
-    private static func defaultEvidenceID(reportPath: String) -> String {
+    public var reportPath: String { reportArtifact.path }
+    public var reportSHA256: String { reportArtifact.digest.hexadecimalValue }
+
+    private static func defaultRecordID(reportPath: String) -> String {
         let filename = URL(filePath: reportPath).deletingPathExtension().lastPathComponent
         return filename.isEmpty ? "lvs-corpus" : "lvs-corpus:\(filename)"
     }
@@ -176,7 +156,7 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
             "observedAssertionKindCount": report.summary.observedAssertionCounts.count,
             "failedAssertionCount": report.summary.failedAssertionCount,
             "blockedAssertionCount": report.summary.blockedAssertionCount,
-            "requiredObservedAssertionCount": report.qualification.policy.requiredObservedAssertions.count,
+            "requiredObservedAssertionCount": report.assessment.criteria.requiredObservedAssertions.count,
             "completePrimaryIdentityCaseCount": assessment.completePrimaryIdentityCaseCount,
             "independentOracleCaseCount": assessment.independentOracleCaseCount,
             "independentOracleAgreementPassedCaseCount": assessment.independentOracleAgreementPassedCaseCount,
@@ -193,12 +173,4 @@ public struct LVSCorpusToolEvidenceExport: Sendable, Hashable, Codable {
         return formatter.string(from: date)
     }
 
-    private static func isValidSHA256(_ digest: String?) -> Bool {
-        guard let digest else { return false }
-        let normalized = digest.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalized.count == 64 else { return false }
-        return normalized.allSatisfy { character in
-            character.isNumber || ("a"..."f").contains(character.lowercased())
-        }
-    }
 }

@@ -1,4 +1,4 @@
-public struct LVSCorpusQualificationFailure: Sendable, Hashable, Codable {
+public struct LVSCorpusAssessmentFinding: Sendable, Hashable, Codable {
     public let code: String
     public let message: String
     public let observedDouble: Double?
