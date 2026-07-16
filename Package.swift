@@ -1,5 +1,37 @@
 // swift-tools-version: 6.3
 import PackageDescription
+import Foundation
+
+let workspaceRoot = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+
+let circuiteFoundationDependency: Package.Dependency = FileManager.default.fileExists(
+    atPath: workspaceRoot.appendingPathComponent("CircuiteFoundation/Package.swift").path
+)
+    ? .package(path: "../CircuiteFoundation")
+    : .package(
+        url: "https://github.com/1amageek/CircuiteFoundation.git",
+        revision: "2ec6ee13a89ac6885be3c26b41a9ee0ef89948ac"
+    )
+
+let signoffToolSupportDependency: Package.Dependency = FileManager.default.fileExists(
+    atPath: workspaceRoot.appendingPathComponent("SignoffToolSupport/Package.swift").path
+)
+    ? .package(path: "../SignoffToolSupport")
+    : .package(
+        url: "https://github.com/1amageek/SignoffToolSupport.git",
+        revision: "7bfd1864edd147c59a1dc79e58f297120d165323"
+    )
+
+let semiconductorLayoutDependency: Package.Dependency = FileManager.default.fileExists(
+    atPath: workspaceRoot.appendingPathComponent("semiconductor-layout/Package.swift").path
+)
+    ? .package(path: "../semiconductor-layout")
+    : .package(
+        url: "https://github.com/1amageek/semiconductor-layout.git",
+        revision: "eb4f8ac93dbe4c35410ae55e6bb00794376c8333"
+    )
 
 let package = Package(
     name: "LVSEngine",
@@ -20,9 +52,9 @@ let package = Package(
         .executable(name: "lvsengine", targets: ["LVSCLI"]),
     ],
     dependencies: [
-        .package(path: "../CircuiteFoundation"),
-        .package(path: "../SignoffToolSupport"),
-        .package(path: "../semiconductor-layout"),
+        circuiteFoundationDependency,
+        signoffToolSupportDependency,
+        semiconductorLayoutDependency,
     ],
     targets: [
         .target(
