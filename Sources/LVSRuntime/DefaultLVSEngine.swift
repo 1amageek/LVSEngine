@@ -5,7 +5,7 @@ import LVSAdapters
 import LVSExtractionAdapters
 import LVSPersistence
 
-public struct DefaultLVSEngine: LVSEngineRunning {
+public struct DefaultLVSEngine: LVSExecuting {
     private let backends: [String: any LVSBackend]
     private let layoutNetlistExtractor: (any LVSLayoutNetlistExtracting)?
     private let store: any LVSArtifactPersisting

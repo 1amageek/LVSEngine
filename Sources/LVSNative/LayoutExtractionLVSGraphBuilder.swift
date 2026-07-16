@@ -3,7 +3,7 @@ import LVSCore
 import LVSGraph
 import LVSNetlistParsing
 
-public struct LayoutExtractionLVSGraphAdapter: Sendable {
+public struct LayoutExtractionLVSGraphBuilder: Sendable {
     public init() {}
 
     public func build(

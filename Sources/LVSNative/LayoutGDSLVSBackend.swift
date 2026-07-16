@@ -162,7 +162,7 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
                 url: request.schematicNetlistURL,
                 expectedTopCell: request.topCell
             )
-            let layoutGraph = try LayoutExtractionLVSGraphAdapter().build(
+            let layoutGraph = try LayoutExtractionLVSGraphBuilder().build(
                 from: extractionIR,
                 maximumObjectCount: request.options.effectiveMaximumGraphObjectCount,
                 sharedGlobalNetNames: Set(schematicNetlist.globalNets)

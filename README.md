@@ -9,16 +9,15 @@ provenance, diagnostic, and design-object contracts.
 
 ```mermaid
 flowchart LR
-    Request["LVSRequest"] --> Engine["LVSEngineRunning"]
+    Request["LVSRequest"] --> Engine["LVSExecuting"]
     Engine --> Result["LVSExecutionResult"]
     Result --> Domain["LVS graph / verdict / assessment"]
-    Result --> Boundary["LVSFoundationEvidence"]
-    Boundary --> Foundation["EvidenceManifest + DesignDiagnostic"]
+    Domain --> Foundation["ArtifactReference + ExecutionProvenance"]
 ```
 
-`LVSFoundationEvidence` is a stable cross-engine view. It supplements rather
-than replaces the LVS evidence packet and artifact manifest, and it does not
-turn an unqualified extraction into a match.
+`DefaultLVSEngine` conforms directly to `LVSExecuting`. The LVS evidence packet
+and artifact manifest remain authoritative; no wrapper can turn an unqualified
+extraction into a match.
 
 LVSEngine is a Swift layout-versus-schematic verification library and command-line tool.
 It compares circuit connectivity from SPICE netlists or standard mask data, produces
@@ -75,7 +74,7 @@ composing flow policy own tool trust and release decisions.
 | `LVSCLICore` | Testable command-line implementation |
 | `lvsengine` | Executable command-line interface |
 
-The public runtime boundary is `LVSEngineRunning`. `DefaultLVSEngine` provides the
+The public runtime boundary is `LVSExecuting`. `DefaultLVSEngine` provides the
 standard composition, while backend and artifact persistence implementations remain
 injectable through protocols.
 

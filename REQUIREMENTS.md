@@ -4,11 +4,11 @@
 
 - Depend on `CircuiteFoundation` for the engine and cross-engine evidence
   vocabulary.
-- Expose `LVSEngineRunning` as a Foundation `Engine` contract.
+- Expose `LVSExecuting` as a Foundation `Engine` contract.
 - Keep extraction, graph, matching, waiver, correspondence, and qualification
   models in LVSEngine.
-- Provide `LVSFoundationEvidence` with typed diagnostics and explicit
-  provenance/artifact inputs.
+- Keep typed diagnostics, provenance, and artifacts on domain-owned records
+  without a Foundation projection wrapper.
 - Provide `LVSRequest.designObjectReference()` for top-cell addressing.
 - Preserve blocked and mismatch states; never collapse extraction failure or
   incomplete readiness into `match`.

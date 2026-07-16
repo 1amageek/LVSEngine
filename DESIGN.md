@@ -13,21 +13,19 @@ flowchart TD
     Extract --> Match["Hierarchical graph match"]
     Match --> Domain["LVSResult + correspondence"]
     Domain --> Persist["LVS artifact manifest"]
-    Domain --> Boundary["LVSFoundationEvidence"]
-    Boundary --> Flow["Flow coordinator / Agent"]
+    Domain --> Flow["Flow coordinator / Agent"]
 ```
 
 ## Foundation integration
 
-`LVSEngineRunning` refines `CircuiteFoundation.Engine` with
+`LVSExecuting` refines `CircuiteFoundation.Engine` with
 `LVSRequest`/`LVSExecutionResult`. `DefaultLVSEngine.execute` delegates to the
 existing `run` path so timeout, cancellation, extraction, waiver, and
 persistence behavior remains unchanged.
 
-`LVSFoundationEvidence` implements `EvidenceProviding` and
-`DiagnosticReporting`. Artifact references and execution provenance are
-explicit inputs. The Foundation view therefore cannot silently hash or bless
-an unverified report URL.
+The domain result retains its fail-closed verdict, diagnostics, correspondence,
+and artifact manifest directly. No projection silently hashes or blesses an
+unverified report URL.
 
 `LVSRequest.designObjectReference()` gives the requested top cell a stable
 Foundation identity. Hierarchical correspondence remains an LVS concern.

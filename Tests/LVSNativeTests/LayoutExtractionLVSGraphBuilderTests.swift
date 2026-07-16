@@ -2,7 +2,7 @@ import LayoutLVSExtraction
 import LVSNative
 import Testing
 
-struct LayoutExtractionLVSGraphAdapterTests {
+struct LayoutExtractionLVSGraphBuilderTests {
     @Test
     func preservesStableObjectsPortsAndMOSExchangeability() throws {
         let source = LayoutExtractionObjectID(rawValue: "net:source")
@@ -49,7 +49,7 @@ struct LayoutExtractionLVSGraphAdapterTests {
             ]
         )
 
-        let graph = try LayoutExtractionLVSGraphAdapter().build(
+        let graph = try LayoutExtractionLVSGraphBuilder().build(
             from: extraction,
             maximumObjectCount: 100
         )
@@ -98,7 +98,7 @@ struct LayoutExtractionLVSGraphAdapterTests {
             ]
         )
 
-        let graph = try LayoutExtractionLVSGraphAdapter().build(
+        let graph = try LayoutExtractionLVSGraphBuilder().build(
             from: extraction,
             maximumObjectCount: 100
         )
@@ -146,7 +146,7 @@ struct LayoutExtractionLVSGraphAdapterTests {
             occurrences: []
         )
 
-        let graph = try LayoutExtractionLVSGraphAdapter().build(
+        let graph = try LayoutExtractionLVSGraphBuilder().build(
             from: extraction,
             maximumObjectCount: 100
         )
@@ -175,7 +175,7 @@ struct LayoutExtractionLVSGraphAdapterTests {
         )
 
         #expect(throws: (any Error).self) {
-            try LayoutExtractionLVSGraphAdapter().build(
+            try LayoutExtractionLVSGraphBuilder().build(
                 from: extraction,
                 maximumObjectCount: 100
             )

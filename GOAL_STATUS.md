@@ -3,8 +3,8 @@
 | Goal | Status |
 |---|---|
 | CircuiteFoundation dependency | Complete |
-| Foundation engine protocol | Complete (`LVSEngineRunning`) |
-| Foundation evidence boundary | Complete (`LVSFoundationEvidence`) |
+| Foundation engine protocol | Complete (`LVSExecuting`) |
+| Projection and adapter removal | Complete; engine conforms directly |
 | Foundation top-cell identity | Complete (`LVSRequest.designObjectReference`) |
 | Existing extraction/matching behavior | Retained |
 | Fail-closed qualification behavior | Retained |
