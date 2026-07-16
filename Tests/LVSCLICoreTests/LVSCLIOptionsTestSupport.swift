@@ -233,18 +233,24 @@ func makeRepairHintExecutionResult() -> LVSExecutionResult {
 }
 
 func fixtureCorpusSpecURL(_ name: String) -> URL {
-    URL(filePath: #filePath)
-        .deletingLastPathComponent()
-        .appending(path: "Fixtures")
-        .appending(path: "LVSCorpus")
-        .appending(path: name)
+    guard let url = Bundle.module.url(
+        forResource: name,
+        withExtension: nil,
+        subdirectory: "Fixtures/LVSCorpus"
+    ) else {
+        preconditionFailure("Packaged LVS corpus fixture '\(name)' is unavailable.")
+    }
+    return url
 }
 
 func externalOracleFixtureURL(_ name: String) -> URL {
-    URL(filePath: #filePath)
-        .deletingLastPathComponent()
-        .appending(path: "Fixtures")
-        .appending(path: "ExternalOracle")
-        .appending(path: name)
+    guard let url = Bundle.module.url(
+        forResource: name,
+        withExtension: nil,
+        subdirectory: "Fixtures/ExternalOracle"
+    ) else {
+        preconditionFailure("Packaged LVS external-oracle fixture '\(name)' is unavailable.")
+    }
+    return url
 }
 }

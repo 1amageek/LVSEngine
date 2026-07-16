@@ -351,6 +351,10 @@ designs require their own process/deck/build-bound evidence.
 
 ## Testing
 
+`LVSCLICoreTests` resolves its checked-in corpus and external-oracle inputs
+from the SwiftPM resource bundle. Test execution therefore does not depend on
+compiler source paths or a particular checkout location.
+
 Run tests with a timeout and a focused target:
 
 ```bash
