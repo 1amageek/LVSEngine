@@ -76,6 +76,31 @@ public struct LVSGraphMatcher: Sendable {
             }
         }
 
+        var uniqueSchematicByModel: [String: LVSGraphDevice] = [:]
+        uniqueSchematicByModel.reserveCapacity(schematic.devices.count)
+        var allSchematicModelsAreUnique = true
+        for (index, device) in schematic.devices.enumerated() {
+            if index.isMultiple(of: 1_024) { try Task.checkCancellation() }
+            if uniqueSchematicByModel.updateValue(device, forKey: device.model) != nil {
+                allSchematicModelsAreUnique = false
+                break
+            }
+        }
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(budget.maximumDurationSeconds))
+        if allSchematicModelsAreUnique {
+            return try matchUniqueModelCandidates(
+                layout: layout,
+                schematic: schematic,
+                schematicByModel: uniqueSchematicByModel,
+                initialNetMap: initialNetMap,
+                initialReverseNetMap: initialReverseNetMap,
+                portMappings: portMappings,
+                budget: budget,
+                clock: clock,
+                deadline: deadline
+            )
+        }
         var schematicByShape: [String: [LVSGraphDevice]] = [:]
         schematicByShape.reserveCapacity(schematic.devices.count)
         for (index, device) in schematic.devices.enumerated() {
@@ -88,9 +113,14 @@ public struct LVSGraphMatcher: Sendable {
         for (index, device) in layout.devices.enumerated() {
             if index.isMultiple(of: 1_024) { try Task.checkCancellation() }
             let semanticCandidates = schematicByShape[deviceShape(device), default: []]
-            let candidates = semanticCandidates
-                .filter { parametersMatch(device.parameters, $0.parameters) }
-                .sorted { $0.id < $1.id }
+            var candidates: [LVSGraphDevice] = []
+            candidates.reserveCapacity(semanticCandidates.count)
+            for candidate in semanticCandidates where parametersMatch(device.parameters, candidate.parameters) {
+                candidates.append(candidate)
+            }
+            if candidates.count > 1 {
+                candidates.sort { $0.id < $1.id }
+            }
             if candidates.isEmpty, !semanticCandidates.isEmpty {
                 parameterMismatchDetected = true
             }
@@ -105,8 +135,6 @@ public struct LVSGraphMatcher: Sendable {
                     : "device_semantics_mismatch"
             )
         }
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: .seconds(budget.maximumDurationSeconds))
         if let uniqueResult = try matchUniqueCandidates(
             layout: layout,
             schematic: schematic,
@@ -201,6 +229,186 @@ public struct LVSGraphMatcher: Sendable {
         case budgetExceeded
         case depthExceeded
         case memoryExceeded
+    }
+
+    private func matchUniqueModelCandidates(
+        layout: LVSGraph,
+        schematic: LVSGraph,
+        schematicByModel: [String: LVSGraphDevice],
+        initialNetMap: [LVSObjectID: LVSObjectID],
+        initialReverseNetMap: [LVSObjectID: LVSObjectID],
+        portMappings: [LVSPortCorrespondence],
+        budget: LVSMatchBudget,
+        clock: ContinuousClock,
+        deadline: ContinuousClock.Instant
+    ) throws -> LVSGraphMatchResult {
+        var deviceMappings: [LVSObjectCorrespondence] = []
+        deviceMappings.reserveCapacity(layout.devices.count)
+        var netMap = initialNetMap
+        netMap.reserveCapacity(layout.nets.count)
+        var reverseNetMap = initialReverseNetMap
+        reverseNetMap.reserveCapacity(schematic.nets.count)
+        var usedSchematicDevices = Set<LVSObjectID>()
+        usedSchematicDevices.reserveCapacity(layout.devices.count)
+        var stateCount = 0
+
+        for (index, layoutDevice) in layout.devices.enumerated() {
+            if index.isMultiple(of: 1_024) {
+                try Task.checkCancellation()
+                guard clock.now <= deadline else {
+                    return blockedUniqueModelResult(
+                        reason: "match_budget_exceeded",
+                        deviceMappings: deviceMappings,
+                        netMap: netMap,
+                        portMappings: portMappings,
+                        remainingLayoutDevices: layout.devices.dropFirst(index),
+                        states: stateCount
+                    )
+                }
+            }
+            guard index < budget.maximumSearchDepth else {
+                return blockedUniqueModelResult(
+                    reason: "match_depth_budget_exceeded",
+                    deviceMappings: deviceMappings,
+                    netMap: netMap,
+                    portMappings: portMappings,
+                    remainingLayoutDevices: layout.devices.dropFirst(index),
+                    states: stateCount
+                )
+            }
+            let estimatedWorkingSetBytes = (
+                deviceMappings.count + netMap.count + reverseNetMap.count + usedSchematicDevices.count
+            ) * 128
+            guard estimatedWorkingSetBytes <= budget.maximumWorkingSetBytes else {
+                return blockedUniqueModelResult(
+                    reason: "match_memory_budget_exceeded",
+                    deviceMappings: deviceMappings,
+                    netMap: netMap,
+                    portMappings: portMappings,
+                    remainingLayoutDevices: layout.devices.dropFirst(index),
+                    states: stateCount
+                )
+            }
+            guard stateCount < budget.maximumSearchStates else {
+                return blockedUniqueModelResult(
+                    reason: "match_budget_exceeded",
+                    deviceMappings: deviceMappings,
+                    netMap: netMap,
+                    portMappings: portMappings,
+                    remainingLayoutDevices: layout.devices.dropFirst(index),
+                    states: stateCount
+                )
+            }
+            guard let schematicDevice = schematicByModel[layoutDevice.model],
+                  deviceShapesMatch(layoutDevice, schematicDevice) else {
+                return mismatch(
+                    layout: layout,
+                    schematic: schematic,
+                    reason: "device_semantics_mismatch",
+                    states: stateCount
+                )
+            }
+            guard parametersMatch(layoutDevice.parameters, schematicDevice.parameters) else {
+                return mismatch(
+                    layout: layout,
+                    schematic: schematic,
+                    reason: "device_parameter_mismatch",
+                    states: stateCount
+                )
+            }
+            guard usedSchematicDevices.insert(schematicDevice.id).inserted else {
+                return mismatch(
+                    layout: layout,
+                    schematic: schematic,
+                    reason: "graph_not_isomorphic",
+                    states: stateCount
+                )
+            }
+
+            stateCount += 1
+            var terminalMappingMatched = extendTerminalsIfConsistent(
+                layoutDevice,
+                schematicDevice,
+                terminalMap: nil,
+                netMap: &netMap,
+                reverseNetMap: &reverseNetMap
+            )
+            if !terminalMappingMatched {
+                for terminalMap in terminalIndexMappings(for: layoutDevice).dropFirst() {
+                    stateCount += 1
+                    if extendTerminalsIfConsistent(
+                        layoutDevice,
+                        schematicDevice,
+                        terminalMap: terminalMap,
+                        netMap: &netMap,
+                        reverseNetMap: &reverseNetMap
+                    ) {
+                        terminalMappingMatched = true
+                        break
+                    }
+                }
+            }
+            guard terminalMappingMatched else {
+                return mismatch(
+                    layout: layout,
+                    schematic: schematic,
+                    reason: "graph_not_isomorphic",
+                    states: stateCount
+                )
+            }
+            deviceMappings.append(LVSObjectCorrespondence(
+                layoutObjectID: layoutDevice.id,
+                schematicObjectID: schematicDevice.id
+            ))
+        }
+
+        guard try completeIsolatedNetMappings(
+            layout: layout,
+            schematic: schematic,
+            forward: &netMap,
+            reverse: &reverseNetMap
+        ) else {
+            return mismatch(
+                layout: layout,
+                schematic: schematic,
+                reason: "isolated_net_mismatch",
+                states: stateCount
+            )
+        }
+        return LVSGraphMatchResult(
+            status: .matched,
+            correspondence: LVSCorrespondence(
+                deviceMappings: deviceMappings,
+                netMappings: netMap.map {
+                    LVSObjectCorrespondence(layoutObjectID: $0.key, schematicObjectID: $0.value)
+                },
+                portMappings: portMappings
+            ),
+            exploredSearchStates: stateCount
+        )
+    }
+
+    private func blockedUniqueModelResult(
+        reason: String,
+        deviceMappings: [LVSObjectCorrespondence],
+        netMap: [LVSObjectID: LVSObjectID],
+        portMappings: [LVSPortCorrespondence],
+        remainingLayoutDevices: ArraySlice<LVSGraphDevice>,
+        states: Int
+    ) -> LVSGraphMatchResult {
+        LVSGraphMatchResult(
+            status: .blocked,
+            correspondence: LVSCorrespondence(
+                deviceMappings: deviceMappings,
+                netMappings: netMap.map {
+                    LVSObjectCorrespondence(layoutObjectID: $0.key, schematicObjectID: $0.value)
+                },
+                portMappings: portMappings,
+                ambiguousLayoutObjectIDs: remainingLayoutDevices.map(\.id)
+            ),
+            reasonCodes: [reason],
+            exploredSearchStates: states
+        )
     }
 
     private func matchUniqueCandidates(
@@ -337,7 +545,7 @@ public struct LVSGraphMatcher: Sendable {
     private func extendTerminalsIfConsistent(
         _ layout: LVSGraphDevice,
         _ schematic: LVSGraphDevice,
-        terminalMap: [Int],
+        terminalMap: [Int]?,
         netMap: inout [LVSObjectID: LVSObjectID],
         reverseNetMap: inout [LVSObjectID: LVSObjectID]
     ) -> Bool {
@@ -346,7 +554,8 @@ public struct LVSGraphMatcher: Sendable {
         additions.reserveCapacity(layout.terminals.count)
         for layoutIndex in layout.terminals.indices {
             let layoutNetID = layout.terminals[layoutIndex].netID
-            let schematicNetID = schematic.terminals[terminalMap[layoutIndex]].netID
+            let schematicIndex = terminalMap?[layoutIndex] ?? layoutIndex
+            let schematicNetID = schematic.terminals[schematicIndex].netID
             if let existing = netMap[layoutNetID] {
                 guard existing == schematicNetID else { return false }
                 continue
@@ -544,6 +753,17 @@ public struct LVSGraphMatcher: Sendable {
             .map { $0.map(String.init).joined(separator: ",") }
             .joined(separator: ";")
         return "\(device.kind)|\(device.model)|\(device.terminals.count)|\(groups)|\(parameterNames)"
+    }
+
+    private func deviceShapesMatch(_ lhs: LVSGraphDevice, _ rhs: LVSGraphDevice) -> Bool {
+        lhs.kind == rhs.kind
+            && lhs.model == rhs.model
+            && lhs.terminals.count == rhs.terminals.count
+            && lhs.equivalentTerminalGroups == rhs.equivalentTerminalGroups
+            && lhs.parameters.count == rhs.parameters.count
+            && zip(lhs.parameters, rhs.parameters).allSatisfy { left, right in
+                left.name == right.name
+            }
     }
 
     private func parametersMatch(_ lhs: [LVSGraphParameter], _ rhs: [LVSGraphParameter]) -> Bool {

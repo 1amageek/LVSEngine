@@ -136,6 +136,36 @@ struct LVSGraphMatcherTests {
         #expect(result.reasonCodes == ["match_budget_exceeded"])
     }
 
+    @Test func uniqueModelFastPathRespectsSearchBudget() throws {
+        let layout = graph(
+            internalNetName: "layout-internal",
+            firstDeviceName: "L1",
+            secondDeviceName: "L2",
+            reverseOrder: true
+        )
+        let schematic = graph(
+            internalNetName: "schematic-internal",
+            firstDeviceName: "S1",
+            secondDeviceName: "S2",
+            reverseOrder: false
+        )
+
+        let result = try LVSGraphMatcher().match(
+            layout: layout,
+            schematic: schematic,
+            budget: LVSMatchBudget(
+                maximumSearchStates: 1,
+                maximumDurationSeconds: 1,
+                maximumSearchDepth: 2,
+                maximumWorkingSetBytes: 1_024 * 1_024
+            )
+        )
+
+        #expect(result.status == .blocked)
+        #expect(result.reasonCodes == ["match_budget_exceeded"])
+        #expect(result.exploredSearchStates == 1)
+    }
+
     @Test func thousandSeedMetamorphicEquivalenceMatrix() throws {
         let reference = metamorphicChain(seed: 0, prefix: "reference")
         for seed in 1...1_000 {
@@ -158,8 +188,7 @@ struct LVSGraphMatcherTests {
 
     @Test(.timeLimit(.minutes(1)))
     func tenThousandDeviceEnvelope() throws {
-        let layout = scaleGraph(deviceCount: 10_000, prefix: "layout")
-        let schematic = scaleGraph(deviceCount: 10_000, prefix: "schematic")
+        let (layout, schematic) = scaleGraphPair(deviceCount: 10_000)
         let clock = ContinuousClock()
         let startedAt = clock.now
 
@@ -180,8 +209,7 @@ struct LVSGraphMatcherTests {
 
     @Test(.timeLimit(.minutes(1)))
     func hundredThousandDeviceEnvelope() throws {
-        let layout = scaleGraph(deviceCount: 100_000, prefix: "layout")
-        let schematic = scaleGraph(deviceCount: 100_000, prefix: "schematic")
+        let (layout, schematic) = scaleGraphPair(deviceCount: 100_000)
         let clock = ContinuousClock()
         let startedAt = clock.now
 
@@ -202,8 +230,7 @@ struct LVSGraphMatcherTests {
 
     @Test(.timeLimit(.minutes(5)))
     func oneMillionDeviceEnvelope() throws {
-        let layout = scaleGraph(deviceCount: 1_000_000, prefix: "layout")
-        let schematic = scaleGraph(deviceCount: 1_000_000, prefix: "schematic")
+        let (layout, schematic) = scaleGraphPair(deviceCount: 1_000_000)
         let clock = ContinuousClock()
         let startedAt = clock.now
 
@@ -224,8 +251,7 @@ struct LVSGraphMatcherTests {
 
     @Test(.timeLimit(.minutes(1)))
     func cancellationLatencyP95IsBelowFiveHundredMilliseconds() async throws {
-        let layout = scaleGraph(deviceCount: 100_000, prefix: "layout-cancellation")
-        let schematic = scaleGraph(deviceCount: 100_000, prefix: "schematic-cancellation")
+        let (layout, schematic) = scaleGraphPair(deviceCount: 100_000)
         let clock = ContinuousClock()
         var latencies: [Duration] = []
 
@@ -402,34 +428,45 @@ struct LVSGraphMatcherTests {
         return result
     }
 
-    private func scaleGraph(deviceCount: Int, prefix: String) -> LVSGraph {
-        let nets = (0...deviceCount).map { index in
-            LVSGraphNet(
-                id: LVSObjectID(rawValue: "\(prefix)-net-\(index)"),
-                sourceName: index == 0 ? "in" : (index == deviceCount ? "out" : "internal-\(prefix)-\(index)")
-            )
+    private func scaleGraphPair(deviceCount: Int) -> (layout: LVSGraph, schematic: LVSGraph) {
+        // Scale tests exercise matcher cardinality, while the smaller metamorphic
+        // tests cover renaming and ordering. Sharing immutable fixture storage
+        // avoids measuring duplicate graph construction and memory pressure.
+        var nets: [LVSGraphNet] = []
+        nets.reserveCapacity(deviceCount + 1)
+        for index in stride(from: deviceCount, through: 0, by: -1) {
+            let sourceName = index == 0 ? "in" : (index == deviceCount ? "out" : "internal")
+            nets.append(LVSGraphNet(
+                id: LVSObjectID(rawValue: "n\(index)"),
+                sourceName: sourceName
+            ))
         }
-        let devices = (0..<deviceCount).map { index in
-            LVSGraphDevice(
-                id: LVSObjectID(rawValue: "\(prefix)-device-\(index)"),
-                sourceName: "\(prefix)-instance-\(index)",
+        var devices: [LVSGraphDevice] = []
+        devices.reserveCapacity(deviceCount)
+        let equivalentTerminalGroups = [[0, 1]]
+        for index in stride(from: deviceCount - 1, through: 0, by: -1) {
+            let netOffset = deviceCount - index
+            devices.append(LVSGraphDevice(
+                id: LVSObjectID(rawValue: "d\(index)"),
+                sourceName: "instance",
                 kind: "resistor",
-                model: "resistor-\(index)",
+                model: "m\(index)",
                 terminals: [
-                    LVSGraphTerminal(index: 0, netID: nets[index].id),
-                    LVSGraphTerminal(index: 1, netID: nets[index + 1].id),
+                    LVSGraphTerminal(index: 0, netID: nets[netOffset].id),
+                    LVSGraphTerminal(index: 1, netID: nets[netOffset - 1].id),
                 ],
-                equivalentTerminalGroups: [[0, 1]]
-            )
+                equivalentTerminalGroups: equivalentTerminalGroups
+            ))
         }
-        return LVSGraph(
+        let graph = LVSGraph(
             topCell: "top",
-            devices: Array(devices.reversed()),
-            nets: Array(nets.reversed()),
+            devices: devices,
+            nets: nets,
             ports: [
-                LVSGraphPort(name: "in", netID: nets[0].id),
-                LVSGraphPort(name: "out", netID: nets[deviceCount].id),
+                LVSGraphPort(name: "in", netID: nets[deviceCount].id),
+                LVSGraphPort(name: "out", netID: nets[0].id),
             ]
         )
+        return (graph, graph)
     }
 }
