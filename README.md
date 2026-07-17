@@ -186,6 +186,21 @@ swift run lvsengine --action-domain --json
 qualification requirements. It does not claim that the current build is qualified for
 every process. `--action-domain` describes executable operations exposed to automation.
 
+Inspect the Netgen side of an installed foundry deck without conflating it with
+Magic DRC readiness:
+
+```bash
+swift run lvsengine \
+  --foundry-deck-semantics \
+  --pdk-root /path/to/pdk-root \
+  --require-passed \
+  --json
+```
+
+The command emits the shared `signoff-foundry-deck-semantics` artifact with
+LVS-specific requirements. Missing Netgen setup data fails closed; missing Magic
+DRC data is outside this command's responsibility.
+
 ## Backends
 
 ### `native`
@@ -222,6 +237,19 @@ LVSEngine can convert a Netgen setup deck into a structured device-policy seed:
 swift run lvsengine \
   --import-netgen-devices \
   --netgen-setup /path/to/process_setup.tcl \
+  --policy-out /path/to/lvs-device-policy.json \
+  --report-out /path/to/lvs-device-import-report.json \
+  --require-complete \
+  --json
+```
+
+For a registered foundry profile, the foundry device-policy import resolves the
+Netgen setup from the PDK root and produces the same typed policy and report:
+
+```bash
+swift run lvsengine \
+  --import-foundry-netgen-devices \
+  --pdk-root /path/to/pdk-root \
   --policy-out /path/to/lvs-device-policy.json \
   --report-out /path/to/lvs-device-import-report.json \
   --require-complete \
