@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import LVSCore
 import LVSNative
+import LVSNetlistParsing
 
 @Suite("Native LVS backend")
 struct NativeLVSBackendTests {

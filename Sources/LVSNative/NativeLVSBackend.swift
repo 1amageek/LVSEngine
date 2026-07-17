@@ -2,7 +2,7 @@ import Foundation
 import LVSCore
 import LVSGraph
 import LVSMatching
-@_exported import LVSNetlistParsing
+import LVSNetlistParsing
 
 public struct NativeLVSBackend: LVSCancellableBackend {
     public let backendID = "native"
