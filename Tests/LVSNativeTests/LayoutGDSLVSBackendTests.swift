@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 import LVSCore
@@ -34,6 +35,36 @@ struct LayoutGDSLVSBackendTests {
     private func writeTech(in root: URL) throws -> URL {
         let url = root.appending(path: "tech.json")
         try (try JSONEncoder().encode(LayoutTechDatabase.sampleProcess())).write(to: url)
+        return url
+    }
+
+    private func writeExtractionDeck(in root: URL) throws -> URL {
+        let url = root.appending(path: "extraction.deck")
+        try Data("generated-mos-fixture-deck-v1".utf8).write(to: url, options: [.atomic])
+        return url
+    }
+
+    private func writeExtractionProfile(in root: URL) throws -> URL {
+        let deckURL = try writeExtractionDeck(in: root)
+        let deckData = try Data(contentsOf: deckURL)
+        let digest = SHA256.hash(data: deckData)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let fixture = GeneratedMOSLayoutExtractionProfileFactory().makeProfile()
+        let profile = LayoutExtractionProcessProfile(
+            processID: fixture.processID,
+            processProfileID: fixture.processProfileID,
+            extractionDeckDigest: digest,
+            productionEligible: fixture.productionEligible,
+            parameterValueConvention: fixture.parameterValueConvention,
+            conductorLayers: fixture.conductorLayers,
+            connectionRules: fixture.connectionRules,
+            mosRules: fixture.mosRules
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let url = root.appending(path: "extraction-profile.json")
+        try encoder.encode(profile).write(to: url, options: [.atomic])
         return url
     }
 
@@ -725,6 +756,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -748,6 +781,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -776,6 +811,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -798,6 +835,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -821,6 +860,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -844,6 +885,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -873,6 +916,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -895,6 +940,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -917,6 +964,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -944,6 +993,8 @@ struct LayoutGDSLVSBackendTests {
             ),
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
 
@@ -976,6 +1027,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: seedWithoutBlackboxURL,
             workingDirectory: root
         ))
@@ -1023,6 +1076,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1088,6 +1143,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1126,6 +1183,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: seedWithoutBlackboxURL,
             workingDirectory: root
         ))
@@ -1173,6 +1232,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1235,6 +1296,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: seedWithoutEquateURL,
             workingDirectory: root
         ))
@@ -1263,6 +1326,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1316,6 +1381,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: seedWithoutBlackboxURL,
             workingDirectory: root
         ))
@@ -1344,6 +1411,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1392,6 +1461,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: seedWithoutBlackboxURL,
             workingDirectory: root
         ))
@@ -1420,6 +1491,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1479,6 +1552,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1540,6 +1615,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1578,7 +1655,9 @@ struct LayoutGDSLVSBackendTests {
                 in: root
             ),
             topCell: "TOP",
-            technologyURL: try writeTech(in: root)
+            technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root)
         ))
 
         #expect(!execution.result.passed)
@@ -1600,7 +1679,9 @@ struct LayoutGDSLVSBackendTests {
                 in: root
             ),
             topCell: "TOP",
-            technologyURL: try writeTech(in: root)
+            technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root)
         ))
 
         #expect(!execution.result.passed)
@@ -1625,6 +1706,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             workingDirectory: root
         ))
         #expect(!defaultExecution.result.passed)
@@ -1659,6 +1742,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: policyURL,
             workingDirectory: root
         ))
@@ -1711,6 +1796,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: seedWithoutDeleteURL,
             workingDirectory: root
         ))
@@ -1737,6 +1824,8 @@ struct LayoutGDSLVSBackendTests {
             schematicNetlistURL: schematicURL,
             topCell: "TOP",
             technologyURL: try writeTech(in: root),
+            extractionProfileURL: try writeExtractionProfile(in: root),
+            extractionDeckURL: try writeExtractionDeck(in: root),
             devicePolicyURL: seedWithDeleteURL,
             workingDirectory: root
         ))
@@ -1783,6 +1872,8 @@ struct LayoutGDSLVSBackendTests {
                 schematicNetlistURL: schematicURL,
                 topCell: "TOP",
                 technologyURL: try writeTech(in: root),
+                extractionProfileURL: try writeExtractionProfile(in: root),
+                extractionDeckURL: try writeExtractionDeck(in: root),
                 devicePolicyURL: policyURL,
                 workingDirectory: root
             ))
@@ -1808,6 +1899,41 @@ struct LayoutGDSLVSBackendTests {
                 layoutGDSURL: try writeDeviceLayout(in: root),
                 schematicNetlistURL: try writeSchematic(".subckt top\n.ends", in: root),
                 topCell: "TOP"
+            ))
+        }
+    }
+
+    @Test func missingExtractionProfileFailsClosed() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+
+        await #expect(throws: LayoutExtractionProcessProfileError.missingProfileArtifact(
+            path: "LVSRequest.extractionProfileURL"
+        )) {
+            _ = try await LayoutGDSLVSBackend().run(LVSRequest(
+                layoutGDSURL: try writeDeviceLayout(in: root),
+                schematicNetlistURL: try writeSchematic(".subckt top\n.ends", in: root),
+                topCell: "TOP",
+                technologyURL: try writeTech(in: root)
+            ))
+        }
+    }
+
+    @Test func extractionDeckDigestMismatchFailsClosed() async throws {
+        let root = try makeRoot()
+        defer { removeTemporaryDirectory(root) }
+        let profileURL = try writeExtractionProfile(in: root)
+        let deckURL = try writeExtractionDeck(in: root)
+        try Data("modified-process-deck".utf8).write(to: deckURL, options: [.atomic])
+
+        await #expect(throws: LayoutExtractionProcessProfileError.self) {
+            _ = try await LayoutGDSLVSBackend().run(LVSRequest(
+                layoutGDSURL: try writeDeviceLayout(in: root),
+                schematicNetlistURL: try writeSchematic(".subckt top\n.ends", in: root),
+                topCell: "TOP",
+                technologyURL: try writeTech(in: root),
+                extractionProfileURL: profileURL,
+                extractionDeckURL: deckURL
             ))
         }
     }

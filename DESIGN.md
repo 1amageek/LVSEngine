@@ -8,8 +8,8 @@ and records a fail-closed verdict with readiness and blocking reasons.
 
 ```mermaid
 flowchart TD
-    Input["Layout + schematic"] --> Validate["Request / budget validation"]
-    Validate --> Extract["Native or Magic extraction"]
+    Input["Layout + schematic + process artifacts"] --> Validate["Request / budget / profile integrity validation"]
+    Validate --> Extract["Native extraction or external extraction adapter"]
     Extract --> Match["Hierarchical graph match"]
     Match --> Domain["LVSResult + correspondence"]
     Domain --> Persist["LVS artifact manifest"]
@@ -35,9 +35,14 @@ Foundation identity. Hierarchical correspondence remains an LVS concern.
 | Concern | Owner |
 |---|---|
 | Extraction, graph matching, equivalence policy | LVSEngine |
-| Tool/deck qualification and independent oracle | LVSEngine |
+| Raw execution evidence and independent-oracle observations | LVSEngine |
+| Tool/deck qualification and trust policy | ToolQualification / flow policy |
 | Shared evidence/artifact vocabulary | CircuiteFoundation |
 | Project state, approvals, resume orchestration | Xcircuite / DesignFlowKernel |
 
 Native LVS may establish a useful development result, but production
 qualification still requires the existing independent-oracle and PDK gates.
+Native layout extraction consumes a versioned process-owned profile and its
+source deck. Profile schema, semantic completeness, identity, and deck digest
+must validate before geometry extraction begins; no process default is embedded
+in the engine.

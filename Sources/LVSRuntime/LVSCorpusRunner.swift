@@ -5,6 +5,7 @@ import LVSNetlistParsing
 import LayoutAutoGen
 import LayoutCore
 import LayoutIO
+import LayoutLVSExtraction
 import LayoutTech
 
 public struct LVSCorpusRunner: Sendable {
@@ -415,6 +416,7 @@ public struct LVSCorpusRunner: Sendable {
             schematicNetlistURL: request.schematicNetlistURL,
             topCell: request.topCell,
             technologyURL: request.technologyURL,
+            extractionProfileURL: request.extractionProfileURL,
             extractionDeckURL: request.extractionDeckURL,
             processProfileID: request.processProfileID,
             waiverURL: request.waiverURL,
@@ -1174,6 +1176,7 @@ public struct LVSCorpusRunner: Sendable {
             ),
             topCell: corpusCase.topCell,
             technologyURL: preparedInputs.technologyURL,
+            extractionProfileURL: preparedInputs.extractionProfileURL,
             extractionDeckURL: preparedInputs.extractionDeckURL,
             processProfileID: corpusCase.processProfileID,
             waiverURL: try corpusCase.waiverPath.map {
@@ -1273,6 +1276,13 @@ public struct LVSCorpusRunner: Sendable {
                         relativeTo: specDirectory
                     )
                 },
+                extractionProfileURL: try corpusCase.extractionProfilePath.map {
+                    try resolveCorpusInputPath(
+                        $0,
+                        label: "\(corpusCase.caseID).extractionProfilePath",
+                        relativeTo: specDirectory
+                    )
+                },
                 extractionDeckURL: try corpusCase.extractionDeckPath.map {
                     try resolveCorpusInputPath(
                         $0,
@@ -1294,6 +1304,26 @@ public struct LVSCorpusRunner: Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(technology).write(to: technologyURL, options: [.atomic])
 
+        let extractionDeckURL = generatedDirectory.appending(path: "extraction.deck")
+        let extractionDeckData = Data("generated-mos-fixture-deck-v1".utf8)
+        try extractionDeckData.write(to: extractionDeckURL, options: [.atomic])
+        let extractionDeckDigest = SHA256.hash(data: extractionDeckData)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let fixtureProfile = GeneratedMOSLayoutExtractionProfileFactory().makeProfile()
+        let extractionProfile = LayoutExtractionProcessProfile(
+            processID: fixtureProfile.processID,
+            processProfileID: fixtureProfile.processProfileID,
+            extractionDeckDigest: extractionDeckDigest,
+            productionEligible: fixtureProfile.productionEligible,
+            parameterValueConvention: fixtureProfile.parameterValueConvention,
+            conductorLayers: fixtureProfile.conductorLayers,
+            connectionRules: fixtureProfile.connectionRules,
+            mosRules: fixtureProfile.mosRules
+        )
+        let extractionProfileURL = generatedDirectory.appending(path: "extraction-profile.json")
+        try encoder.encode(extractionProfile).write(to: extractionProfileURL, options: [.atomic])
+
         let layoutFormat = corpusCase.layoutFormat ?? fixture.format
         let layoutURL = try generatedOutputURL(
             path: corpusCase.layoutGDSPath ?? "generated-layout",
@@ -1312,7 +1342,8 @@ public struct LVSCorpusRunner: Sendable {
             layoutGDSURL: layoutURL,
             layoutFormat: layoutFormat,
             technologyURL: technologyURL,
-            extractionDeckURL: nil,
+            extractionProfileURL: extractionProfileURL,
+            extractionDeckURL: extractionDeckURL,
             devicePolicyURL: preparedDevicePolicy.policyURL,
             devicePolicyAudit: preparedDevicePolicy.audit,
             devicePolicyArtifactURLs: preparedDevicePolicy.artifactURLs
@@ -1852,6 +1883,7 @@ private struct PreparedLVSCorpusInputs: Sendable {
     let layoutGDSURL: URL?
     let layoutFormat: LVSLayoutFormat?
     let technologyURL: URL?
+    let extractionProfileURL: URL?
     let extractionDeckURL: URL?
     let devicePolicyURL: URL?
     let devicePolicyAudit: NetgenLVSDeviceDeckImportAudit?

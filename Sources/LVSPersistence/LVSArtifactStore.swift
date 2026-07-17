@@ -93,6 +93,14 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
         if let technologyURL = executionResult.request.technologyURL {
             inputs.append(try record(id: "input-technology", kind: .technology, url: technologyURL, baseDirectory: baseDirectory))
         }
+        if let extractionProfileURL = executionResult.request.extractionProfileURL {
+            inputs.append(try record(
+                id: "input-extraction-profile",
+                kind: .extractionProfile,
+                url: extractionProfileURL,
+                baseDirectory: baseDirectory
+            ))
+        }
         if let extractionDeckURL = executionResult.request.extractionDeckURL {
             inputs.append(try record(
                 id: "input-extraction-deck",

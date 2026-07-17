@@ -90,6 +90,7 @@ public struct LVSRequest: Sendable, Hashable, Codable {
     /// extract devices from standard layout formats in-process; backends
     /// delegating extraction to external tools leave it nil.
     public let technologyURL: URL?
+    public let extractionProfileURL: URL?
     public let extractionDeckURL: URL?
     public let processProfileID: String?
     public let waiverURL: URL?
@@ -107,6 +108,7 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         schematicNetlistURL: URL,
         topCell: String,
         technologyURL: URL? = nil,
+        extractionProfileURL: URL? = nil,
         extractionDeckURL: URL? = nil,
         processProfileID: String? = nil,
         waiverURL: URL? = nil,
@@ -123,6 +125,7 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         self.schematicNetlistURL = schematicNetlistURL
         self.topCell = topCell
         self.technologyURL = technologyURL
+        self.extractionProfileURL = extractionProfileURL
         self.extractionDeckURL = extractionDeckURL
         self.processProfileID = processProfileID
         self.waiverURL = waiverURL
@@ -515,6 +518,7 @@ public struct LVSArtifactRecord: Sendable, Hashable, Codable {
         case layoutNetlist
         case schematicNetlist
         case technology
+        case extractionProfile
         case extractionDeck
         case waiver
         case modelEquivalence

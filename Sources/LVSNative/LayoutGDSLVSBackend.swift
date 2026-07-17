@@ -355,6 +355,7 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
             schematicNetlistURL: request.schematicNetlistURL,
             topCell: schematicTop.name,
             technologyURL: request.technologyURL,
+            extractionProfileURL: request.extractionProfileURL,
             extractionDeckURL: request.extractionDeckURL,
             processProfileID: request.processProfileID,
             waiverURL: request.waiverURL,
@@ -642,17 +643,21 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
     private static func extractionProfile(
         for request: LVSRequest
     ) throws -> LayoutExtractionProcessProfile {
-        guard let extractionDeckURL = request.extractionDeckURL else {
-            return GeneratedMOSLayoutExtractionProfileFactory().makeProfile()
-        }
-        do {
-            let deck = try Sky130MagicDeckCompiler().compile(sourceURL: extractionDeckURL)
-            return Sky130LayoutExtractionProfileFactory().makeProfile(from: deck)
-        } catch {
-            throw LVSError.invalidInput(
-                "Could not compile extraction deck '\(extractionDeckURL.lastPathComponent)': \(error.localizedDescription)"
+        guard let profileURL = request.extractionProfileURL else {
+            throw LayoutExtractionProcessProfileError.missingProfileArtifact(
+                path: "LVSRequest.extractionProfileURL"
             )
         }
+        guard let extractionDeckURL = request.extractionDeckURL else {
+            throw LayoutExtractionProcessProfileError.missingExtractionDeck(
+                path: "LVSRequest.extractionDeckURL"
+            )
+        }
+        return try LayoutExtractionProcessProfileLoader().load(
+            profileURL: profileURL,
+            extractionDeckURL: extractionDeckURL,
+            expectedProcessProfileID: request.processProfileID
+        )
     }
 
     private static func schematicTopCell(

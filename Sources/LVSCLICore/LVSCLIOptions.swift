@@ -31,6 +31,7 @@ public struct LVSCLIOptions: Sendable, Hashable {
   public let schematicNetlistURL: URL
   public let topCell: String
   public let technologyURL: URL?
+  public let extractionProfileURL: URL?
   public let extractionDeckURL: URL?
   public let processProfileID: String?
   public let waiverURL: URL?
@@ -49,6 +50,7 @@ public struct LVSCLIOptions: Sendable, Hashable {
     var schematicNetlistURL: URL?
     var topCell: String?
     var technologyURL: URL?
+    var extractionProfileURL: URL?
     var extractionDeckURL: URL?
     var processProfileID: String?
     var waiverURL: URL?
@@ -100,6 +102,10 @@ public struct LVSCLIOptions: Sendable, Hashable {
         extractionDeckURL = URL(
           filePath: try Self.nonEmptyValue(
             after: argument, in: arguments, index: &index, expected: "non-empty path"))
+      case "--extraction-profile":
+        extractionProfileURL = URL(
+          filePath: try Self.nonEmptyValue(
+            after: argument, in: arguments, index: &index, expected: "non-empty path"))
       case "--process-profile":
         processProfileID = try Self.nonEmptyValue(
           after: argument, in: arguments, index: &index, expected: "non-empty process profile ID")
@@ -149,6 +155,7 @@ public struct LVSCLIOptions: Sendable, Hashable {
     self.schematicNetlistURL = schematicNetlistURL
     self.topCell = topCell
     self.technologyURL = technologyURL
+    self.extractionProfileURL = extractionProfileURL
     self.extractionDeckURL = extractionDeckURL
     self.processProfileID = processProfileID
     self.waiverURL = waiverURL
@@ -170,6 +177,7 @@ public struct LVSCLIOptions: Sendable, Hashable {
       schematicNetlistURL: schematicNetlistURL,
       topCell: topCell,
       technologyURL: technologyURL,
+      extractionProfileURL: extractionProfileURL,
       extractionDeckURL: extractionDeckURL,
       processProfileID: processProfileID,
       waiverURL: waiverURL,

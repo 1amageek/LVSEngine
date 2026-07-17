@@ -106,6 +106,7 @@ public struct DefaultLVSEngine: LVSExecuting {
             schematicNetlistURL: request.schematicNetlistURL,
             topCell: request.topCell,
             technologyURL: request.technologyURL,
+            extractionProfileURL: request.extractionProfileURL,
             extractionDeckURL: request.extractionDeckURL,
             processProfileID: request.processProfileID,
             waiverURL: request.waiverURL,

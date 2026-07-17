@@ -30,6 +30,8 @@ extension LVSCLIOptionsTests {
 
         let physicalDigitalCases = spec.cases.filter {
             $0.backendID == "native-gds"
+                && $0.extractionProfilePath
+                    == "pdk://libs.tech/lvs/sky130A-layout-extraction-profile.json"
                 && $0.extractionDeckPath == "pdk://libs.tech/magic/sky130A.tech"
                 && $0.requiredAssertions.contains { $0.kind == .extractionArtifact }
                 && $0.requiredAssertions.contains {

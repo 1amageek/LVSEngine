@@ -9,6 +9,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
     public let schematicNetlistPath: String
     public let topCell: String
     public let technologyPath: String?
+    public let extractionProfilePath: String?
     public let extractionDeckPath: String?
     public let processProfileID: String?
     public let waiverPath: String?
@@ -36,6 +37,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
         schematicNetlistPath: String,
         topCell: String,
         technologyPath: String? = nil,
+        extractionProfilePath: String? = nil,
         extractionDeckPath: String? = nil,
         processProfileID: String? = nil,
         waiverPath: String? = nil,
@@ -62,6 +64,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
         self.schematicNetlistPath = schematicNetlistPath
         self.topCell = topCell
         self.technologyPath = technologyPath
+        self.extractionProfilePath = extractionProfilePath
         self.extractionDeckPath = extractionDeckPath
         self.processProfileID = processProfileID
         self.waiverPath = waiverPath
@@ -90,6 +93,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
         case schematicNetlistPath
         case topCell
         case technologyPath
+        case extractionProfilePath
         case extractionDeckPath
         case processProfileID
         case waiverPath
@@ -122,6 +126,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
         schematicNetlistPath = try container.decode(String.self, forKey: .schematicNetlistPath)
         topCell = try container.decode(String.self, forKey: .topCell)
         technologyPath = try container.decodeIfPresent(String.self, forKey: .technologyPath)
+        extractionProfilePath = try container.decodeIfPresent(String.self, forKey: .extractionProfilePath)
         extractionDeckPath = try container.decodeIfPresent(String.self, forKey: .extractionDeckPath)
         processProfileID = try container.decodeIfPresent(String.self, forKey: .processProfileID)
         waiverPath = try container.decodeIfPresent(String.self, forKey: .waiverPath)

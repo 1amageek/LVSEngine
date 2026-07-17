@@ -158,13 +158,22 @@ swift run lvsengine \
   --layout-gds /path/to/design.gds \
   --format gds \
   --tech /path/to/technology.json \
+  --extraction-profile /path/to/layout-extraction-profile.json \
   --extraction-deck /path/to/extraction.tech \
+  --process-profile process.profile.identifier \
   --schematic-netlist /path/to/schematic.spice \
   --top-cell top \
   --backend native-gds \
   --out /path/to/output \
   --json
 ```
+
+The `native-gds` backend requires both a process-owned extraction profile JSON
+artifact and its source extraction deck. It validates the profile schema,
+profile identity, required layer/device rules, and the deck SHA-256 digest before
+reading layout geometry. Missing, malformed, mismatched, or modified artifacts
+fail closed with `LayoutExtractionProcessProfileError`; the engine does not embed
+process-specific extraction rules or infer a default PDK.
 
 ### Inspect capabilities
 

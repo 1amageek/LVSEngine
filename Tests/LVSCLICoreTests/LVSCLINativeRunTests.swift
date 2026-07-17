@@ -11,6 +11,9 @@ extension LVSCLIOptionsTests {
       "--top-cell", "inv",
       "--out", "/tmp/lvs",
       "--tech", "/tmp/tech.json",
+      "--extraction-profile", "/tmp/extraction-profile.json",
+      "--extraction-deck", "/tmp/extraction.tech",
+      "--process-profile", "sample.production",
     ])
 
     #expect(options.makeRequest().backendSelection.backendID == "native")
@@ -34,6 +37,9 @@ extension LVSCLIOptionsTests {
     let request = options.makeRequest()
     #expect(request.backendSelection.backendID == "native-gds")
     #expect(request.layoutFormat == .oasis)
+    #expect(request.extractionProfileURL?.path(percentEncoded: false) == "/tmp/extraction-profile.json")
+    #expect(request.extractionDeckURL?.path(percentEncoded: false) == "/tmp/extraction.tech")
+    #expect(request.processProfileID == "sample.production")
     #expect(request.waiverURL?.path(percentEncoded: false) == "/tmp/lvs-waivers.json")
     #expect(
       request.modelEquivalenceURL?.path(percentEncoded: false) == "/tmp/lvs-model-equivalence.json")
