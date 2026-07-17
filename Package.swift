@@ -30,7 +30,7 @@ let semiconductorLayoutDependency: Package.Dependency = FileManager.default.file
     ? .package(path: "../semiconductor-layout")
     : .package(
         url: "https://github.com/1amageek/semiconductor-layout.git",
-        revision: "eb4f8ac93dbe4c35410ae55e6bb00794376c8333"
+        revision: "fa8f27852bc251fb340dfcfa261f2b3a0a408d1a"
     )
 
 let package = Package(
