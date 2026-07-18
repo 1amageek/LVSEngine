@@ -102,16 +102,16 @@ public struct LVSCorpusSummary: Sendable, Hashable, Codable {
         oracleReadinessBlockedCaseCount = try container.decode(Int.self, forKey: .oracleReadinessBlockedCaseCount)
         failureCategoryCounts = try container.decode([String: Int].self, forKey: .failureCategoryCounts)
         disagreementClassCounts = try container.decode([String: Int].self, forKey: .disagreementClassCounts)
-        observedAssertionCounts = try container.decodeIfPresent(
+        observedAssertionCounts = try container.decode(
             [String: Int].self,
             forKey: .observedAssertionCounts
-        ) ?? [:]
-        coverageTagCounts = try container.decodeIfPresent(
+        )
+        coverageTagCounts = try container.decode(
             [String: Int].self,
             forKey: .coverageTagCounts
-        ) ?? [:]
-        failedAssertionCount = try container.decodeIfPresent(Int.self, forKey: .failedAssertionCount) ?? 0
-        blockedAssertionCount = try container.decodeIfPresent(Int.self, forKey: .blockedAssertionCount) ?? 0
+        )
+        failedAssertionCount = try container.decode(Int.self, forKey: .failedAssertionCount)
+        blockedAssertionCount = try container.decode(Int.self, forKey: .blockedAssertionCount)
         passRate = try container.decode(Double.self, forKey: .passRate)
         oracleAgreementRate = try container.decodeIfPresent(Double.self, forKey: .oracleAgreementRate)
     }

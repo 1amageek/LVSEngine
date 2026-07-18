@@ -9,14 +9,14 @@ extension LVSCLIOptionsTests {
     let options = try LVSCorpusObservationCLIOptions(arguments: [
       "--observations-from-corpus-report", "/tmp/lvs-corpus-report.json",
       "--record-id", "lvs-release-corpus",
-      "--out", "/tmp/lvs-tool-evidence.json",
+      "--out", "/tmp/lvs-observation-export.json",
       "--checked-at", "2026-06-18T00:00:00Z",
       "--json",
     ])
 
     #expect(options.reportURL.path(percentEncoded: false) == "/tmp/lvs-corpus-report.json")
     #expect(options.recordID == "lvs-release-corpus")
-    #expect(options.outputURL?.path(percentEncoded: false) == "/tmp/lvs-tool-evidence.json")
+    #expect(options.outputURL?.path(percentEncoded: false) == "/tmp/lvs-observation-export.json")
     #expect(options.checkedAt.timeIntervalSince1970 == 1_781_740_800)
     #expect(options.emitJSON)
   }
@@ -26,7 +26,7 @@ extension LVSCLIOptionsTests {
     defer { removeTemporaryDirectory(root) }
     let report = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
     let reportURL = root.appending(path: "lvs-corpus-report.json")
-    let evidenceURL = root.appending(path: "lvs-tool-evidence.json")
+    let evidenceURL = root.appending(path: "lvs-observation-export.json")
     try writeJSON(report, to: reportURL)
 
     let exitCode = await LVSCLI.run(arguments: [

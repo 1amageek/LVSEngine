@@ -4,6 +4,27 @@ import Testing
 
 struct LVSCorpusAssessmentTests {
     @Test
+    func summaryDecodingRequiresCurrentObservationCounts() throws {
+        let summary = LVSCorpusSummary(caseResults: [])
+        let requiredKeys = [
+            "observedAssertionCounts",
+            "coverageTagCounts",
+            "failedAssertionCount",
+            "blockedAssertionCount",
+        ]
+
+        for key in requiredKeys {
+            let encoded = try JSONEncoder().encode(summary)
+            var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            object.removeValue(forKey: key)
+            let data = try JSONSerialization.data(withJSONObject: object)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(LVSCorpusSummary.self, from: data)
+            }
+        }
+    }
+
+    @Test
     func coverageRequiresAnObservedPassingAssertion() {
         let failed = caseResult(
             caseID: "failed",

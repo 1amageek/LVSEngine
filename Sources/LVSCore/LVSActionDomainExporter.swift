@@ -84,7 +84,7 @@ public struct LVSActionDomainExporter: Sendable {
             maturity: "implemented",
             inputRefs: ["lvs-corpus-spec", "optional-oracle-backend"],
             preconditions: ["corpus-spec-valid", "observed-assertion-requirements-declared"],
-            effects: ["corpus-report-written", "qualification-result-produced"],
+            effects: ["corpus-report-written", "corpus-assessment-produced"],
             producedArtifacts: ["lvs-corpus-report"],
             verificationGates: ["same-case-observed-assertions", "oracle-agreement", "duration-budget"],
             reversible: true
