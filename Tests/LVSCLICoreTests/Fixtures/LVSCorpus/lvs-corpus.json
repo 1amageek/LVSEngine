@@ -1,7 +1,15 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "defaultMaxDurationSeconds": 10,
   "acceptanceCriteria": {
+    "requireCorpusPassed": true,
+    "minimumPassRate": 1,
+    "minimumDurationBudgetPassRate": 1,
+    "minimumOracleCaseCount": null,
+    "minimumOracleAgreementRate": null,
+    "allowPrimaryExecutionFailures": false,
+    "allowOracleExecutionFailures": false,
+    "requiredCoverageTags": ["lvs.bjt", "lvs.controlled-sources", "lvs.device-breadth", "lvs.device-policy", "lvs.device-policy.parallel", "lvs.device-policy.series", "lvs.diode", "lvs.diode-terminal-equivalence", "lvs.extract.cmos-inverter", "lvs.extract.connectivity", "lvs.extract.devices", "lvs.extract.nmos", "lvs.extract.pmos", "lvs.extract.policy", "lvs.global-nets", "lvs.hierarchy", "lvs.independent-sources", "lvs.inductor", "lvs.input.cif", "lvs.input.dxf", "lvs.input.gds", "lvs.input.oasis", "lvs.match", "lvs.model-alias", "lvs.model-equivalence", "lvs.model-mismatch", "lvs.mos-source-drain-permutation", "lvs.multiplicity", "lvs.numeric-parameters", "lvs.parallel-devices", "lvs.parameter-mismatch", "lvs.passive-terminal-permutation", "lvs.port-mismatch", "lvs.series-devices", "lvs.sources", "lvs.subckt-parameter", "lvs.symmetric-terminals", "lvs.terminal-equivalence-policy", "lvs.waiver", "spice.continuation", "spice.include", "spice.inline-comment", "spice.lib", "spice.option-scale", "spice.param", "spice.param-expression"],
     "requiredObservedAssertions": [
       "diagnosticRule:LVS_MODEL_MISMATCH",
       "diagnosticRule:LVS_PARAMETER_MISMATCH",
@@ -9,7 +17,9 @@
       "durationBudget:within-budget",
       "verdict:match",
       "verdict:mismatch"
-    ]
+    ],
+    "allowBlockedAssertions": false,
+    "allowFailedAssertions": false
   },
   "cases": [
     {

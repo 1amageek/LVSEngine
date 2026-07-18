@@ -94,19 +94,50 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         caseID = try container.decode(String.self, forKey: .caseID)
+        guard !caseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .caseID,
+                in: container,
+                debugDescription: "LVS corpus case identifiers must not be empty."
+            )
+        }
         matched = try container.decode(Bool.self, forKey: .matched)
         expectedPassed = try container.decode(Bool.self, forKey: .expectedPassed)
         actualPassed = try container.decode(Bool.self, forKey: .actualPassed)
         expectedActiveErrorRuleIDs = try container.decode([String].self, forKey: .expectedActiveErrorRuleIDs)
         actualActiveErrorRuleIDs = try container.decode([String].self, forKey: .actualActiveErrorRuleIDs)
-        coverageTags = Array(Set(try container.decodeIfPresent(
+        coverageTags = Array(Set(try container.decode(
             [String].self,
             forKey: .coverageTags
-        ) ?? [])).filter { !$0.isEmpty }.sorted()
+        ))).filter { !$0.isEmpty }.sorted()
         expectationMatched = try container.decode(Bool.self, forKey: .expectationMatched)
         durationSeconds = try container.decode(Double.self, forKey: .durationSeconds)
+        guard durationSeconds.isFinite, durationSeconds >= 0 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .durationSeconds,
+                in: container,
+                debugDescription: "durationSeconds must be finite and zero or greater."
+            )
+        }
         expectedMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .expectedMaxDurationSeconds)
+        if let expectedMaxDurationSeconds {
+            guard expectedMaxDurationSeconds.isFinite, expectedMaxDurationSeconds >= 0 else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .expectedMaxDurationSeconds,
+                    in: container,
+                    debugDescription: "expectedMaxDurationSeconds must be finite and zero or greater."
+                )
+            }
+        }
         durationBudgetPassed = try container.decode(Bool.self, forKey: .durationBudgetPassed)
+        if let expectedMaxDurationSeconds,
+           durationBudgetPassed != (durationSeconds <= expectedMaxDurationSeconds) {
+            throw DecodingError.dataCorruptedError(
+                forKey: .durationBudgetPassed,
+                in: container,
+                debugDescription: "durationBudgetPassed must match the retained duration and limit."
+            )
+        }
         failureReasons = try container.decode([String].self, forKey: .failureReasons)
         executionError = try container.decodeIfPresent(String.self, forKey: .executionError)
         diagnosticSummary = try container.decode(LVSDiagnosticSummary.self, forKey: .diagnosticSummary)
@@ -116,9 +147,9 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         primaryProvenance = try container.decodeIfPresent(LVSCorpusCaseProvenance.self, forKey: .primaryProvenance)
         oracleResult = try container.decodeIfPresent(LVSCorpusOracleResult.self, forKey: .oracleResult)
         oracleComparison = try container.decodeIfPresent(LVSCorpusOracleComparison.self, forKey: .oracleComparison)
-        observedAssertions = try container.decodeIfPresent(
+        observedAssertions = try container.decode(
             [LVSCorpusObservedAssertion].self,
             forKey: .observedAssertions
-        ) ?? []
+        )
     }
 }

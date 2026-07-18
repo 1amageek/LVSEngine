@@ -24,6 +24,7 @@ extension LVSCLIOptionsTests {
 
         #expect(spec.defaultMaxDurationSeconds == 30)
         #expect(spec.cases.count == 40)
+        #expect(spec.implementationScopeCaseID == "production-sky130-digital-inv_1")
         #expect(Set(spec.cases.compactMap(\.backendID)) == ["native", "native-gds"])
         #expect(Set(spec.cases.compactMap(\.oracleBackendID)) == ["netgen"])
         #expect(spec.acceptanceCriteria.minimumOracleCaseCount == 40)
@@ -31,7 +32,7 @@ extension LVSCLIOptionsTests {
         #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("oracleIndependence:ready"))
         #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("determinism:stable"))
         #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("cancellation:cancelled"))
-        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("extractionProfileReadiness:ready"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("extractionSemanticReadiness:ready"))
         #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("hierarchyDepth:1"))
         #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("structureClass:analog"))
         #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("devicePolicyImport:satisfied"))
@@ -45,7 +46,7 @@ extension LVSCLIOptionsTests {
                 && $0.extractionDeckPath == "pdk://libs.tech/magic/sky130A.tech"
                 && $0.requiredAssertions.contains { $0.kind == .extractionArtifact }
                 && $0.requiredAssertions.contains {
-                    $0.kind == .extractionProfileReadiness && $0.expectedValue == "ready"
+                    $0.kind == .extractionSemanticReadiness && $0.expectedValue == "ready"
                 }
                 && $0.devicePolicyDeckPath == "pdk://libs.tech/netgen/sky130A_setup.tcl"
                 && Set($0.requiredAssertions.compactMap { assertion in
@@ -74,9 +75,9 @@ extension LVSCLIOptionsTests {
         let extractionProfile = try #require(
             JSONSerialization.jsonObject(with: Data(contentsOf: extractionProfileURL)) as? [String: Any]
         )
-        #expect(extractionProfile["schemaVersion"] as? Int == 1)
+        #expect(extractionProfile["schemaVersion"] as? Int == 2)
         #expect(extractionProfile["processProfileID"] as? String == "sky130.open-pdk.digital-mos.signoff")
-        #expect(extractionProfile["productionEligible"] as? Bool == true)
+        #expect(extractionProfile["deckUseScope"] as? String == "processProvided")
         #expect(
             extractionProfile["extractionDeckDigest"] as? String
                 == "31287ea98453d1a4a0fe9e18f8e2a9a0aa411bea3e5eae9db3dd5e450bcd57c0"
@@ -139,8 +140,8 @@ extension LVSCLIOptionsTests {
             statuses: [.passed, .failed]
         )
         let policy = LVSCorpusCoverageAuditPolicy(
-            policyID: "test.observed-assertions.v2",
-            requireQualifiedCorpus: false,
+            policyID: "test.observed-assertions.v3",
+            requirePassingAssessment: false,
             requireOracleAgreement: false,
             minimumCaseCount: 1,
             requirements: [
@@ -185,7 +186,7 @@ extension LVSCLIOptionsTests {
         """.utf8)
         let invalidThreshold = Data("""
         {
-          "schemaVersion": 2,
+          "schemaVersion": 3,
           "policyID": "test-policy",
           "minimumCaseCount": 0,
           "requirements": [
@@ -208,11 +209,57 @@ extension LVSCLIOptionsTests {
     }
 
     @Test
+    func corpusCoveragePolicyEncodesAssessmentRequirement() throws {
+        let policy = LVSCorpusCoverageAuditPolicy(
+            policyID: "test.observed-assertions.v3",
+            requirePassingAssessment: false,
+            requirements: []
+        )
+
+        let object = try #require(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(policy)) as? [String: Any]
+        )
+
+        #expect(object["schemaVersion"] as? Int == 3)
+        #expect(object["requirePassingAssessment"] as? Bool == false)
+        #expect(object["requireQualifiedCorpus"] == nil)
+    }
+
+    @Test
+    func corpusCoveragePolicyRequiresEveryFailClosedGate() throws {
+        let policy = LVSCorpusCoverageAuditPolicy(
+            policyID: "test.observed-assertions.v3",
+            requirePassingAssessment: true,
+            requireOracleAgreement: true,
+            minimumCaseCount: 1,
+            requirements: []
+        )
+        let encoded = try JSONEncoder().encode(policy)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+
+        for key in [
+            "requirePassingAssessment",
+            "requireOracleAgreement",
+            "minimumCaseCount",
+            "requirements",
+        ] {
+            var incomplete = object
+            incomplete.removeValue(forKey: key)
+            let data = try JSONSerialization.data(withJSONObject: incomplete)
+            #expect(throws: DecodingError.self) {
+                _ = try JSONDecoder().decode(LVSCorpusCoverageAuditPolicy.self, from: data)
+            }
+        }
+    }
+
+    @Test
     func corpusCoverageAuditBlocksInvalidProgrammaticPolicy() {
         let policy = LVSCorpusCoverageAuditPolicy(
             schemaVersion: 99,
             policyID: " ",
-            requireQualifiedCorpus: false,
+            requirePassingAssessment: false,
             requireOracleAgreement: false,
             minimumCaseCount: 0,
             requirements: []
@@ -238,7 +285,7 @@ extension LVSCLIOptionsTests {
         )
         let unboundedAgePolicy = LVSCorpusCoverageAuditPolicy(
             policyID: "test-huge-age",
-            requireQualifiedCorpus: false,
+            requirePassingAssessment: false,
             requireOracleAgreement: false,
             maxReportAgeSeconds: .greatestFiniteMagnitude,
             requirements: [requirement]
@@ -250,7 +297,7 @@ extension LVSCLIOptionsTests {
         )
         let stalePolicy = LVSCorpusCoverageAuditPolicy(
             policyID: "test-stale-age",
-            requireQualifiedCorpus: false,
+            requirePassingAssessment: false,
             requireOracleAgreement: false,
             maxReportAgeSeconds: 5,
             requirements: [requirement]

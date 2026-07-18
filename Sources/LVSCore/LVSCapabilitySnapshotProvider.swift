@@ -267,7 +267,7 @@ public struct LVSCapabilitySnapshotProvider: Sendable {
                 "diagnosticRule:LVS_MODEL_MISMATCH",
                 "durationBudget:within-budget",
                 "extractionArtifact",
-                "extractionProfileReadiness:ready",
+                "extractionSemanticReadiness:ready",
                 "manifestArtifact",
                 "oracleAgreement:true",
                 "oracleIndependence:ready",

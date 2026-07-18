@@ -1,8 +1,16 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "defaultMaxDurationSeconds": 30,
-  "qualificationScopeCaseID": "production-sky130-digital-inv_1",
+  "implementationScopeCaseID": "production-sky130-digital-inv_1",
   "acceptanceCriteria": {
+    "requireCorpusPassed": true,
+    "minimumPassRate": 1,
+    "minimumDurationBudgetPassRate": 1,
+    "minimumOracleCaseCount": 40,
+    "minimumOracleAgreementRate": 1,
+    "allowPrimaryExecutionFailures": false,
+    "allowOracleExecutionFailures": false,
+    "requiredCoverageTags": ["external.netgen", "layout.gds", "layout.spice", "lvs.match"],
     "requiredObservedAssertions": [
       "cancellation:cancelled",
       "correspondenceArtifact",
@@ -18,7 +26,7 @@
       "diagnosticRule:LVS_MODEL_MISMATCH",
       "durationBudget:within-budget",
       "extractionArtifact",
-      "extractionProfileReadiness:ready",
+      "extractionSemanticReadiness:ready",
       "hierarchyDepth:1",
       "manifestArtifact",
       "oracleAgreement:true",
@@ -28,8 +36,8 @@
       "verdict:match",
       "verdict:mismatch"
     ],
-    "minimumOracleCaseCount": 40,
-    "minimumOracleAgreementRate": 1
+    "allowBlockedAssertions": false,
+    "allowFailedAssertions": false
   },
   "cases": [
     {
@@ -467,7 +475,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -579,7 +587,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -691,7 +699,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -803,7 +811,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -915,7 +923,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1027,7 +1035,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1139,7 +1147,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1251,7 +1259,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1363,7 +1371,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1475,7 +1483,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1587,7 +1595,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1699,7 +1707,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1811,7 +1819,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -1923,7 +1931,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -2035,7 +2043,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -2147,7 +2155,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -2259,7 +2267,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -2371,7 +2379,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -2483,7 +2491,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {
@@ -2595,7 +2603,7 @@
         },
         {
           "assertionID": "extraction-profile-readiness",
-          "kind": "extractionProfileReadiness",
+          "kind": "extractionSemanticReadiness",
           "expectedValue": "ready"
         },
         {

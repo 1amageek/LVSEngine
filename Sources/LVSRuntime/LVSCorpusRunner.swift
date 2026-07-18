@@ -44,7 +44,7 @@ public struct LVSCorpusRunner: Sendable {
         let specDirectory = specURL.deletingLastPathComponent()
         try validateBudget(spec.defaultMaxDurationSeconds, label: "defaultMaxDurationSeconds")
         try validateCaseIdentifiers(spec.cases)
-        try validateQualificationScopeCaseID(spec.qualificationScopeCaseID, cases: spec.cases)
+        try validateImplementationScopeCaseID(spec.implementationScopeCaseID, cases: spec.cases)
 
         for corpusCase in spec.cases {
             try validateBudget(corpusCase.maxDurationSeconds, label: "\(corpusCase.caseID).maxDurationSeconds")
@@ -200,7 +200,7 @@ public struct LVSCorpusRunner: Sendable {
             budgetExceededCaseCount: caseResults.filter { !$0.durationBudgetPassed }.count,
             totalDurationSeconds: caseResults.reduce(0) { $0 + $1.durationSeconds },
             runOptions: options,
-            qualificationScopeCaseID: spec.qualificationScopeCaseID,
+            implementationScopeCaseID: spec.implementationScopeCaseID,
             acceptanceCriteria: spec.acceptanceCriteria,
             caseResults: caseResults
         )
@@ -219,17 +219,17 @@ public struct LVSCorpusRunner: Sendable {
         }
     }
 
-    private func validateQualificationScopeCaseID(
-        _ qualificationScopeCaseID: String?,
+    private func validateImplementationScopeCaseID(
+        _ implementationScopeCaseID: String?,
         cases: [LVSCorpusCase]
     ) throws {
-        guard let qualificationScopeCaseID else { return }
-        guard !qualificationScopeCaseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw LVSError.invalidInput("qualificationScopeCaseID must not be empty.")
+        guard let implementationScopeCaseID else { return }
+        guard !implementationScopeCaseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LVSError.invalidInput("implementationScopeCaseID must not be empty.")
         }
-        guard cases.contains(where: { $0.caseID == qualificationScopeCaseID }) else {
+        guard cases.contains(where: { $0.caseID == implementationScopeCaseID }) else {
             throw LVSError.invalidInput(
-                "qualificationScopeCaseID does not reference a corpus case: \(qualificationScopeCaseID)"
+                "implementationScopeCaseID does not reference a corpus case: \(implementationScopeCaseID)"
             )
         }
     }
@@ -520,17 +520,17 @@ public struct LVSCorpusRunner: Sendable {
                 evaluation = artifactEvaluation(executionResult.correspondenceURL, code: "correspondence_artifact_missing")
             case .extractionArtifact:
                 evaluation = artifactEvaluation(executionResult.extractionReportURL, code: "extraction_artifact_missing")
-            case .extractionProfileReadiness:
+            case .extractionSemanticReadiness:
                 guard let evidence = executionResult.extractionEvidence else {
                     evaluation = (.blocked, nil, "extraction_evidence_missing")
                     break
                 }
                 evaluation = (
-                    evidence.profileReady ? .passed : .failed,
-                    evidence.profileReady ? "ready" : "notReady",
-                    evidence.profileReady
+                    evidence.semanticReady ? .passed : .failed,
+                    evidence.semanticReady ? "ready" : "notReady",
+                    evidence.semanticReady
                         ? nil
-                        : "extraction_profile_incomplete:\(evidence.blockingReasonCodes.joined(separator: ","))"
+                        : "extraction_semantics_incomplete:\(evidence.blockingReasonCodes.joined(separator: ","))"
                 )
             case .structureClass:
                 let observed = observedStructureClass(in: executionResult)
@@ -1330,7 +1330,7 @@ public struct LVSCorpusRunner: Sendable {
             processID: fixtureProfile.processID,
             processProfileID: fixtureProfile.processProfileID,
             extractionDeckDigest: extractionDeckDigest,
-            productionEligible: fixtureProfile.productionEligible,
+            deckUseScope: fixtureProfile.deckUseScope,
             parameterValueConvention: fixtureProfile.parameterValueConvention,
             conductorLayers: fixtureProfile.conductorLayers,
             connectionRules: fixtureProfile.connectionRules,

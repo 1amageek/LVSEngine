@@ -41,12 +41,23 @@ public struct LayoutExtractionLVSGraphBuilder: Sendable {
             )
         }
 
-        let netIDs = Dictionary(uniqueKeysWithValues: extraction.nets.map {
-            ($0.id, LVSObjectID(rawValue: "layout:\($0.id.rawValue)"))
-        })
-        let nets = extraction.nets.map { net in
-            LVSGraphNet(
-                id: netIDs[net.id]!,
+        var netIDs: [LayoutExtractionObjectID: LVSObjectID] = [:]
+        for net in extraction.nets {
+            guard netIDs[net.id] == nil else {
+                throw LVSError.invalidInput(
+                    "Layout extraction contains duplicate net identifier \(net.id.rawValue)."
+                )
+            }
+            netIDs[net.id] = LVSObjectID(rawValue: "layout:\(net.id.rawValue)")
+        }
+        let nets = try extraction.nets.map { net in
+            guard let graphNetID = netIDs[net.id] else {
+                throw LVSError.invalidInput(
+                    "Layout extraction net \(net.id.rawValue) could not be indexed."
+                )
+            }
+            return LVSGraphNet(
+                id: graphNetID,
                 sourceName: net.preferredName ?? net.id.rawValue,
                 isGlobal: net.isGlobal
                     || net.preferredName.map { sharedGlobalNetNames.contains($0.lowercased()) } == true

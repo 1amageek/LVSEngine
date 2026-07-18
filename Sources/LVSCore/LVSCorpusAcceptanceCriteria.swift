@@ -14,6 +14,7 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
     public let minimumOracleAgreementRate: Double?
     public let allowPrimaryExecutionFailures: Bool
     public let allowOracleExecutionFailures: Bool
+    public let requiredCoverageTags: [String]
     public let requiredObservedAssertions: [String]
     public let allowBlockedAssertions: Bool
     public let allowFailedAssertions: Bool
@@ -26,6 +27,7 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
         case minimumOracleAgreementRate
         case allowPrimaryExecutionFailures
         case allowOracleExecutionFailures
+        case requiredCoverageTags
         case requiredObservedAssertions
         case allowBlockedAssertions
         case allowFailedAssertions
@@ -39,6 +41,7 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
         minimumOracleAgreementRate: Double? = nil,
         allowPrimaryExecutionFailures: Bool = false,
         allowOracleExecutionFailures: Bool = false,
+        requiredCoverageTags: [String] = [],
         requiredObservedAssertions: [String] = [],
         allowBlockedAssertions: Bool = false,
         allowFailedAssertions: Bool = false
@@ -50,6 +53,7 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
         self.minimumOracleAgreementRate = minimumOracleAgreementRate
         self.allowPrimaryExecutionFailures = allowPrimaryExecutionFailures
         self.allowOracleExecutionFailures = allowOracleExecutionFailures
+        self.requiredCoverageTags = Self.normalizedValues(requiredCoverageTags)
         self.requiredObservedAssertions = Self.normalizedAssertions(requiredObservedAssertions)
         self.allowBlockedAssertions = allowBlockedAssertions
         self.allowFailedAssertions = allowFailedAssertions
@@ -57,34 +61,63 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        requireCorpusPassed = try container.decodeIfPresent(Bool.self, forKey: .requireCorpusPassed) ?? true
-        minimumPassRate = try container.decodeIfPresent(Double.self, forKey: .minimumPassRate) ?? 1
-        minimumDurationBudgetPassRate = try container.decodeIfPresent(
+        requireCorpusPassed = try container.decode(Bool.self, forKey: .requireCorpusPassed)
+        minimumPassRate = try container.decode(Double.self, forKey: .minimumPassRate)
+        minimumDurationBudgetPassRate = try container.decode(
             Double.self,
             forKey: .minimumDurationBudgetPassRate
-        ) ?? 1
+        )
+        guard container.contains(.minimumOracleCaseCount),
+              container.contains(.minimumOracleAgreementRate) else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.minimumOracleCaseCount,
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "LVS corpus acceptance criteria must declare every fail-closed gate."
+                )
+            )
+        }
         minimumOracleCaseCount = try container.decodeIfPresent(Int.self, forKey: .minimumOracleCaseCount)
         minimumOracleAgreementRate = try container.decodeIfPresent(Double.self, forKey: .minimumOracleAgreementRate)
-        allowPrimaryExecutionFailures = try container.decodeIfPresent(
+        allowPrimaryExecutionFailures = try container.decode(
             Bool.self,
             forKey: .allowPrimaryExecutionFailures
-        ) ?? false
-        allowOracleExecutionFailures = try container.decodeIfPresent(
+        )
+        allowOracleExecutionFailures = try container.decode(
             Bool.self,
             forKey: .allowOracleExecutionFailures
-        ) ?? false
-        requiredObservedAssertions = Self.normalizedAssertions(try container.decodeIfPresent(
+        )
+        requiredCoverageTags = Self.normalizedValues(try container.decode(
+            [String].self,
+            forKey: .requiredCoverageTags
+        ))
+        requiredObservedAssertions = Self.normalizedAssertions(try container.decode(
             [String].self,
             forKey: .requiredObservedAssertions
-        ) ?? [])
-        allowBlockedAssertions = try container.decodeIfPresent(
+        ))
+        allowBlockedAssertions = try container.decode(
             Bool.self,
             forKey: .allowBlockedAssertions
-        ) ?? false
-        allowFailedAssertions = try container.decodeIfPresent(
+        )
+        allowFailedAssertions = try container.decode(
             Bool.self,
             forKey: .allowFailedAssertions
-        ) ?? false
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(requireCorpusPassed, forKey: .requireCorpusPassed)
+        try container.encode(minimumPassRate, forKey: .minimumPassRate)
+        try container.encode(minimumDurationBudgetPassRate, forKey: .minimumDurationBudgetPassRate)
+        try container.encode(minimumOracleCaseCount, forKey: .minimumOracleCaseCount)
+        try container.encode(minimumOracleAgreementRate, forKey: .minimumOracleAgreementRate)
+        try container.encode(allowPrimaryExecutionFailures, forKey: .allowPrimaryExecutionFailures)
+        try container.encode(allowOracleExecutionFailures, forKey: .allowOracleExecutionFailures)
+        try container.encode(requiredCoverageTags, forKey: .requiredCoverageTags)
+        try container.encode(requiredObservedAssertions, forKey: .requiredObservedAssertions)
+        try container.encode(allowBlockedAssertions, forKey: .allowBlockedAssertions)
+        try container.encode(allowFailedAssertions, forKey: .allowFailedAssertions)
     }
 
     public func evaluate(
@@ -136,20 +169,20 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
             ))
         }
         if let minimumOracleAgreementRate {
-            guard let oracleAgreementRate = summary.oracleAgreementRate else {
+            if let oracleAgreementRate = summary.oracleAgreementRate {
+                if oracleAgreementRate < minimumOracleAgreementRate {
+                    findings.append(LVSCorpusAssessmentFinding(
+                        code: "oracle_agreement_rate_below_minimum",
+                        message: "The corpus oracle agreement rate is below the required threshold.",
+                        observedDouble: oracleAgreementRate,
+                        requiredDouble: minimumOracleAgreementRate
+                    ))
+                }
+            } else {
                 findings.append(LVSCorpusAssessmentFinding(
                     code: "oracle_agreement_rate_missing",
                     message: "The corpus acceptance criteria requires oracle agreement, but no oracle cases ran.",
                     observedCount: summary.oracleCaseCount
-                ))
-                return LVSCorpusAssessment(criteria: self, findings: findings)
-            }
-            if oracleAgreementRate < minimumOracleAgreementRate {
-                findings.append(LVSCorpusAssessmentFinding(
-                    code: "oracle_agreement_rate_below_minimum",
-                    message: "The corpus oracle agreement rate is below the required threshold.",
-                    observedDouble: oracleAgreementRate,
-                    requiredDouble: minimumOracleAgreementRate
                 ))
             }
         }
@@ -167,6 +200,19 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
                 message: "One or more oracle corpus cases failed to execute.",
                 observedCount: summary.oracleExecutionFailedCaseCount,
                 requiredCount: 0
+            ))
+        }
+        let missingCoverageTags = requiredCoverageTags.filter {
+            summary.coverageTagCounts[$0] == nil
+        }
+        if !missingCoverageTags.isEmpty {
+            findings.append(LVSCorpusAssessmentFinding(
+                code: "required_coverage_missing",
+                message: "The corpus is missing one or more required coverage tags.",
+                observedCount: requiredCoverageTags.count - missingCoverageTags.count,
+                requiredCount: requiredCoverageTags.count,
+                observedText: summary.coverageTagCounts.keys.sorted().joined(separator: ","),
+                requiredText: missingCoverageTags.joined(separator: ",")
             ))
         }
         let missingAssertions = requiredObservedAssertions.filter {
@@ -241,6 +287,10 @@ public struct LVSCorpusAcceptanceCriteria: Sendable, Hashable, Codable {
     }
 
     private static func normalizedAssertions(_ assertions: [String]) -> [String] {
-        Array(Set(assertions.filter { !$0.isEmpty })).sorted()
+        normalizedValues(assertions)
+    }
+
+    private static func normalizedValues(_ values: [String]) -> [String] {
+        Array(Set(values.filter { !$0.isEmpty })).sorted()
     }
 }

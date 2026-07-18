@@ -1,4 +1,5 @@
 import LayoutLVSExtraction
+import LVSCore
 import LVSNative
 import Testing
 
@@ -14,6 +15,7 @@ struct LayoutExtractionLVSGraphBuilderTests {
             processID: "test",
             processProfileID: "test.profile",
             extractionDeckDigest: "digest",
+            deckUseScope: .processProvided,
             topCell: "inverter",
             devices: [
                 LayoutExtractionDevice(
@@ -72,6 +74,7 @@ struct LayoutExtractionLVSGraphBuilderTests {
             processID: "test",
             processProfileID: "test.profile",
             extractionDeckDigest: "digest",
+            deckUseScope: .processProvided,
             topCell: "top",
             devices: [],
             nets: [],
@@ -118,6 +121,7 @@ struct LayoutExtractionLVSGraphBuilderTests {
             processID: "test",
             processProfileID: "test.micron-scalar",
             extractionDeckDigest: "digest",
+            deckUseScope: .processProvided,
             parameterValueConvention: .micronScalar,
             topCell: "top",
             devices: [
@@ -160,6 +164,7 @@ struct LayoutExtractionLVSGraphBuilderTests {
             processID: "test",
             processProfileID: "test.profile",
             extractionDeckDigest: "digest",
+            deckUseScope: .processProvided,
             topCell: "top",
             devices: [],
             nets: [],
@@ -175,6 +180,32 @@ struct LayoutExtractionLVSGraphBuilderTests {
         )
 
         #expect(throws: (any Error).self) {
+            try LayoutExtractionLVSGraphBuilder().build(
+                from: extraction,
+                maximumObjectCount: 100
+            )
+        }
+    }
+
+    @Test
+    func rejectsDuplicateNetIdentifiers() {
+        let duplicatedID = LayoutExtractionObjectID(rawValue: "net:duplicate")
+        let extraction = LayoutExtractionIR(
+            processID: "test",
+            processProfileID: "test.profile",
+            extractionDeckDigest: "digest",
+            deckUseScope: .processProvided,
+            topCell: "top",
+            devices: [],
+            nets: [
+                LayoutExtractionNet(id: duplicatedID, preferredName: "first", occurrenceIDs: []),
+                LayoutExtractionNet(id: duplicatedID, preferredName: "second", occurrenceIDs: []),
+            ],
+            ports: [],
+            occurrences: []
+        )
+
+        #expect(throws: LVSError.self) {
             try LayoutExtractionLVSGraphBuilder().build(
                 from: extraction,
                 maximumObjectCount: 100

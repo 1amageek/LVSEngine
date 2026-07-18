@@ -205,7 +205,7 @@ extension LVSCLIOptionsTests {
     #expect(snapshot.corpus.requiredObservedAssertions.contains("extractionArtifact"))
     #expect(
       snapshot.corpus.requiredObservedAssertions.contains(
-        "extractionProfileReadiness:ready"
+        "extractionSemanticReadiness:ready"
       )
     )
 

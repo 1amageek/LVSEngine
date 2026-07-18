@@ -1,23 +1,23 @@
 public struct LVSCorpusSpec: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 3
+    public static let currentSchemaVersion = 5
 
     public let schemaVersion: Int
     public let defaultMaxDurationSeconds: Double?
     public let acceptanceCriteria: LVSCorpusAcceptanceCriteria
-    public let qualificationScopeCaseID: String?
+    public let implementationScopeCaseID: String?
     public let cases: [LVSCorpusCase]
 
     public init(
         schemaVersion: Int = LVSCorpusSpec.currentSchemaVersion,
         defaultMaxDurationSeconds: Double? = nil,
         acceptanceCriteria: LVSCorpusAcceptanceCriteria = .strict,
-        qualificationScopeCaseID: String? = nil,
+        implementationScopeCaseID: String? = nil,
         cases: [LVSCorpusCase]
     ) {
         self.schemaVersion = schemaVersion
         self.defaultMaxDurationSeconds = defaultMaxDurationSeconds
         self.acceptanceCriteria = acceptanceCriteria
-        self.qualificationScopeCaseID = qualificationScopeCaseID
+        self.implementationScopeCaseID = implementationScopeCaseID
         self.cases = cases
     }
 
@@ -25,7 +25,7 @@ public struct LVSCorpusSpec: Sendable, Hashable, Codable {
         case schemaVersion
         case defaultMaxDurationSeconds
         case acceptanceCriteria
-        case qualificationScopeCaseID
+        case implementationScopeCaseID
         case cases
     }
 
@@ -40,13 +40,13 @@ public struct LVSCorpusSpec: Sendable, Hashable, Codable {
             )
         }
         defaultMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .defaultMaxDurationSeconds)
-        acceptanceCriteria = try container.decodeIfPresent(
+        acceptanceCriteria = try container.decode(
             LVSCorpusAcceptanceCriteria.self,
             forKey: .acceptanceCriteria
-        ) ?? .strict
-        qualificationScopeCaseID = try container.decodeIfPresent(
+        )
+        implementationScopeCaseID = try container.decodeIfPresent(
             String.self,
-            forKey: .qualificationScopeCaseID
+            forKey: .implementationScopeCaseID
         )
         cases = try container.decode([LVSCorpusCase].self, forKey: .cases)
     }

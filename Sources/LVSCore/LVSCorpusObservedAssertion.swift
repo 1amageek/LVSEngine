@@ -13,7 +13,7 @@ public enum LVSCorpusAssertionKind: String, Sendable, Hashable, Codable {
     case manifestArtifact
     case correspondenceArtifact
     case extractionArtifact
-    case extractionProfileReadiness
+    case extractionSemanticReadiness
     case structureClass
     case hierarchyDepth
     case oracleAgreement

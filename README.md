@@ -16,7 +16,7 @@ flowchart LR
 ```
 
 `DefaultLVSEngine` conforms directly to `LVSExecuting`. The LVS evidence packet
-and artifact manifest remain authoritative; no wrapper can turn an unqualified
+and artifact manifest remain authoritative; no wrapper can turn an incomplete
 extraction into a match.
 
 LVSEngine is a Swift layout-versus-schematic verification library and command-line tool.
@@ -87,7 +87,7 @@ injectable through protocols.
 
 Netgen, Magic, and a Sky130 PDK installation are optional for native SPICE-only use.
 They are required for the corresponding external adapters and the complete checked-in
-qualification corpus.
+assessment corpus used as input to external qualification.
 
 The SwiftPM dependencies declared by the package manifest must be resolvable before
 building. This document does not assume a parent workspace layout.
@@ -183,7 +183,7 @@ swift run lvsengine --action-domain --json
 ```
 
 `--capabilities` describes implemented backends, formats, artifacts, diagnostics, and
-qualification requirements. It does not claim that the current build is qualified for
+external eligibility inputs. It does not claim that the current build is qualified for
 every process. `--action-domain` describes executable operations exposed to automation.
 
 Inspect the Netgen side of an installed foundry deck without conflating it with
@@ -227,7 +227,7 @@ and repair workflows.
 ### `netgen`
 
 The Netgen adapter runs an external, bounded batch comparison and parses its report into
-the same typed result model. Netgen is also used as an independent qualification oracle.
+the same typed result model. Netgen is also used as an independent comparison oracle.
 
 ## Foundry device policies
 
@@ -387,10 +387,10 @@ swift run lvsengine \
 the in-process `native` backend as the primary implementation and Netgen as the external
 reference, requires both `oracleAgreement:true` and `oracleIndependence:ready`, and
 retains the implementation identities in the corpus report. Cases that intentionally
-exercise known policy disagreements are not qualification cases and are excluded from
+exercise known policy disagreements are not release-assessment cases and are excluded from
 this agreement corpus.
 
-The checked-in physical qualification corpus covers Sky130 1.8 V digital-MOS standard
+The checked-in physical assessment corpus covers Sky130 1.8 V digital-MOS standard
 cells with GDS extraction and an independent Netgen oracle. This is deliberately narrower
 than the parser and API surface.
 

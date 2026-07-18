@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "processID": "sky130A",
   "processProfileID": "sky130.open-pdk.digital-mos.signoff",
   "extractionDeckDigest": "31287ea98453d1a4a0fe9e18f8e2a9a0aa411bea3e5eae9db3dd5e450bcd57c0",
-  "productionEligible": true,
+  "deckUseScope": "processProvided",
   "parameterValueConvention": "micronScalar",
   "conductorLayers": {
     "names": ["diff", "tap", "nwell", "poly", "li1", "met1", "met2", "met3", "met4", "met5"]

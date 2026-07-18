@@ -10,7 +10,7 @@ public struct LVSActionDomainExporter: Sendable {
                 inspectFoundryDeckSemanticsOperation(),
                 importFoundryDeviceSeedOperation(),
                 auditDeviceImportOperation(),
-                qualifyCorpusOperation(),
+                assessCorpusOperation(),
                 auditCorpusCoverageOperation(),
                 exportEvidenceOperation(),
                 exportEvidencePacketOperation(),
@@ -31,7 +31,7 @@ public struct LVSActionDomainExporter: Sendable {
                 "technology-ref",
                 "optional-policy-ref",
             ],
-            preconditions: ["top-cell-known", "exactly-one-layout-input", "qualified-backend-selected"],
+            preconditions: ["top-cell-known", "exactly-one-layout-input", "eligible-backend-selected"],
             effects: ["lvs-result-produced", "lvs-diagnostics-produced", "lvs-artifact-manifest-written"],
             producedArtifacts: ["lvs-report", "lvs-artifact-manifest", "lvs-summary"],
             verificationGates: ["tool-trust", "artifact-integrity", "lvs-artifacts"],
@@ -78,7 +78,7 @@ public struct LVSActionDomainExporter: Sendable {
         )
     }
 
-    private func qualifyCorpusOperation() -> LVSActionDomainOperation {
+    private func assessCorpusOperation() -> LVSActionDomainOperation {
         LVSActionDomainOperation(
             operationID: "lvs.assess-corpus",
             maturity: "implemented",

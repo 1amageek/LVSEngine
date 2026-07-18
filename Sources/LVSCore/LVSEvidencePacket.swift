@@ -1,13 +1,13 @@
 import Foundation
 
 public struct LVSEvidencePacket: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 2
+    public static let currentSchemaVersion = 3
 
     public let schemaVersion: Int
     public let packetID: String
     public let domain: String
     public let subject: LVSEvidenceSubject
-    public let qualificationScope: LVSImplementationIdentity?
+    public let implementationScope: LVSImplementationIdentity?
     public let oracleScopes: [LVSImplementationIdentity]?
     public let intent: LVSEvidenceIntent
     public let inputs: [LVSEvidenceArtifactRef]
@@ -26,7 +26,7 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
         packetID: String,
         domain: String,
         subject: LVSEvidenceSubject,
-        qualificationScope: LVSImplementationIdentity? = nil,
+        implementationScope: LVSImplementationIdentity? = nil,
         oracleScopes: [LVSImplementationIdentity]? = nil,
         intent: LVSEvidenceIntent,
         inputs: [LVSEvidenceArtifactRef] = [],
@@ -44,7 +44,7 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
         self.packetID = packetID
         self.domain = domain
         self.subject = subject
-        self.qualificationScope = qualificationScope
+        self.implementationScope = implementationScope
         self.oracleScopes = oracleScopes
         self.intent = intent
         self.inputs = inputs
@@ -62,7 +62,7 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
     public func validateIntegrity() -> [LVSEvidenceIntegrityIssue] {
         var issues: [LVSEvidenceIntegrityIssue] = []
         appendRequiredFieldIssues(&issues)
-        appendQualificationScopeIssues(&issues)
+        appendImplementationScopeIssues(&issues)
         appendArtifactIssues(&issues)
         appendMetricIssues(&issues)
         appendDiagnosticIssues(&issues)
@@ -71,12 +71,12 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
         return issues
     }
 
-    private func appendQualificationScopeIssues(_ issues: inout [LVSEvidenceIntegrityIssue]) {
-        if let qualificationScope, !qualificationScope.isComplete {
+    private func appendImplementationScopeIssues(_ issues: inout [LVSEvidenceIntegrityIssue]) {
+        if let implementationScope, !implementationScope.isComplete {
             issues.append(.issue(
-                code: "lvs_evidence_qualification_scope_incomplete",
-                fieldPath: "qualificationScope",
-                message: "LVS evidence qualification scope must include implementation, build, algorithm, process, and deck identity.",
+                code: "lvs_evidence_implementation_scope_incomplete",
+                fieldPath: "implementationScope",
+                message: "LVS evidence implementation scope must include implementation, build, algorithm, process, and deck identity.",
                 suggestedActions: ["regenerate_lvs_evidence_packet", "inspect_lvs_implementation_identity"]
             ))
         }
@@ -89,11 +89,11 @@ public struct LVSEvidencePacket: Sendable, Hashable, Codable {
                 suggestedActions: ["regenerate_lvs_evidence_packet", "inspect_lvs_oracle_identity"]
             ))
         }
-        if confidence.level == .high, qualificationScope == nil {
+        if confidence.level == .high, implementationScope == nil {
             issues.append(.issue(
                 code: "lvs_evidence_high_confidence_scope_missing",
-                fieldPath: "qualificationScope",
-                message: "High-confidence LVS evidence requires a complete qualification scope.",
+                fieldPath: "implementationScope",
+                message: "High-confidence LVS evidence requires a complete implementation scope.",
                 suggestedActions: ["regenerate_lvs_evidence_packet", "retain_lvs_implementation_identity"]
             ))
         }

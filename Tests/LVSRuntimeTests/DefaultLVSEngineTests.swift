@@ -74,7 +74,7 @@ struct DefaultLVSEngineTests {
             LVSArtifactManifest.self,
             from: Data(contentsOf: manifestURL)
         )
-        #expect(manifest.schemaVersion == 2)
+        #expect(manifest.schemaVersion == 3)
         #expect(manifest.executionStatus == .completed)
         #expect(manifest.verdict == .match)
         #expect(manifest.readiness == .ready)

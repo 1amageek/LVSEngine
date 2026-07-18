@@ -457,12 +457,31 @@ extension LVSCLICommandExecutor {
     report: LVSCorpusReport,
     policyURL: URL?
   ) throws -> LVSCorpusAssessment {
-    guard let policyURL else {
-      return report.assessment
+    let canonicalSummary = LVSCorpusSummary(caseResults: report.caseResults)
+    let sourceCanonical = report.assessment.criteria.evaluate(
+      passed: report.passed,
+      caseCount: report.caseCount,
+      summary: canonicalSummary
+    )
+    let supplementalFindings = report.assessment.findings.filter {
+      !sourceCanonical.findings.contains($0)
     }
-    let policy = try decoded(LVSCorpusAcceptanceCriteria.self, from: policyURL).value
-    return policy.evaluate(
-      passed: report.passed, caseCount: report.caseCount, summary: report.summary)
+    let policy = if let policyURL {
+      try decoded(LVSCorpusAcceptanceCriteria.self, from: policyURL).value
+    } else {
+      report.assessment.criteria
+    }
+    let evaluated = policy.evaluate(
+      passed: report.passed,
+      caseCount: report.caseCount,
+      summary: canonicalSummary
+    )
+    return LVSCorpusAssessment(
+      criteria: evaluated.criteria,
+      findings: evaluated.findings + supplementalFindings.filter {
+        !evaluated.findings.contains($0)
+      }
+    )
   }
 
   private func foundrySemanticReport(

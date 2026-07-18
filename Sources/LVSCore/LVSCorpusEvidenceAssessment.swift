@@ -1,5 +1,5 @@
 struct LVSCorpusEvidenceAssessment: Sendable {
-    let qualificationScope: LVSImplementationIdentity?
+    let implementationScope: LVSImplementationIdentity?
     let primaryIdentities: [LVSImplementationIdentity]
     let oracleIdentities: [LVSImplementationIdentity]
     let completePrimaryIdentityCaseCount: Int
@@ -39,13 +39,13 @@ struct LVSCorpusEvidenceAssessment: Sendable {
         }
 
         var assessmentFailureCodes: [String] = []
-        let scope = Self.qualificationScope(
+        let scope = Self.implementationScope(
             report: report,
             completePrimaryIdentities: completePrimaryIdentities,
             uniquePrimaryIdentities: uniquePrimaryIdentities
         )
         if scope == nil {
-            assessmentFailureCodes.append("qualification_scope_missing_or_inconsistent")
+            assessmentFailureCodes.append("implementation_scope_missing_or_inconsistent")
         }
         let nonIndependentOracleCaseCount = oracleResults.count - independentResults.count
         if !oracleResults.isEmpty, nonIndependentOracleCaseCount > 0 {
@@ -73,7 +73,7 @@ struct LVSCorpusEvidenceAssessment: Sendable {
             assessmentFailureCodes.append("observed_mismatch_assertion_missing")
         }
 
-        qualificationScope = scope
+        implementationScope = scope
         primaryIdentities = uniquePrimaryIdentities
         oracleIdentities = uniqueOracleIdentities
         completePrimaryIdentityCaseCount = completePrimaryIdentities.count
@@ -108,7 +108,7 @@ struct LVSCorpusEvidenceAssessment: Sendable {
             && oracleIdentity.processProfileID == primaryIdentity.processProfileID
     }
 
-    private static func qualificationScope(
+    private static func implementationScope(
         report: LVSCorpusReport,
         completePrimaryIdentities: [LVSImplementationIdentity],
         uniquePrimaryIdentities: [LVSImplementationIdentity]
@@ -116,11 +116,11 @@ struct LVSCorpusEvidenceAssessment: Sendable {
         guard completePrimaryIdentities.count == report.caseResults.count else {
             return nil
         }
-        guard let qualificationScopeCaseID = report.qualificationScopeCaseID else {
+        guard let implementationScopeCaseID = report.implementationScopeCaseID else {
             return uniquePrimaryIdentities.count == 1 ? uniquePrimaryIdentities.first : nil
         }
         guard let scope = report.caseResults.first(where: {
-            $0.caseID == qualificationScopeCaseID
+            $0.caseID == implementationScopeCaseID
         })?.primaryProvenance?.implementationIdentity,
         scope.isComplete else {
             return nil

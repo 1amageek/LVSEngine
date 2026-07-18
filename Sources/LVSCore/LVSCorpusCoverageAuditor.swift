@@ -37,14 +37,14 @@ public struct LVSCorpusCoverageAuditor: Sendable {
             missingRequirements.append(missingRequirement)
         }
 
-        if policy.requireQualifiedCorpus, !report.assessment.meetsCriteria {
+        if policy.requirePassingAssessment, !report.assessment.meetsCriteria {
             missingRequirements.append(LVSCorpusCoverageAudit.MissingRequirement(
-                requirementID: "qualified-corpus",
-                title: "Qualified corpus",
+                requirementID: "passing-assessment",
+                title: "Passing corpus assessment",
                 missingAssertions: [],
                 observedCaseCount: report.matchedCaseCount,
                 requiredCaseCount: report.caseCount,
-                reason: "The corpus qualification did not pass.",
+                reason: "The corpus assessment did not pass.",
                 suggestedActions: ["inspect_lvs_corpus_failures", "fix_or_mark_blocked_lvs_oracle_cases"]
             ))
         }
@@ -95,7 +95,7 @@ public struct LVSCorpusCoverageAuditor: Sendable {
         let status: LVSCorpusCoverageAuditStatus = missingRequirements.isEmpty ? .satisfied : .incomplete
         let coveredRequiredAssertions = requiredAssertions.intersection(observedAssertions)
         let requiredRequirementCount = policy.requirements.count
-            + (policy.requireQualifiedCorpus ? 1 : 0)
+            + (policy.requirePassingAssessment ? 1 : 0)
             + (policy.requireOracleAgreement ? 1 : 0)
             + (policy.maxReportAgeSeconds == nil ? 0 : 1)
             + (policy.minimumCaseCount > 0 ? 1 : 0)

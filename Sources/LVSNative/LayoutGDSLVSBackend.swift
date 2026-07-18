@@ -317,7 +317,7 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
             ),
             extractionReportURL: extractionArtifacts.reportURL,
             transformLedgerURL: extractionArtifacts.transformLedgerURL,
-            extractionEvidence: Self.extractionEvidence(for: extractionProfile)
+            extractionEvidence: Self.extractionEvidence(for: extractionIR)
         )
     }
 
@@ -412,24 +412,24 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
             extractionEvidence: LVSExtractionEvidence(
                 processProfileID: extractionIR.processProfileID,
                 deckDigest: extractionIR.extractionDeckDigest,
-                profileReady: extractionIR.productionEligible,
-                blockingReasonCodes: extractionIR.productionEligible
+                semanticReady: extractionIR.isReady,
+                blockingReasonCodes: extractionIR.isReady
                     ? []
-                    : ["extraction_profile_incomplete"]
+                    : ["extraction_semantics_incomplete"]
             )
         )
     }
 
     private static func extractionEvidence(
-        for profile: LayoutExtractionProcessProfile
+        for extraction: LayoutExtractionIR
     ) -> LVSExtractionEvidence {
         LVSExtractionEvidence(
-            processProfileID: profile.processProfileID,
-            deckDigest: profile.extractionDeckDigest,
-            profileReady: profile.productionEligible,
-            blockingReasonCodes: profile.productionEligible
+            processProfileID: extraction.processProfileID,
+            deckDigest: extraction.extractionDeckDigest,
+            semanticReady: extraction.isReady,
+            blockingReasonCodes: extraction.isReady
                 ? []
-                : ["extraction_profile_incomplete"]
+                : ["extraction_semantics_incomplete"]
         )
     }
 

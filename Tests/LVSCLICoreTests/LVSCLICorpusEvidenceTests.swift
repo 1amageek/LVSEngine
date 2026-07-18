@@ -24,7 +24,7 @@ extension LVSCLIOptionsTests {
   @Test func corpusObservationCLIWritesRetainedArtifact() async throws {
     let root = try makeTemporaryDirectory()
     defer { removeTemporaryDirectory(root) }
-    let report = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let report = passingAssessmentReport(oracleIdentity: independentOracleIdentity())
     let reportURL = root.appending(path: "lvs-corpus-report.json")
     let evidenceURL = root.appending(path: "lvs-observation-export.json")
     try writeJSON(report, to: reportURL)
@@ -110,7 +110,7 @@ extension LVSCLIOptionsTests {
   }
 
   @Test func corpusObservationExportMatchesRuntimeObservationShape() throws {
-    let report = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let report = passingAssessmentReport(oracleIdentity: independentOracleIdentity())
     let reportData = try JSONEncoder().encode(report)
     let reportDigest = String(repeating: "a", count: 64)
 
@@ -161,7 +161,7 @@ extension LVSCLIOptionsTests {
 
   @Test func corpusObservationRecordsSelfOracleFinding() throws {
     let primaryIdentity = nativePrimaryIdentity()
-    let report = qualifiedEvidenceReport(oracleIdentity: primaryIdentity)
+    let report = passingAssessmentReport(oracleIdentity: primaryIdentity)
     let reportData = try JSONEncoder().encode(report)
 
     let export = try LVSCorpusObservationExport(
@@ -181,7 +181,7 @@ extension LVSCLIOptionsTests {
   }
 
   @Test func corpusObservationUsesDeclaredPhysicalScopeWithProcessNeutralSupport() throws {
-    let base = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let base = passingAssessmentReport(oracleIdentity: independentOracleIdentity())
     let physical = try #require(base.caseResults.first)
     let semanticSource = try #require(base.caseResults.last)
     let semanticPrimary = LVSImplementationIdentity(
@@ -209,7 +209,7 @@ extension LVSCLIOptionsTests {
       caseCount: 2,
       matchedCaseCount: 2,
       totalDurationSeconds: physical.durationSeconds + semantic.durationSeconds,
-      qualificationScopeCaseID: physical.caseID,
+      implementationScopeCaseID: physical.caseID,
       caseResults: [physical, semantic]
     )
     let reportData = try JSONEncoder().encode(report)
@@ -223,7 +223,7 @@ extension LVSCLIOptionsTests {
 
     #expect(export.observationRecord.observations.implementationScope?.processProfileID == "sky130.production")
     #expect(export.observationRecord.observations.implementationScope?.deckDigest == String(repeating: "1", count: 64))
-    #expect(export.observationRecord.observations.observedCounts["qualificationScopeCount"] == 1)
+    #expect(export.observationRecord.observations.observedCounts["implementationScopeCount"] == 1)
   }
 
   @Test func corpusObservationRecordsInconsistentReport() throws {
@@ -263,7 +263,7 @@ extension LVSCLIOptionsTests {
   }
 
   @Test func corpusObservationRejectsInvalidDigest() throws {
-    let report = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let report = passingAssessmentReport(oracleIdentity: independentOracleIdentity())
     let reportData = try JSONEncoder().encode(report)
 
     #expect(throws: ContentDigestError.self) {
@@ -277,7 +277,7 @@ extension LVSCLIOptionsTests {
   }
 
   @Test func corpusObservationRejectsAbsoluteReportPath() throws {
-    let report = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let report = passingAssessmentReport(oracleIdentity: independentOracleIdentity())
     let reportData = try JSONEncoder().encode(report)
 
     #expect(throws: ArtifactLocationError.self) {
@@ -300,7 +300,7 @@ extension LVSCLIOptionsTests {
       canonical: ["errorCount=0"],
       suggestedActions: ["regenerate_lvs_corpus_report"]
     )
-    let report = qualifiedEvidenceReport(
+    let report = passingAssessmentReport(
       oracleIdentity: independentOracleIdentity(),
       oracleIntegrityDiagnostics: [integrityDiagnostic]
     )
@@ -328,15 +328,15 @@ extension LVSCLIOptionsTests {
     #expect(packet.confidence.level == .low)
     #expect(
       packet.diagnostics.contains {
-        $0.diagnosticID == "qualified-case:oracle-integrity:0"
+        $0.diagnosticID == "passing-case:oracle-integrity:0"
           && $0.category == "artifact_integrity"
       }
     )
   }
 
-  @Test func corpusEvidencePacketRequiresScopedIndependentOracleForHighConfidence() {
+  @Test func corpusEvidencePacketRequiresScopedIndependentOracleForHighConfidence() throws {
     let digest = String(repeating: "c", count: 64)
-    let independentReport = qualifiedEvidenceReport(oracleIdentity: independentOracleIdentity())
+    let independentReport = passingAssessmentReport(oracleIdentity: independentOracleIdentity())
     let independentPacket = LVSCorpusEvidencePacketBuilder().build(
       report: independentReport,
       reportPath: "/tmp/lvs-corpus-report.json",
@@ -344,7 +344,7 @@ extension LVSCLIOptionsTests {
     )
 
     #expect(independentPacket.confidence.level == .high)
-    #expect(independentPacket.qualificationScope?.implementationID == "lvsengine-native")
+    #expect(independentPacket.implementationScope?.implementationID == "lvsengine-native")
     #expect(independentPacket.oracleScopes?.map { $0.implementationID } == ["netgen-external"])
     #expect(
       independentPacket.metrics.contains {
@@ -352,8 +352,14 @@ extension LVSCLIOptionsTests {
       }
     )
     #expect(independentPacket.validateIntegrity().isEmpty)
+    let encodedPacket = try #require(
+      JSONSerialization.jsonObject(with: JSONEncoder().encode(independentPacket)) as? [String: Any]
+    )
+    #expect(encodedPacket["schemaVersion"] as? Int == 3)
+    #expect(encodedPacket["implementationScope"] is [String: Any])
+    #expect(encodedPacket["qualificationScope"] == nil)
 
-    let selfOracleReport = qualifiedEvidenceReport(oracleIdentity: nativePrimaryIdentity())
+    let selfOracleReport = passingAssessmentReport(oracleIdentity: nativePrimaryIdentity())
     let selfOraclePacket = LVSCorpusEvidencePacketBuilder().build(
       report: selfOracleReport,
       reportPath: "/tmp/lvs-corpus-report.json",
@@ -384,6 +390,9 @@ extension LVSCLIOptionsTests {
     #expect(packet.domain == "lvs.signoff-evidence")
     #expect(packet.inputs.first?.sha256 == reportSHA256)
     #expect(packet.validateIntegrity().isEmpty)
+    #expect(packet.intent.designContext?.contains("corpus assessment") == true)
+    #expect(packet.intent.requestedObservations.contains("assessment-gates"))
+    #expect(!packet.intent.requestedObservations.contains("qualification-gates"))
     #expect(
       packet.readiness.contains { $0.component == "lvs-corpus-evidence" && $0.status == .ready })
     #expect(
@@ -411,6 +420,12 @@ extension LVSCLIOptionsTests {
     #expect(modelDiagnostic.schematicModel == "sky130_fd_pr__pfet_01v8")
     #expect(packet.diagnostics.contains { $0.category == "oracle_readiness" })
     #expect(packet.diagnostics.contains { $0.category == "oracle_agreement" })
+    #expect(packet.diagnostics.allSatisfy { !$0.diagnosticID.hasPrefix("qualification:") })
+    #expect(
+      packet.normalizedViews.contains {
+        $0.summaryCounts["assessmentFindingCount"] == report.assessment.findings.count
+          && $0.summaryCounts["qualificationFailureCount"] == nil
+      })
     #expect(
       packet.decisionHints.contains {
         $0.hintID == "lvs:model_mismatch"
@@ -724,7 +739,7 @@ private func evidenceCaseResult(caseID: String) -> LVSCorpusCaseResult {
   )
 }
 
-private func qualifiedEvidenceReport(
+private func passingAssessmentReport(
   oracleIdentity: LVSImplementationIdentity,
   oracleIntegrityDiagnostics: [LVSCorpusOracleIntegrityDiagnostic] = []
 ) -> LVSCorpusReport {
@@ -760,7 +775,7 @@ private func qualifiedEvidenceReport(
     provenance: oracleProvenance
   )
   let caseResult = LVSCorpusCaseResult(
-    caseID: "qualified-case",
+    caseID: "passing-case",
     matched: true,
     expectedPassed: true,
     actualPassed: true,
@@ -813,7 +828,7 @@ private func qualifiedEvidenceReport(
     provenance: oracleProvenance
   )
   let mismatchCaseResult = LVSCorpusCaseResult(
-    caseID: "qualified-mismatch-case",
+    caseID: "passing-mismatch-case",
     matched: true,
     expectedPassed: false,
     actualPassed: false,

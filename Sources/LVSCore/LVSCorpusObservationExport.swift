@@ -2,7 +2,7 @@ import Foundation
 import CircuiteFoundation
 
 public struct LVSCorpusObservationExport: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 3
+    public static let currentSchemaVersion = 4
 
     public struct ObservationSet: Sendable, Hashable, Codable {
         public let acceptanceCriteriaID: String?
@@ -104,7 +104,7 @@ public struct LVSCorpusObservationExport: Sendable, Hashable, Codable {
                 observedMetrics: Self.observedMetrics(report, assessment: assessment),
                 observedCounts: Self.observedCounts(report, assessment: assessment),
                 findingCodes: failureCodes,
-                implementationScope: assessment.qualificationScope.map(ImplementationScope.init(identity:))
+                implementationScope: assessment.implementationScope.map(ImplementationScope.init(identity:))
             ),
             observedAt: Self.iso8601String(from: observedAt)
         )
@@ -163,7 +163,7 @@ public struct LVSCorpusObservationExport: Sendable, Hashable, Codable {
             "nonIndependentOracleCaseCount": assessment.nonIndependentOracleCaseCount,
             "oracleIntegrityFailureCount": assessment.oracleIntegrityFailureCount,
             "reportIntegrityFailureCount": assessment.reportIntegrityFailureCodes.count,
-            "qualificationScopeCount": assessment.qualificationScope == nil ? 0 : 1,
+            "implementationScopeCount": assessment.implementationScope == nil ? 0 : 1,
         ]
     }
 

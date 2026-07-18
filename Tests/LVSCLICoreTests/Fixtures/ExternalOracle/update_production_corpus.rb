@@ -35,7 +35,7 @@ commonAssertions = [
   ["oracle-agreement", "oracleAgreement", "true"],
   ["oracle-independence", "oracleIndependence", "ready"],
   ["extraction-artifact", "extractionArtifact", nil],
-  ["extraction-profile-readiness", "extractionProfileReadiness", "ready"],
+  ["extraction-profile-readiness", "extractionSemanticReadiness", "ready"],
   ["device-policy-import", "devicePolicyImport", "satisfied"],
   ["device-policy-application", "devicePolicyApplication", "complete"],
   ["device-policy-permute", "devicePolicyRule", "permute"],
@@ -200,7 +200,7 @@ requiredAssertions |= [
 spec["acceptanceCriteria"]["requiredObservedAssertions"] = requiredAssertions.sort
 
 spec["acceptanceCriteria"]["minimumOracleCaseCount"] = spec["cases"].length
-spec["schemaVersion"] = 3
+spec["schemaVersion"] = 5
 spec["cases"].each do |item|
   layoutTag = item["backendID"] == "native-gds" ? "layout.gds" : "layout.spice"
   item["coverageTags"] = ["external.netgen", layoutTag, "lvs.match"]

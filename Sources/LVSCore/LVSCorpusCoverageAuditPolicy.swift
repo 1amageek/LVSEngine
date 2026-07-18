@@ -1,11 +1,11 @@
 import Foundation
 
 public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 2
+    public static let currentSchemaVersion = 3
 
     public let schemaVersion: Int
     public let policyID: String
-    public let requireQualifiedCorpus: Bool
+    public let requirePassingAssessment: Bool
     public let requireOracleAgreement: Bool
     public let minimumCaseCount: Int
     public let maxReportAgeSeconds: Double?
@@ -14,7 +14,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     public init(
         schemaVersion: Int = LVSCorpusCoverageAuditPolicy.currentSchemaVersion,
         policyID: String,
-        requireQualifiedCorpus: Bool = true,
+        requirePassingAssessment: Bool = true,
         requireOracleAgreement: Bool = true,
         minimumCaseCount: Int = 1,
         maxReportAgeSeconds: Double? = nil,
@@ -22,7 +22,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     ) {
         self.schemaVersion = schemaVersion
         self.policyID = policyID
-        self.requireQualifiedCorpus = requireQualifiedCorpus
+        self.requirePassingAssessment = requirePassingAssessment
         self.requireOracleAgreement = requireOracleAgreement
         self.minimumCaseCount = minimumCaseCount
         self.maxReportAgeSeconds = maxReportAgeSeconds
@@ -31,7 +31,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
 
     public static var netgenFoundryExpansion: LVSCorpusCoverageAuditPolicy {
         LVSCorpusCoverageAuditPolicy(
-            policyID: "lvs.production-observed-assertions.v2",
+            policyID: "lvs.production-observed-assertions.v3",
             minimumCaseCount: 7,
             requirements: [
                 Requirement(
@@ -81,7 +81,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
                     title: "Layout extraction artifact",
                     requiredObservedAssertions: [
                         "extractionArtifact",
-                        "extractionProfileReadiness:ready",
+                        "extractionSemanticReadiness:ready",
                     ],
                     suggestedActions: ["run_native_gds_lvs_case"]
                 ),
@@ -89,7 +89,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
                     requirementID: "sky130-digital-cell-matrix",
                     title: "Sky130 digital MOS cell matrix",
                     requiredObservedAssertions: [
-                        "extractionProfileReadiness:ready",
+                        "extractionSemanticReadiness:ready",
                         "oracleAgreement:true",
                         "verdict:match",
                     ],
@@ -133,7 +133,7 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case policyID
-        case requireQualifiedCorpus
+        case requirePassingAssessment
         case requireOracleAgreement
         case minimumCaseCount
         case maxReportAgeSeconds
@@ -151,14 +151,17 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
             )
         }
         policyID = try container.decode(String.self, forKey: .policyID)
-        requireQualifiedCorpus = try container.decodeIfPresent(Bool.self, forKey: .requireQualifiedCorpus) ?? true
-        requireOracleAgreement = try container.decodeIfPresent(Bool.self, forKey: .requireOracleAgreement) ?? true
-        minimumCaseCount = try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1
+        requirePassingAssessment = try container.decode(
+            Bool.self,
+            forKey: .requirePassingAssessment
+        )
+        requireOracleAgreement = try container.decode(Bool.self, forKey: .requireOracleAgreement)
+        minimumCaseCount = try container.decode(Int.self, forKey: .minimumCaseCount)
         maxReportAgeSeconds = try container.decodeIfPresent(
             Double.self,
             forKey: .maxReportAgeSeconds
         )
-        requirements = try container.decodeIfPresent([Requirement].self, forKey: .requirements) ?? []
+        requirements = try container.decode([Requirement].self, forKey: .requirements)
         guard validationErrors.isEmpty else {
             throw DecodingError.dataCorruptedError(
                 forKey: .policyID,
@@ -231,15 +234,15 @@ public struct LVSCorpusCoverageAuditPolicy: Sendable, Hashable, Codable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             requirementID = try container.decode(String.self, forKey: .requirementID)
             title = try container.decode(String.self, forKey: .title)
-            requiredObservedAssertions = Self.normalized(try container.decodeIfPresent(
+            requiredObservedAssertions = Self.normalized(try container.decode(
                 [String].self,
                 forKey: .requiredObservedAssertions
-            ) ?? [])
-            minimumCaseCount = try container.decodeIfPresent(Int.self, forKey: .minimumCaseCount) ?? 1
-            suggestedActions = Self.normalized(try container.decodeIfPresent(
+            ))
+            minimumCaseCount = try container.decode(Int.self, forKey: .minimumCaseCount)
+            suggestedActions = Self.normalized(try container.decode(
                 [String].self,
                 forKey: .suggestedActions
-            ) ?? [])
+            ))
         }
 
         private static func normalized(_ values: [String]) -> [String] {

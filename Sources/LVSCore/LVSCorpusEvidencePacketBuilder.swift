@@ -35,14 +35,14 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
                 identifier: reportPath,
                 backendID: report.runOptions.oracleBackendIDOverride
             ),
-            qualificationScope: assessment.qualificationScope,
+            implementationScope: assessment.implementationScope,
             oracleScopes: assessment.oracleIdentities,
             intent: LVSEvidenceIntent(
                 summary: "Expose retained LVS corpus observations as decision material.",
-                designContext: "LVS corpus qualification with connectivity, model, parameter, port, policy, extraction, and oracle gates.",
+                designContext: "LVS corpus assessment with connectivity, model, parameter, port, policy, extraction, and oracle gates.",
                 requestedObservations: [
                     "corpus-readiness",
-                    "qualification-gates",
+                    "assessment-gates",
                     "connectivity-mismatch",
                     "model-mismatch",
                     "parameter-mismatch",
@@ -325,14 +325,14 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             )
         ]
         values.append(LVSEvidenceReadiness(
-            component: "lvs-qualification-scope",
-            status: assessment.qualificationScope == nil ? .blocked : .ready,
-            reason: assessment.qualificationScope == nil
+            component: "lvs-assessment-scope",
+            status: assessment.implementationScope == nil ? .blocked : .ready,
+            reason: assessment.implementationScope == nil
                 ? "The corpus does not resolve to one complete implementation, build, algorithm, process, and deck scope."
-                : "The corpus resolves to one complete qualification scope.",
+                : "The corpus resolves to one complete implementation assessment scope.",
             artifactIDs: [reportArtifactID].compactMap { $0 },
-            suggestedActions: assessment.qualificationScope == nil
-                ? ["retain_lvs_implementation_identity", "split_lvs_corpus_by_qualification_scope"]
+            suggestedActions: assessment.implementationScope == nil
+                ? ["retain_lvs_implementation_identity", "split_lvs_corpus_by_assessment_scope"]
                 : []
         ))
         if artifactRefs.contains(where: { $0.kind == "extracted-layout-netlist" }) {
@@ -491,27 +491,27 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         var values: [LVSEvidenceDiagnostic] = []
         for failure in report.assessment.findings {
             values.append(LVSEvidenceDiagnostic(
-                diagnosticID: "qualification:\(failure.code)",
+                diagnosticID: "assessment:\(failure.code)",
                 severity: .error,
-                category: category(qualificationCode: failure.code),
+                category: category(assessmentCode: failure.code),
                 message: failure.message,
                 artifactIDs: ["lvs-corpus-report"],
-                suggestedActions: suggestedActions(category: category(qualificationCode: failure.code))
+                suggestedActions: suggestedActions(category: category(assessmentCode: failure.code))
             ))
         }
-        if assessment.qualificationScope == nil {
+        if assessment.implementationScope == nil {
             values.append(LVSEvidenceDiagnostic(
-                diagnosticID: "qualification:scope-missing-or-inconsistent",
+                diagnosticID: "assessment:scope-missing-or-inconsistent",
                 severity: .error,
                 category: "artifact_integrity",
-                message: "The LVS corpus cannot be bound to one complete qualification scope.",
+                message: "The LVS corpus cannot be bound to one complete implementation assessment scope.",
                 artifactIDs: ["lvs-corpus-report"],
-                suggestedActions: ["retain_lvs_implementation_identity", "split_lvs_corpus_by_qualification_scope"]
+                suggestedActions: ["retain_lvs_implementation_identity", "split_lvs_corpus_by_assessment_scope"]
             ))
         }
         if assessment.nonIndependentOracleCaseCount > 0 {
             values.append(LVSEvidenceDiagnostic(
-                diagnosticID: "qualification:oracle-not-independent",
+                diagnosticID: "assessment:oracle-not-independent",
                 severity: .error,
                 category: "oracle_independence",
                 message: "One or more LVS oracle cases do not have an independent implementation identity.",
@@ -733,7 +733,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         }
         return LVSEvidenceConfidence(
             level: .medium,
-            reason: "The LVS corpus produced usable evidence, but scoped independent-oracle qualification remains incomplete.",
+            reason: "The LVS corpus produced usable evidence, but the scoped independent-oracle assessment remains incomplete.",
             evidenceCount: evidenceCount,
             limitationCount: diagnostics.count
         )
@@ -796,7 +796,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             "oracleExecutionFailedCaseCount": report.summary.oracleExecutionFailedCaseCount,
             "oracleReadinessBlockedCaseCount": report.summary.oracleReadinessBlockedCaseCount,
             "observedAssertionKindCount": report.summary.observedAssertionCounts.count,
-            "qualificationFailureCount": report.assessment.findings.count,
+            "assessmentFindingCount": report.assessment.findings.count,
             "completePrimaryIdentityCaseCount": assessment.completePrimaryIdentityCaseCount,
             "independentOracleCaseCount": assessment.independentOracleCaseCount,
             "independentOracleAgreementPassedCaseCount": assessment.independentOracleAgreementPassedCaseCount,
@@ -813,8 +813,8 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
             : Double(report.summary.durationBudgetPassedCaseCount) / Double(report.caseCount)
     }
 
-    private func category(qualificationCode: String) -> String {
-        switch qualificationCode {
+    private func category(assessmentCode: String) -> String {
+        switch assessmentCode {
         case let value where value.hasPrefix("report_"):
             return "artifact_integrity"
         case "required_coverage_missing":
@@ -833,7 +833,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
              "corpus_not_passed":
             return "corpus_gate"
         default:
-            return "qualification_failure"
+            return "assessment_finding"
         }
     }
 
@@ -1149,11 +1149,11 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         case "oracle_readiness":
             return "\(count) LVS oracle readiness issue(s) blocked benchmark comparison."
         case "oracle_independence":
-            return "\(count) LVS oracle independence issue(s) prevent qualification credit."
+            return "\(count) LVS oracle independence issue(s) prevent a passing corpus assessment."
         case "oracle_agreement":
             return "\(count) native-vs-oracle LVS agreement issue(s) need policy or extraction inspection."
         case "coverage_gap":
-            return "\(count) LVS coverage gap(s) prevent qualification under the current policy."
+            return "\(count) LVS coverage gap(s) prevent a passing corpus assessment."
         case "expectation_mismatch", "rule_set_mismatch":
             return "\(count) LVS expected-vs-observed diagnostic mismatch issue(s) need rule-ID inspection."
         case "port_mismatch":
@@ -1167,7 +1167,7 @@ public struct LVSCorpusEvidencePacketBuilder: Sendable {
         case "duration_budget":
             return "\(count) LVS duration budget issue(s) need runtime inspection."
         case "corpus_gate":
-            return "\(count) LVS corpus gate issue(s) prevent qualification."
+            return "\(count) LVS corpus gate issue(s) prevent a passing corpus assessment."
         default:
             return "\(count) LVS diagnostic issue(s) need inspection."
         }

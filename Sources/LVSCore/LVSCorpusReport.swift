@@ -1,5 +1,5 @@
 public struct LVSCorpusReport: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 3
+    public static let currentSchemaVersion = 4
 
     public let schemaVersion: Int
     public let generatedAt: String?
@@ -9,7 +9,7 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
     public let budgetExceededCaseCount: Int
     public let totalDurationSeconds: Double
     public let runOptions: LVSCorpusRunOptions
-    public let qualificationScopeCaseID: String?
+    public let implementationScopeCaseID: String?
     public let summary: LVSCorpusSummary
     public let assessment: LVSCorpusAssessment
     public let caseResults: [LVSCorpusCaseResult]
@@ -23,7 +23,7 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         budgetExceededCaseCount: Int = 0,
         totalDurationSeconds: Double = 0,
         runOptions: LVSCorpusRunOptions = LVSCorpusRunOptions(),
-        qualificationScopeCaseID: String? = nil,
+        implementationScopeCaseID: String? = nil,
         summary: LVSCorpusSummary? = nil,
         acceptanceCriteria: LVSCorpusAcceptanceCriteria = .strict,
         assessment: LVSCorpusAssessment? = nil,
@@ -37,10 +37,11 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         self.budgetExceededCaseCount = budgetExceededCaseCount
         self.totalDurationSeconds = totalDurationSeconds
         self.runOptions = runOptions
-        self.qualificationScopeCaseID = qualificationScopeCaseID
+        self.implementationScopeCaseID = implementationScopeCaseID
         let resolvedSummary = summary ?? LVSCorpusSummary(caseResults: caseResults)
         self.summary = resolvedSummary
-        let evaluatedAssessment = assessment ?? acceptanceCriteria.evaluate(
+        let resolvedCriteria = assessment?.criteria ?? acceptanceCriteria
+        let evaluatedAssessment = resolvedCriteria.evaluate(
             passed: passed,
             caseCount: caseCount,
             summary: resolvedSummary
@@ -57,7 +58,10 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         )
         self.assessment = LVSCorpusAssessment(
             criteria: evaluatedAssessment.criteria,
-            findings: evaluatedAssessment.findings + integrityFailures
+            findings: Self.mergedFindings(
+                canonical: evaluatedAssessment.findings + integrityFailures,
+                supplemental: assessment?.findings ?? []
+            )
         )
     }
 
@@ -70,7 +74,7 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         case budgetExceededCaseCount
         case totalDurationSeconds
         case runOptions
-        case qualificationScopeCaseID
+        case implementationScopeCaseID
         case summary
         case assessment
         case caseResults
@@ -93,13 +97,13 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
         budgetExceededCaseCount = try container.decode(Int.self, forKey: .budgetExceededCaseCount)
         totalDurationSeconds = try container.decode(Double.self, forKey: .totalDurationSeconds)
         runOptions = try container.decode(LVSCorpusRunOptions.self, forKey: .runOptions)
-        qualificationScopeCaseID = try container.decodeIfPresent(
+        implementationScopeCaseID = try container.decodeIfPresent(
             String.self,
-            forKey: .qualificationScopeCaseID
+            forKey: .implementationScopeCaseID
         )
         caseResults = try container.decode([LVSCorpusCaseResult].self, forKey: .caseResults)
         summary = try container.decode(LVSCorpusSummary.self, forKey: .summary)
-        let decodedQualification = try container.decode(
+        let decodedAssessment = try container.decode(
             LVSCorpusAssessment.self,
             forKey: .assessment
         )
@@ -112,9 +116,24 @@ public struct LVSCorpusReport: Sendable, Hashable, Codable {
             summary: summary,
             caseResults: caseResults
         )
-        assessment = LVSCorpusAssessment(
-            criteria: decodedQualification.criteria,
-            findings: decodedQualification.findings + integrityFailures
+        let evaluatedAssessment = decodedAssessment.criteria.evaluate(
+            passed: passed,
+            caseCount: caseCount,
+            summary: summary
         )
+        assessment = LVSCorpusAssessment(
+            criteria: evaluatedAssessment.criteria,
+            findings: Self.mergedFindings(
+                canonical: evaluatedAssessment.findings + integrityFailures,
+                supplemental: decodedAssessment.findings
+            )
+        )
+    }
+
+    private static func mergedFindings(
+        canonical: [LVSCorpusAssessmentFinding],
+        supplemental: [LVSCorpusAssessmentFinding]
+    ) -> [LVSCorpusAssessmentFinding] {
+        canonical + supplemental.filter { !canonical.contains($0) }
     }
 }

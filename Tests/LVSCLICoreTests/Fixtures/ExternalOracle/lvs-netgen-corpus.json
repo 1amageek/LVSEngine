@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "defaultMaxDurationSeconds": 30,
   "acceptanceCriteria": {
     "requireCorpusPassed": true,
@@ -9,6 +9,18 @@
     "minimumOracleAgreementRate": 1,
     "allowPrimaryExecutionFailures": false,
     "allowOracleExecutionFailures": false,
+    "requiredCoverageTags": [
+      "diagnostic.rule-id",
+      "external.netgen",
+      "layout.spice",
+      "lvs.device-breadth",
+      "lvs.hierarchy",
+      "lvs.match",
+      "lvs.model-mismatch",
+      "lvs.model-mismatch.hierarchical",
+      "lvs.sources",
+      "lvs.symmetric-terminals"
+    ],
     "requiredObservedAssertions": [
       "oracleAgreement:true",
       "oracleIndependence:ready",
