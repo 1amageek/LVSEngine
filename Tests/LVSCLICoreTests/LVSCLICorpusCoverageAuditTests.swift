@@ -1,9 +1,19 @@
 import Foundation
+import LayoutTech
 import LVSCLICore
 import LVSCore
 import Testing
 
 extension LVSCLIOptionsTests {
+    @Test
+    func productionTechnologyFixtureDecodes() throws {
+        let technologyURL = externalOracleFixtureURL("sky130-layout-tech.json")
+        _ = try JSONDecoder().decode(
+            LayoutTechDatabase.self,
+            from: Data(contentsOf: technologyURL)
+        )
+    }
+
     @Test
     func productionCorpusDeclaresIndependentObservedAssertionCoverage() throws {
         let specURL = externalOracleFixtureURL("lvs-production-corpus.json")
@@ -31,7 +41,7 @@ extension LVSCLIOptionsTests {
         let physicalDigitalCases = spec.cases.filter {
             $0.backendID == "native-gds"
                 && $0.extractionProfilePath
-                    == "pdk://libs.tech/lvs/sky130A-layout-extraction-profile.json"
+                    == "sky130A-layout-extraction-profile.json"
                 && $0.extractionDeckPath == "pdk://libs.tech/magic/sky130A.tech"
                 && $0.requiredAssertions.contains { $0.kind == .extractionArtifact }
                 && $0.requiredAssertions.contains {
@@ -60,6 +70,17 @@ extension LVSCLIOptionsTests {
         }
 
         #expect(physicalDigitalCases.count == 20)
+        let extractionProfileURL = externalOracleFixtureURL("sky130A-layout-extraction-profile.json")
+        let extractionProfile = try #require(
+            JSONSerialization.jsonObject(with: Data(contentsOf: extractionProfileURL)) as? [String: Any]
+        )
+        #expect(extractionProfile["schemaVersion"] as? Int == 1)
+        #expect(extractionProfile["processProfileID"] as? String == "sky130.open-pdk.digital-mos.signoff")
+        #expect(extractionProfile["productionEligible"] as? Bool == true)
+        #expect(
+            extractionProfile["extractionDeckDigest"] as? String
+                == "31287ea98453d1a4a0fe9e18f8e2a9a0aa411bea3e5eae9db3dd5e450bcd57c0"
+        )
         #expect(hierarchicalCases.count == 5)
         #expect(analogCases.count == 10)
         #expect(spec.cases.allSatisfy { corpusCase in

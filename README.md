@@ -352,6 +352,11 @@ The runner writes case artifacts and a top-level `lvs-corpus-report` containing 
 metrics and a durable assessment. Missing tools and oracle failures are recorded
 as structured blocked evidence rather than aborting without a report.
 
+Corpus specs and reports use schema version 3. Each case declares domain-specific
+`coverageTags`; only completed cases contribute those tags to
+`summary.coverageTagCounts`. This lets flow policy audit capability coverage without
+inferring semantics from case names.
+
 Re-evaluate or export a saved report without rerunning the corpus:
 
 ```bash

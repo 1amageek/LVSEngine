@@ -155,7 +155,10 @@ let package = Package(
         .testTarget(name: "LVSRuntimeTests", dependencies: ["LVSRuntime", "LVSPersistence", "LVSCore"]),
         .testTarget(
             name: "LVSCLICoreTests",
-            dependencies: ["LVSCLICore"],
+            dependencies: [
+                "LVSCLICore",
+                .product(name: "LayoutTech", package: "semiconductor-layout"),
+            ],
             resources: [.copy("Fixtures")]
         ),
     ]

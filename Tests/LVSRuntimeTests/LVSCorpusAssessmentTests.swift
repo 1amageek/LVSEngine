@@ -1,3 +1,4 @@
+import Foundation
 import LVSCore
 import Testing
 
@@ -19,6 +20,26 @@ struct LVSCorpusAssessmentTests {
 
         #expect(summary.observedAssertionCounts["verdict:mismatch"] == nil)
         #expect(summary.observedAssertionCounts["verdict:match"] == 1)
+    }
+
+    @Test
+    func coverageTagsRequireACompletedCase() {
+        let failed = caseResult(
+            caseID: "failed",
+            matched: false,
+            coverageTags: ["lvs.failure-path"],
+            observedAssertions: []
+        )
+        let passed = caseResult(
+            caseID: "passed",
+            matched: true,
+            coverageTags: ["lvs.match", "lvs.match"],
+            observedAssertions: []
+        )
+
+        let summary = LVSCorpusSummary(caseResults: [failed, passed])
+
+        #expect(summary.coverageTagCounts == ["lvs.match": 1])
     }
 
     @Test
@@ -82,9 +103,39 @@ struct LVSCorpusAssessmentTests {
         #expect(failureCodes.contains("report_summary_inconsistent"))
     }
 
+    @Test
+    func reportSchemaVersionIdentifiesTheAssessmentContract() throws {
+        let result = caseResult(
+            caseID: "retained",
+            matched: true,
+            observedAssertions: [observedVerdict(.passed, value: "match")]
+        )
+        let report = LVSCorpusReport(
+            passed: true,
+            caseCount: 1,
+            matchedCaseCount: 1,
+            totalDurationSeconds: result.durationSeconds,
+            caseResults: [result]
+        )
+        let data = try JSONEncoder().encode(report)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(object["schemaVersion"] as? Int == 3)
+        #expect(object["assessment"] is [String: Any])
+        #expect(object["qualification"] == nil)
+
+        var legacyVersionObject = object
+        legacyVersionObject["schemaVersion"] = 2
+        let legacyVersionData = try JSONSerialization.data(withJSONObject: legacyVersionObject)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(LVSCorpusReport.self, from: legacyVersionData)
+        }
+    }
+
     private func caseResult(
         caseID: String,
         matched: Bool,
+        coverageTags: [String] = [],
         observedAssertions: [LVSCorpusObservedAssertion]
     ) -> LVSCorpusCaseResult {
         LVSCorpusCaseResult(
@@ -94,6 +145,7 @@ struct LVSCorpusAssessmentTests {
             actualPassed: matched,
             expectedActiveErrorRuleIDs: [],
             actualActiveErrorRuleIDs: [],
+            coverageTags: coverageTags,
             expectationMatched: matched,
             durationSeconds: 0.1,
             expectedMaxDurationSeconds: 1,

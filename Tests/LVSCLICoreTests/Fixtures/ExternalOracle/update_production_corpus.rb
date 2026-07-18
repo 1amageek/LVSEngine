@@ -65,7 +65,7 @@ cells.each do |cell|
     "layoutFormat" => "gds",
     "schematicNetlistPath" => "pdk://libs.ref/sky130_fd_sc_hd/spice/sky130_fd_sc_hd.spice",
     "technologyPath" => "sky130-layout-tech.json",
-    "extractionProfilePath" => "pdk://libs.tech/lvs/sky130A-layout-extraction-profile.json",
+    "extractionProfilePath" => "sky130A-layout-extraction-profile.json",
     "extractionDeckPath" => "pdk://libs.tech/magic/sky130A.tech",
     "devicePolicyDeckPath" => "pdk://libs.tech/netgen/sky130A_setup.tcl",
     "processProfileID" => "sky130.open-pdk.digital-mos.signoff",
@@ -200,4 +200,9 @@ requiredAssertions |= [
 spec["acceptanceCriteria"]["requiredObservedAssertions"] = requiredAssertions.sort
 
 spec["acceptanceCriteria"]["minimumOracleCaseCount"] = spec["cases"].length
+spec["schemaVersion"] = 3
+spec["cases"].each do |item|
+  layoutTag = item["backendID"] == "native-gds" ? "layout.gds" : "layout.spice"
+  item["coverageTags"] = ["external.netgen", layoutTag, "lvs.match"]
+end
 File.write(path, JSON.pretty_generate(spec) + "\n")

@@ -381,8 +381,18 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
     }
 
     private func normalizedPath(_ url: URL) -> String {
-        url
+        let standardizedURL = url.standardizedFileURL
+        if FileManager.default.fileExists(atPath: standardizedURL.path(percentEncoded: false)) {
+            return standardizedURL
+                .resolvingSymlinksInPath()
+                .standardizedFileURL
+                .path(percentEncoded: false)
+        }
+        let parentURL = standardizedURL.deletingLastPathComponent()
             .resolvingSymlinksInPath()
+            .standardizedFileURL
+        return parentURL
+            .appending(path: standardizedURL.lastPathComponent)
             .standardizedFileURL
             .path(percentEncoded: false)
     }

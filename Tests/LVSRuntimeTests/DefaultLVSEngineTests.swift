@@ -83,6 +83,28 @@ struct DefaultLVSEngineTests {
         })
     }
 
+    @Test func artifactStoreAcceptsExistingTemporaryDirectoryAlias() async throws {
+        let directory = URL(filePath: "/private/tmp")
+            .appending(path: "DefaultLVSEngineTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { removeTemporaryDirectory(directory) }
+        let layoutURL = directory.appending(path: "layout.spice")
+        let schematicURL = directory.appending(path: "schematic.spice")
+        try ".subckt top in out\n.ends top\n".write(to: layoutURL, atomically: true, encoding: .utf8)
+        try ".subckt top in out\n.ends top\n".write(to: schematicURL, atomically: true, encoding: .utf8)
+
+        let execution = try await DefaultLVSEngine().run(LVSRequest(
+            layoutNetlistURL: layoutURL,
+            schematicNetlistURL: schematicURL,
+            topCell: "top",
+            workingDirectory: directory,
+            backendSelection: LVSBackendSelection(backendID: "native")
+        ))
+
+        #expect(execution.result.passed)
+        #expect(execution.artifactManifestURL != nil)
+    }
+
     @Test func injectedExtractorPreparesLayoutNetlistForBackend() async throws {
         let directory = try makeTemporaryDirectory()
         let layoutGDSURL = directory.appending(path: "inverter.gds")

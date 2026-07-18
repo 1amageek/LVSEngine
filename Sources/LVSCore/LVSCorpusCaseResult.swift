@@ -5,6 +5,7 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
     public let actualPassed: Bool
     public let expectedActiveErrorRuleIDs: [String]
     public let actualActiveErrorRuleIDs: [String]
+    public let coverageTags: [String]
     public let expectationMatched: Bool
     public let durationSeconds: Double
     public let expectedMaxDurationSeconds: Double?
@@ -27,6 +28,7 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         actualPassed: Bool,
         expectedActiveErrorRuleIDs: [String],
         actualActiveErrorRuleIDs: [String],
+        coverageTags: [String] = [],
         expectationMatched: Bool,
         durationSeconds: Double,
         expectedMaxDurationSeconds: Double?,
@@ -48,6 +50,7 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         self.actualPassed = actualPassed
         self.expectedActiveErrorRuleIDs = expectedActiveErrorRuleIDs
         self.actualActiveErrorRuleIDs = actualActiveErrorRuleIDs
+        self.coverageTags = Array(Set(coverageTags.filter { !$0.isEmpty })).sorted()
         self.expectationMatched = expectationMatched
         self.durationSeconds = durationSeconds
         self.expectedMaxDurationSeconds = expectedMaxDurationSeconds
@@ -71,6 +74,7 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         case actualPassed
         case expectedActiveErrorRuleIDs
         case actualActiveErrorRuleIDs
+        case coverageTags
         case expectationMatched
         case durationSeconds
         case expectedMaxDurationSeconds
@@ -95,6 +99,10 @@ public struct LVSCorpusCaseResult: Sendable, Hashable, Codable {
         actualPassed = try container.decode(Bool.self, forKey: .actualPassed)
         expectedActiveErrorRuleIDs = try container.decode([String].self, forKey: .expectedActiveErrorRuleIDs)
         actualActiveErrorRuleIDs = try container.decode([String].self, forKey: .actualActiveErrorRuleIDs)
+        coverageTags = Array(Set(try container.decodeIfPresent(
+            [String].self,
+            forKey: .coverageTags
+        ) ?? [])).filter { !$0.isEmpty }.sorted()
         expectationMatched = try container.decode(Bool.self, forKey: .expectationMatched)
         durationSeconds = try container.decode(Double.self, forKey: .durationSeconds)
         expectedMaxDurationSeconds = try container.decodeIfPresent(Double.self, forKey: .expectedMaxDurationSeconds)

@@ -23,6 +23,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
     public let expectedVerdict: LVSVerificationVerdict?
     public let faultClass: String?
     public let expectedActiveErrorRuleIDs: [String]
+    public let coverageTags: [String]
     public let requiredAssertions: [LVSCorpusAssertionRequirement]
     public let oracleComparisonMode: LVSCorpusOracleComparisonMode
     public let hardExecutionBudget: LVSCorpusHardExecutionBudget?
@@ -51,6 +52,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
         expectedVerdict: LVSVerificationVerdict? = nil,
         faultClass: String? = nil,
         expectedActiveErrorRuleIDs: [String] = [],
+        coverageTags: [String] = [],
         requiredAssertions: [LVSCorpusAssertionRequirement] = [],
         oracleComparisonMode: LVSCorpusOracleComparisonMode = .verdict,
         hardExecutionBudget: LVSCorpusHardExecutionBudget? = nil,
@@ -78,6 +80,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
         self.expectedVerdict = expectedVerdict
         self.faultClass = faultClass
         self.expectedActiveErrorRuleIDs = expectedActiveErrorRuleIDs
+        self.coverageTags = Array(Set(coverageTags.filter { !$0.isEmpty })).sorted()
         self.requiredAssertions = requiredAssertions
         self.oracleComparisonMode = oracleComparisonMode
         self.hardExecutionBudget = hardExecutionBudget
@@ -107,6 +110,7 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
         case expectedVerdict
         case faultClass
         case expectedActiveErrorRuleIDs
+        case coverageTags
         case requiredAssertions
         case oracleComparisonMode
         case hardExecutionBudget
@@ -143,6 +147,10 @@ public struct LVSCorpusCase: Sendable, Hashable, Codable {
             [String].self,
             forKey: .expectedActiveErrorRuleIDs
         ) ?? []
+        coverageTags = Array(Set(try container.decodeIfPresent(
+            [String].self,
+            forKey: .coverageTags
+        ) ?? [])).filter { !$0.isEmpty }.sorted()
         requiredAssertions = try container.decodeIfPresent(
             [LVSCorpusAssertionRequirement].self,
             forKey: .requiredAssertions

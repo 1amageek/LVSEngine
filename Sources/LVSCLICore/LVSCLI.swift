@@ -34,8 +34,15 @@ public enum LVSCLI {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     let data = try encoder.encode(value)
-    FileHandle.standardOutput.write(data)
-    FileHandle.standardOutput.write(Data("\n".utf8))
+    let output = FileHandle.standardOutput
+    let chunkSize = 32 * 1024
+    var offset = 0
+    while offset < data.count {
+      let end = min(offset + chunkSize, data.count)
+      try output.write(contentsOf: Data(data[offset..<end]))
+      offset = end
+    }
+    try output.write(contentsOf: Data("\n".utf8))
   }
 
   static func writeError(_ error: Error) {

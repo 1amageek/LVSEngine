@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "processID": "sky130A",
+  "processProfileID": "sky130.open-pdk.digital-mos.signoff",
+  "extractionDeckDigest": "31287ea98453d1a4a0fe9e18f8e2a9a0aa411bea3e5eae9db3dd5e450bcd57c0",
+  "productionEligible": true,
+  "parameterValueConvention": "micronScalar",
+  "conductorLayers": {
+    "names": ["diff", "tap", "nwell", "poly", "li1", "met1", "met2", "met3", "met4", "met5"]
+  },
+  "connectionRules": [
+    {
+      "cutLayers": {"names": ["licon1"]},
+      "lowerLayers": {"names": ["diff", "tap", "poly"]},
+      "upperLayers": {"names": ["li1"]}
+    },
+    {
+      "cutLayers": {"names": ["mcon"]},
+      "lowerLayers": {"names": ["li1"]},
+      "upperLayers": {"names": ["met1"]}
+    },
+    {
+      "cutLayers": {"names": ["via"]},
+      "lowerLayers": {"names": ["met1"]},
+      "upperLayers": {"names": ["met2"]}
+    },
+    {
+      "cutLayers": {"names": ["via2"]},
+      "lowerLayers": {"names": ["met2"]},
+      "upperLayers": {"names": ["met3"]}
+    },
+    {
+      "cutLayers": {"names": ["via3"]},
+      "lowerLayers": {"names": ["met3"]},
+      "upperLayers": {"names": ["met4"]}
+    },
+    {
+      "cutLayers": {"names": ["via4"]},
+      "lowerLayers": {"names": ["met4"]},
+      "upperLayers": {"names": ["met5"]}
+    }
+  ],
+  "mosRules": [
+    {
+      "ruleID": "sky130-nfet-01v8",
+      "model": "sky130_fd_pr__nfet_01v8",
+      "gateLayers": {"names": ["poly"]},
+      "diffusionLayers": {"names": ["diff"]},
+      "selectorLayers": {"names": ["nsdm"]},
+      "exclusionLayers": {"names": []},
+      "bulkLayers": {"names": ["pwell"]},
+      "bulkTapLayers": {"names": ["tap"]},
+      "bulkTapSelectorLayers": {"names": ["psdm"]},
+      "bulkPortCandidates": ["VNB", "VGND", "VSS", "GND", "0"],
+      "preferNamedBulkPort": true
+    },
+    {
+      "ruleID": "sky130-pfet-01v8-hvt",
+      "model": "sky130_fd_pr__pfet_01v8_hvt",
+      "gateLayers": {"names": ["poly"]},
+      "diffusionLayers": {"names": ["diff"]},
+      "selectorLayers": {"names": ["hvtp"]},
+      "exclusionLayers": {"names": []},
+      "bulkLayers": {"names": ["nwell"]},
+      "bulkTapLayers": {"names": ["tap"]},
+      "bulkTapSelectorLayers": {"names": ["nsdm"]},
+      "bulkPortCandidates": ["VPB", "VPWR", "VDD", "POWER"],
+      "preferNamedBulkPort": true
+    },
+    {
+      "ruleID": "sky130-pfet-01v8",
+      "model": "sky130_fd_pr__pfet_01v8",
+      "gateLayers": {"names": ["poly"]},
+      "diffusionLayers": {"names": ["diff"]},
+      "selectorLayers": {"names": ["psdm"]},
+      "exclusionLayers": {"names": ["hvtp"]},
+      "bulkLayers": {"names": ["nwell"]},
+      "bulkTapLayers": {"names": ["tap"]},
+      "bulkTapSelectorLayers": {"names": ["nsdm"]},
+      "bulkPortCandidates": ["VPB", "VPWR", "VDD", "POWER"],
+      "preferNamedBulkPort": true
+    }
+  ]
+}
