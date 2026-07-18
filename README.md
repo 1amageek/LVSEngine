@@ -383,6 +383,13 @@ swift run lvsengine \
 
 ## Production scope
 
+`lvs-netgen-corpus.json` is the bounded external-oracle smoke corpus. Every case runs
+the in-process `native` backend as the primary implementation and Netgen as the external
+reference, requires both `oracleAgreement:true` and `oracleIndependence:ready`, and
+retains the implementation identities in the corpus report. Cases that intentionally
+exercise known policy disagreements are not qualification cases and are excluded from
+this agreement corpus.
+
 The checked-in physical qualification corpus covers Sky130 1.8 V digital-MOS standard
 cells with GDS extraction and an independent Netgen oracle. This is deliberately narrower
 than the parser and API surface.

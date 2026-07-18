@@ -95,6 +95,40 @@ extension LVSCLIOptionsTests {
     }
 
     @Test
+    func externalOracleCorpusUsesNativePrimaryAndNetgenReference() throws {
+        let specURL = externalOracleFixtureURL("lvs-netgen-corpus.json")
+        let spec = try JSONDecoder().decode(
+            LVSCorpusSpec.self,
+            from: Data(contentsOf: specURL)
+        )
+
+        #expect(spec.cases.count == 6)
+        #expect(Set(spec.cases.compactMap(\.backendID)) == ["native"])
+        #expect(Set(spec.cases.compactMap(\.oracleBackendID)) == ["netgen"])
+        #expect(spec.acceptanceCriteria.minimumOracleCaseCount == 6)
+        #expect(spec.acceptanceCriteria.minimumOracleAgreementRate == 1)
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("oracleAgreement:true"))
+        #expect(spec.acceptanceCriteria.requiredObservedAssertions.contains("oracleIndependence:ready"))
+        #expect(spec.cases.allSatisfy { corpusCase in
+            corpusCase.backendID != corpusCase.oracleBackendID
+                && corpusCase.oracleComparisonMode == .verdict
+                && corpusCase.coverageTags.contains("external.netgen")
+                && corpusCase.requiredAssertions.contains {
+                    $0.kind == .oracleAgreement && $0.expectedValue == "true"
+                }
+                && corpusCase.requiredAssertions.contains {
+                    $0.kind == .oracleIndependence && $0.expectedValue == "ready"
+                }
+        })
+        #expect(spec.cases.filter { !$0.expectedPassed }.allSatisfy { corpusCase in
+            corpusCase.expectedActiveErrorRuleIDs == ["LVS_MODEL_MISMATCH"]
+                && corpusCase.requiredAssertions.contains {
+                    $0.kind == .diagnosticRule && $0.expectedValue == "LVS_MODEL_MISMATCH"
+                }
+        })
+    }
+
+    @Test
     func corpusCoverageAuditRequiresPassedAssertionsFromTheSameCase() {
         let complete = observedCase(
             caseID: "complete",

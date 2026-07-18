@@ -42,6 +42,9 @@ Foundation identity. Hierarchical correspondence remains an LVS concern.
 
 Native LVS may establish a useful development result, but production
 qualification still requires the existing independent-oracle and PDK gates.
+An independent-oracle case uses a different backend and a different complete
+implementation identity. Repeating the primary backend is a comparison retry,
+not independent evidence, even when its verdict agrees.
 Native layout extraction consumes a versioned process-owned profile and its
 source deck. Profile schema, semantic completeness, identity, and deck digest
 must validate before geometry extraction begins; no process default is embedded

@@ -836,9 +836,24 @@ public struct LVSCorpusRunner: Sendable {
         let oracleRuleIDs = activeErrorRuleIDs(in: executionResult.result.diagnostics)
         let oracleDiagnosticSummary = diagnosticSummary(executionResult.result.diagnostics)
         let oracleProvenance = provenance(for: executionResult)
-        let independentImplementation = primaryImplementationIdentity.map { primaryIdentity in
+        let distinctBackend = executionResult.result.backendID
+            .caseInsensitiveCompare(primaryBackendID) != .orderedSame
+        let independentImplementationIdentity = primaryImplementationIdentity.map { primaryIdentity in
             oracleProvenance?.implementationIdentity?.isIndependent(from: primaryIdentity) == true
         } ?? false
+        let independentImplementation = distinctBackend && independentImplementationIdentity
+        let readinessDiagnostics: [String]
+        if !distinctBackend {
+            readinessDiagnostics = [
+                "The oracle backend is the same backend used by the primary comparison."
+            ]
+        } else if !independentImplementation {
+            readinessDiagnostics = [
+                "The oracle implementation identity is missing or is not independent from the primary implementation."
+            ]
+        } else {
+            readinessDiagnostics = []
+        }
         let passedMatched = executionResult.result.passed == primaryPassed
         let ruleIDsMatched = oracleRuleIDs == primaryActiveRuleIDs
         let diagnosticSummaryMatched = oracleDiagnosticSummary == primaryDiagnosticSummary
@@ -882,9 +897,7 @@ public struct LVSCorpusRunner: Sendable {
             durationSeconds: durationSeconds,
             agreementPassed: comparison.agreementPassed,
             readinessStatus: independentImplementation ? .ready : .blocked,
-            readinessDiagnostics: independentImplementation
-                ? []
-                : ["The oracle implementation identity is missing or is not independent from the primary implementation."],
+            readinessDiagnostics: readinessDiagnostics,
             failureReasons: comparison.mismatchReasons,
             executionError: nil,
             reportPath: executionResult.reportURL?.path(percentEncoded: false),

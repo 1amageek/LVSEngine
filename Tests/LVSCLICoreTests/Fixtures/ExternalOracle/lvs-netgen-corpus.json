@@ -2,123 +2,180 @@
   "schemaVersion": 3,
   "defaultMaxDurationSeconds": 30,
   "acceptanceCriteria": {
+    "requireCorpusPassed": true,
+    "minimumPassRate": 1,
+    "minimumDurationBudgetPassRate": 1,
+    "minimumOracleCaseCount": 6,
+    "minimumOracleAgreementRate": 1,
+    "allowPrimaryExecutionFailures": false,
+    "allowOracleExecutionFailures": false,
+    "requiredObservedAssertions": [
+      "oracleAgreement:true",
+      "oracleIndependence:ready",
+      "verdict:match",
+      "verdict:mismatch"
+    ],
+    "allowBlockedAssertions": false,
+    "allowFailedAssertions": false
   },
   "cases": [
     {
-      "backendID": "netgen",
-      "caseID": "inverter-netgen-lvs",
+      "backendID": "native",
+      "caseID": "inverter-independent-oracle-match",
+      "coverageTags": [
+        "external.netgen",
+        "layout.spice",
+        "lvs.match"
+      ],
       "expectedPassed": true,
       "layoutNetlistPath": "layout.spice",
       "oracleBackendID": "netgen",
+      "oracleComparisonMode": "verdict",
+      "requiredAssertions": [
+        { "assertionID": "verdict", "kind": "verdict", "expectedValue": "match" },
+        { "assertionID": "duration-budget", "kind": "durationBudget", "expectedValue": "within-budget" },
+        { "assertionID": "report-artifact", "kind": "reportArtifact" },
+        { "assertionID": "manifest-artifact", "kind": "manifestArtifact" },
+        { "assertionID": "correspondence-artifact", "kind": "correspondenceArtifact" },
+        { "assertionID": "oracle-agreement", "kind": "oracleAgreement", "expectedValue": "true" },
+        { "assertionID": "oracle-independence", "kind": "oracleIndependence", "expectedValue": "ready" }
+      ],
       "schematicNetlistPath": "matching-schematic.spice",
       "topCell": "inv"
     },
     {
-      "backendID": "netgen",
-      "caseID": "netgen-model-mismatch",
+      "backendID": "native",
+      "caseID": "model-mismatch-independent-oracle",
+      "coverageTags": [
+        "diagnostic.rule-id",
+        "external.netgen",
+        "layout.spice",
+        "lvs.model-mismatch"
+      ],
       "expectedActiveErrorRuleIDs": [
-        "LVS_MISMATCH"
+        "LVS_MODEL_MISMATCH"
       ],
       "expectedPassed": false,
       "layoutNetlistPath": "layout.spice",
       "oracleBackendID": "netgen",
+      "oracleComparisonMode": "verdict",
+      "requiredAssertions": [
+        { "assertionID": "verdict", "kind": "verdict", "expectedValue": "mismatch" },
+        { "assertionID": "duration-budget", "kind": "durationBudget", "expectedValue": "within-budget" },
+        { "assertionID": "diagnostic-rule:LVS_MODEL_MISMATCH", "kind": "diagnosticRule", "expectedValue": "LVS_MODEL_MISMATCH" },
+        { "assertionID": "report-artifact", "kind": "reportArtifact" },
+        { "assertionID": "manifest-artifact", "kind": "manifestArtifact" },
+        { "assertionID": "correspondence-artifact", "kind": "correspondenceArtifact" },
+        { "assertionID": "oracle-agreement", "kind": "oracleAgreement", "expectedValue": "true" },
+        { "assertionID": "oracle-independence", "kind": "oracleIndependence", "expectedValue": "ready" }
+      ],
       "schematicNetlistPath": "model-mismatch-schematic.spice",
       "topCell": "inv"
     },
     {
-      "backendID": "netgen",
-      "caseID": "netgen-hierarchical-model-mismatch",
+      "backendID": "native",
+      "caseID": "hierarchical-model-mismatch-independent-oracle",
+      "coverageTags": [
+        "diagnostic.rule-id",
+        "external.netgen",
+        "layout.spice",
+        "lvs.hierarchy",
+        "lvs.model-mismatch.hierarchical"
+      ],
       "expectedActiveErrorRuleIDs": [
-        "LVS_MISMATCH"
+        "LVS_MODEL_MISMATCH"
       ],
       "expectedPassed": false,
       "layoutNetlistPath": "hierarchical-layout.spice",
       "oracleBackendID": "netgen",
+      "oracleComparisonMode": "verdict",
+      "requiredAssertions": [
+        { "assertionID": "verdict", "kind": "verdict", "expectedValue": "mismatch" },
+        { "assertionID": "duration-budget", "kind": "durationBudget", "expectedValue": "within-budget" },
+        { "assertionID": "diagnostic-rule:LVS_MODEL_MISMATCH", "kind": "diagnosticRule", "expectedValue": "LVS_MODEL_MISMATCH" },
+        { "assertionID": "report-artifact", "kind": "reportArtifact" },
+        { "assertionID": "manifest-artifact", "kind": "manifestArtifact" },
+        { "assertionID": "correspondence-artifact", "kind": "correspondenceArtifact" },
+        { "assertionID": "oracle-agreement", "kind": "oracleAgreement", "expectedValue": "true" },
+        { "assertionID": "oracle-independence", "kind": "oracleIndependence", "expectedValue": "ready" }
+      ],
       "schematicNetlistPath": "hierarchical-mismatch-schematic.spice",
       "topCell": "top"
     },
     {
-      "backendID": "netgen",
-      "caseID": "netgen-symmetric-terminals",
+      "backendID": "native",
+      "caseID": "symmetric-terminals-independent-oracle-match",
+      "coverageTags": [
+        "external.netgen",
+        "layout.spice",
+        "lvs.match",
+        "lvs.symmetric-terminals"
+      ],
       "expectedPassed": true,
       "layoutNetlistPath": "symmetric-layout.spice",
       "oracleBackendID": "netgen",
+      "oracleComparisonMode": "verdict",
+      "requiredAssertions": [
+        { "assertionID": "verdict", "kind": "verdict", "expectedValue": "match" },
+        { "assertionID": "duration-budget", "kind": "durationBudget", "expectedValue": "within-budget" },
+        { "assertionID": "report-artifact", "kind": "reportArtifact" },
+        { "assertionID": "manifest-artifact", "kind": "manifestArtifact" },
+        { "assertionID": "correspondence-artifact", "kind": "correspondenceArtifact" },
+        { "assertionID": "oracle-agreement", "kind": "oracleAgreement", "expectedValue": "true" },
+        { "assertionID": "oracle-independence", "kind": "oracleIndependence", "expectedValue": "ready" }
+      ],
       "schematicNetlistPath": "symmetric-schematic.spice",
       "topCell": "inv"
     },
     {
-      "backendID": "netgen",
-      "caseID": "netgen-device-breadth",
+      "backendID": "native",
+      "caseID": "device-breadth-independent-oracle-match",
+      "coverageTags": [
+        "external.netgen",
+        "layout.spice",
+        "lvs.device-breadth",
+        "lvs.match"
+      ],
       "expectedPassed": true,
       "layoutNetlistPath": "device-breadth-layout.spice",
       "oracleBackendID": "netgen",
+      "oracleComparisonMode": "verdict",
+      "requiredAssertions": [
+        { "assertionID": "verdict", "kind": "verdict", "expectedValue": "match" },
+        { "assertionID": "duration-budget", "kind": "durationBudget", "expectedValue": "within-budget" },
+        { "assertionID": "report-artifact", "kind": "reportArtifact" },
+        { "assertionID": "manifest-artifact", "kind": "manifestArtifact" },
+        { "assertionID": "correspondence-artifact", "kind": "correspondenceArtifact" },
+        { "assertionID": "oracle-agreement", "kind": "oracleAgreement", "expectedValue": "true" },
+        { "assertionID": "oracle-independence", "kind": "oracleIndependence", "expectedValue": "ready" }
+      ],
       "schematicNetlistPath": "device-breadth-schematic.spice",
       "topCell": "bias"
     },
     {
-      "backendID": "netgen",
-      "caseID": "netgen-source-breadth",
+      "backendID": "native",
+      "caseID": "source-breadth-independent-oracle-match",
+      "coverageTags": [
+        "external.netgen",
+        "layout.spice",
+        "lvs.match",
+        "lvs.sources"
+      ],
       "expectedPassed": true,
       "layoutNetlistPath": "source-breadth-layout.spice",
       "oracleBackendID": "netgen",
+      "oracleComparisonMode": "verdict",
+      "requiredAssertions": [
+        { "assertionID": "verdict", "kind": "verdict", "expectedValue": "match" },
+        { "assertionID": "duration-budget", "kind": "durationBudget", "expectedValue": "within-budget" },
+        { "assertionID": "report-artifact", "kind": "reportArtifact" },
+        { "assertionID": "manifest-artifact", "kind": "manifestArtifact" },
+        { "assertionID": "correspondence-artifact", "kind": "correspondenceArtifact" },
+        { "assertionID": "oracle-agreement", "kind": "oracleAgreement", "expectedValue": "true" },
+        { "assertionID": "oracle-independence", "kind": "oracleIndependence", "expectedValue": "ready" }
+      ],
       "schematicNetlistPath": "source-breadth-schematic.spice",
       "topCell": "mixed"
-    },
-    {
-      "backendID": "netgen",
-      "caseID": "netgen-global-supply-policy-gap",
-      "expectedActiveErrorRuleIDs": [
-        "LVS_MISMATCH"
-      ],
-      "expectedPassed": false,
-      "layoutNetlistPath": "global-layout.spice",
-      "oracleBackendID": "netgen",
-      "schematicNetlistPath": "global-schematic.spice",
-      "topCell": "inv"
-    },
-    {
-      "backendID": "netgen",
-      "caseID": "netgen-multiplicity-policy-gap",
-      "expectedActiveErrorRuleIDs": [
-        "LVS_MISMATCH"
-      ],
-      "expectedPassed": false,
-      "layoutNetlistPath": "multiplicity-layout.spice",
-      "oracleBackendID": "netgen",
-      "schematicNetlistPath": "multiplicity-schematic.spice",
-      "topCell": "inv"
-    },
-    {
-      "backendID": "netgen",
-      "caseID": "netgen-standard-gds-extraction",
-      "expectedPassed": true,
-      "layoutFormat": "gds",
-      "layoutGDSPath": "sky130_fd_sc_hd__inv_1.gds",
-      "oracleBackendID": "netgen",
-      "schematicNetlistPath": "sky130_fd_sc_hd__inv_1-schematic.spice",
-      "topCell": "sky130_fd_sc_hd__inv_1"
-    },
-    {
-      "backendID": "netgen",
-      "caseID": "netgen-terminal-equivalence-policy-gap",
-      "expectedActiveErrorRuleIDs": [
-        "LVS_MISMATCH"
-      ],
-      "expectedPassed": false,
-      "layoutNetlistPath": "terminal-equivalence-layout.spice",
-      "oracleBackendID": "netgen",
-      "schematicNetlistPath": "terminal-equivalence-schematic.spice",
-      "terminalEquivalencePath": "terminal-equivalence-policy.json",
-      "topCell": "clamp"
-    },
-    {
-      "backendID": "netgen",
-      "caseID": "netgen-parameter-policy-gap",
-      "expectedPassed": true,
-      "layoutNetlistPath": "parameter-layout.spice",
-      "oracleBackendID": "netgen",
-      "schematicNetlistPath": "parameter-mismatch-schematic.spice",
-      "topCell": "inv"
     }
   ]
 }

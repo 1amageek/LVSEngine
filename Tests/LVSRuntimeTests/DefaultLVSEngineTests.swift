@@ -663,6 +663,55 @@ struct DefaultLVSEngineTests {
         #expect(result.oracleResult?.provenance?.inputArtifacts.contains { $0.id == "input-layout-netlist" } == true)
     }
 
+    @Test func corpusRunnerDoesNotTreatThePrimaryBackendAsAnIndependentOracle() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let layoutNetlistURL = directory.appending(path: "layout.spice")
+        let schematicNetlistURL = directory.appending(path: "schematic.spice")
+        let specURL = directory.appending(path: "lvs-corpus.json")
+        let outputDirectory = directory.appending(path: "corpus-output")
+        let netlist = ".subckt inv in out vdd vss\n.ends inv\n"
+        try netlist.write(to: layoutNetlistURL, atomically: true, encoding: .utf8)
+        try netlist.write(to: schematicNetlistURL, atomically: true, encoding: .utf8)
+        try writeJSON(LVSCorpusSpec(cases: [
+            LVSCorpusCase(
+                caseID: "same-backend-reference",
+                layoutNetlistPath: layoutNetlistURL.lastPathComponent,
+                schematicNetlistPath: schematicNetlistURL.lastPathComponent,
+                topCell: "inv",
+                backendID: "clean-stub",
+                oracleBackendID: "clean-stub",
+                expectedPassed: true,
+                requiredAssertions: [
+                    LVSCorpusAssertionRequirement(
+                        assertionID: "oracle-independence",
+                        kind: .oracleIndependence,
+                        expectedValue: "ready"
+                    ),
+                ]
+            ),
+        ]), to: specURL)
+
+        let report = try await LVSCorpusRunner(engine: DefaultLVSEngine(
+            backends: [CleanStubLVSBackend()],
+            layoutNetlistExtractor: nil
+        )).run(
+            specURL: specURL,
+            outputDirectory: outputDirectory
+        )
+
+        #expect(!report.passed)
+        let result = try #require(report.caseResults.first)
+        #expect(result.oracleResult?.agreementPassed == true)
+        #expect(result.oracleResult?.readinessStatus == .blocked)
+        #expect(result.oracleResult?.readinessDiagnostics == [
+            "The oracle backend is the same backend used by the primary comparison."
+        ])
+        #expect(result.observedAssertions.first?.kind == .oracleIndependence)
+        #expect(result.observedAssertions.first?.status == .failed)
+        #expect(result.observedAssertions.first?.failureCode == "oracle_not_independent")
+    }
+
     @Test func corpusRunnerExecutesDeterminismAndCancellationAssertions() async throws {
         let directory = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(directory) }
