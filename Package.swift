@@ -82,6 +82,7 @@ let package = Package(
                 "LVSNetlistParsing",
                 "LVSGraph",
                 "LVSMatching",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutLVSExtraction", package: "semiconductor-layout"),
                 .product(name: "LayoutTech", package: "semiconductor-layout"),
@@ -94,6 +95,7 @@ let package = Package(
             dependencies: [
                 "LVSCore",
                 "LVSParsers",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
                 .product(name: "SignoffToolSupport", package: "SignoffToolSupport"),
             ],
             resources: [.copy("Resources/lvs.tcl")]
@@ -106,7 +108,14 @@ let package = Package(
             ],
             resources: [.copy("Resources/extract_lvs.tcl")]
         ),
-        .target(name: "LVSPersistence", dependencies: ["LVSCore", "LVSGraph"]),
+        .target(
+            name: "LVSPersistence",
+            dependencies: [
+                "LVSCore",
+                "LVSGraph",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
+            ]
+        ),
         .target(
             name: "LVSRuntime",
             dependencies: [
@@ -116,6 +125,7 @@ let package = Package(
                 "LVSAdapters",
                 "LVSExtractionAdapters",
                 "LVSPersistence",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
                 .product(name: "LayoutAutoGen", package: "semiconductor-layout"),
                 .product(name: "LayoutCore", package: "semiconductor-layout"),
                 .product(name: "LayoutLVSExtraction", package: "semiconductor-layout"),
@@ -152,7 +162,15 @@ let package = Package(
             ]
         ),
         .testTarget(name: "LVSParsersTests", dependencies: ["LVSParsers", "LVSCore"]),
-        .testTarget(name: "LVSRuntimeTests", dependencies: ["LVSRuntime", "LVSPersistence", "LVSCore"]),
+        .testTarget(
+            name: "LVSRuntimeTests",
+            dependencies: [
+                "LVSRuntime",
+                "LVSPersistence",
+                "LVSCore",
+                .product(name: "CircuiteFoundation", package: "CircuiteFoundation"),
+            ]
+        ),
         .testTarget(
             name: "LVSCLICoreTests",
             dependencies: [

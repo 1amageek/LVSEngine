@@ -19,6 +19,17 @@ flowchart LR
 and artifact manifest remain authoritative; no wrapper can turn an incomplete
 extraction into a match.
 
+Every `LVSExecutionResult` carries mandatory `ExecutionProvenance`. It binds
+the exact digest-and-byte-count request inputs, the native entry point or
+external process invocation, a sanitized environment fingerprint, and the
+implementation producer. `ProducerIdentity.build` is the measured SHA-256 of
+the executable carrying that implementation. Netgen additionally requires an
+explicit tool version (`NetgenLVSToolchain.toolVersion`, or `NETGEN_VERSION`
+for automatic discovery). Artifact manifest schema 4 repeats the same producer
+identity. A thrown backend failure is not converted into fabricated successful
+evidence; returned mismatch or blocked results remain persistable because they
+already contain backend-authored provenance.
+
 LVSEngine is a Swift layout-versus-schematic verification library and command-line tool.
 It compares circuit connectivity from SPICE netlists or standard mask data, produces
 structured diagnostics, and persists reproducible verification artifacts for developer,
@@ -134,8 +145,9 @@ case .blocked:
 }
 ```
 
-`LVSExecutionResult` contains the typed result plus URLs for persisted reports,
-manifests, correspondence, extraction evidence, and transform ledgers when available.
+`LVSExecutionResult` contains the typed result, mandatory execution provenance,
+and URLs for persisted reports, manifests, correspondence, extraction evidence,
+and transform ledgers when available.
 
 ## Command-line usage
 

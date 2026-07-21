@@ -22,7 +22,7 @@ extension LVSCLIOptionsTests {
     }
 }
 
-@Test func cliOutputIncludesStructuredDiagnostics() {
+@Test func cliOutputIncludesStructuredDiagnostics() throws {
     let diagnostic = LVSDiagnostic(
         severity: .error,
         message: "Component signature count differs",
@@ -34,7 +34,7 @@ extension LVSCLIOptionsTests {
         suggestedFix: "Compare extracted and schematic devices.",
         rawLine: "signature=mos|nmos layout=1 schematic=0"
     )
-    let output = LVSCLIOutput(result: LVSExecutionResult(
+    let output = LVSCLIOutput(result: try LVSExecutionResult.inProcess(
         request: LVSRequest(
             layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
             schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),
@@ -66,7 +66,7 @@ extension LVSCLIOptionsTests {
     #expect(output.waiverReport?.unusedWaiverIDs == ["unused"])
 }
 
-@Test func malformedWaiverMarkerDoesNotHideErrorDiagnostic() {
+@Test func malformedWaiverMarkerDoesNotHideErrorDiagnostic() throws {
     let blankIDDiagnostic = LVSDiagnostic(
         severity: .error,
         message: "Component signature count differs",
@@ -98,7 +98,7 @@ extension LVSCLIOptionsTests {
         logPath: "",
         diagnostics: [blankIDDiagnostic, missingReasonDiagnostic]
     )
-    let output = LVSCLIOutput(result: LVSExecutionResult(
+    let output = LVSCLIOutput(result: try LVSExecutionResult.inProcess(
         request: LVSRequest(
             layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
             schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),

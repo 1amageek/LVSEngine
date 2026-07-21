@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import CircuiteFoundation
 import LVSCore
 
 public struct LVSArtifactStore: LVSArtifactPersisting {
@@ -20,6 +21,7 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
             }
             let storedResult = LVSExecutionResult(
                 request: executionResult.request,
+                comparisonRequest: executionResult.comparisonRequest,
                 result: executionResult.result,
                 extractedLayoutNetlistURL: executionResult.extractedLayoutNetlistURL,
                 waiverReport: executionResult.waiverReport,
@@ -30,7 +32,9 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
                 correspondenceURL: correspondenceURL,
                 extractionReportURL: executionResult.extractionReportURL,
                 transformLedgerURL: executionResult.transformLedgerURL,
-                extractionEvidence: executionResult.extractionEvidence
+                extractionEvidence: executionResult.extractionEvidence,
+                layoutNetlistExtraction: executionResult.layoutNetlistExtraction,
+                provenance: executionResult.provenance
             )
             let data = try encoder.encode(storedResult)
             try data.write(to: reportURL, options: [.atomic])
@@ -63,77 +67,131 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
         correspondenceURL: URL?,
         baseDirectory: URL
     ) throws -> LVSArtifactManifest {
+        let comparisonRequest = executionResult.comparisonRequest
+        let provenanceInputs = executionResult.provenance.inputs
+        let derivedNetlist = executionResult.layoutNetlistExtraction?.netlist
         var inputs: [LVSArtifactRecord] = []
-        if let layoutGDSURL = executionResult.request.layoutGDSURL {
-            inputs.append(try record(id: "input-layout", kind: .layout, url: layoutGDSURL, baseDirectory: baseDirectory))
-        }
-        if let layoutNetlistURL = executionResult.request.layoutNetlistURL {
+        if let layoutGDSURL = comparisonRequest.layoutGDSURL {
             inputs.append(try record(
-                id: "input-layout-netlist",
-                kind: .layoutNetlist,
-                url: layoutNetlistURL,
-                baseDirectory: baseDirectory
+                id: "input-layout",
+                kind: .layout,
+                url: layoutGDSURL,
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .layout
             ))
         }
+        if let layoutNetlistURL = comparisonRequest.layoutNetlistURL {
+            if let derivedNetlist, sourceLocation(derivedNetlist.locator.location, matches: layoutNetlistURL) {
+                inputs.append(try record(
+                    id: "input-layout-netlist",
+                    kind: .layoutNetlist,
+                    url: layoutNetlistURL,
+                    baseDirectory: baseDirectory,
+                    derivedReference: derivedNetlist
+                ))
+            } else {
+                inputs.append(try record(
+                    id: "input-layout-netlist",
+                    kind: .layoutNetlist,
+                    url: layoutNetlistURL,
+                    baseDirectory: baseDirectory,
+                    sourceReferences: provenanceInputs,
+                    expectedArtifactKind: .netlist
+                ))
+            }
+        }
         if let extractedLayoutNetlistURL = executionResult.extractedLayoutNetlistURL,
-           executionResult.request.layoutNetlistURL != extractedLayoutNetlistURL {
+           comparisonRequest.layoutNetlistURL != extractedLayoutNetlistURL {
+            guard let derivedNetlist else {
+                throw LVSError.artifactWriteFailed(
+                    "LVS extracted layout netlist is missing its producer-bound derived artifact reference."
+                )
+            }
             inputs.append(try record(
-                id: "extracted-layout-netlist",
+                id: "derived-layout-netlist",
                 kind: .layoutNetlist,
                 url: extractedLayoutNetlistURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                derivedReference: derivedNetlist
             ))
         }
         inputs.append(try record(
             id: "input-schematic-netlist",
             kind: .schematicNetlist,
-            url: executionResult.request.schematicNetlistURL,
-            baseDirectory: baseDirectory
+            url: comparisonRequest.schematicNetlistURL,
+            baseDirectory: baseDirectory,
+            sourceReferences: provenanceInputs,
+            expectedArtifactKind: .netlist
         ))
-        if let technologyURL = executionResult.request.technologyURL {
-            inputs.append(try record(id: "input-technology", kind: .technology, url: technologyURL, baseDirectory: baseDirectory))
+        if let technologyURL = comparisonRequest.technologyURL {
+            inputs.append(try record(
+                id: "input-technology",
+                kind: .technology,
+                url: technologyURL,
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .technology
+            ))
         }
-        if let extractionProfileURL = executionResult.request.extractionProfileURL {
+        if let extractionProfileURL = comparisonRequest.extractionProfileURL {
             inputs.append(try record(
                 id: "input-extraction-profile",
                 kind: .extractionProfile,
                 url: extractionProfileURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .technology
             ))
         }
-        if let extractionDeckURL = executionResult.request.extractionDeckURL {
+        if let extractionDeckURL = comparisonRequest.extractionDeckURL {
             inputs.append(try record(
                 id: "input-extraction-deck",
                 kind: .extractionDeck,
                 url: extractionDeckURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .ruleDeck
             ))
         }
-        if let waiverURL = executionResult.request.waiverURL {
-            inputs.append(try record(id: "input-waivers", kind: .waiver, url: waiverURL, baseDirectory: baseDirectory))
+        if let waiverURL = comparisonRequest.waiverURL {
+            inputs.append(try record(
+                id: "input-waivers",
+                kind: .waiver,
+                url: waiverURL,
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .constraint
+            ))
         }
-        if let modelEquivalenceURL = executionResult.request.modelEquivalenceURL {
+        if let modelEquivalenceURL = comparisonRequest.modelEquivalenceURL {
             inputs.append(try record(
                 id: "input-model-equivalence",
                 kind: .modelEquivalence,
                 url: modelEquivalenceURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .constraint
             ))
         }
-        if let terminalEquivalenceURL = executionResult.request.terminalEquivalenceURL {
+        if let terminalEquivalenceURL = comparisonRequest.terminalEquivalenceURL {
             inputs.append(try record(
                 id: "input-terminal-equivalence",
                 kind: .terminalEquivalence,
                 url: terminalEquivalenceURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .constraint
             ))
         }
-        if let devicePolicyURL = executionResult.request.devicePolicyURL {
+        if let devicePolicyURL = comparisonRequest.devicePolicyURL {
             inputs.append(try record(
                 id: "input-device-policy",
                 kind: .devicePolicy,
                 url: devicePolicyURL,
-                baseDirectory: baseDirectory
+                baseDirectory: baseDirectory,
+                sourceReferences: provenanceInputs,
+                expectedArtifactKind: .constraint
             ))
         }
 
@@ -181,6 +239,7 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
             generatedAt: ISO8601DateFormatter().string(from: Date()),
             backendID: executionResult.result.backendID,
             toolName: executionResult.result.toolName,
+            producer: executionResult.provenance.producer,
             executionStatus: executionResult.result.executionStatus,
             verdict: executionResult.result.verdict,
             readiness: executionResult.result.readiness,
@@ -207,19 +266,27 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
         guard let processProfileID = executionResult.request.processProfileID,
               let deckDigest = inputs.first(where: { $0.kind == .extractionDeck })?.sha256
                 ?? inputs.first(where: { $0.kind == .technology })?.sha256,
-              let executableURL = resolvedExecutableURL(executionResult.result.provenance) else {
+              let binaryDigest = executionResult.provenance.producer.build else {
             return nil
         }
-        let executableData = try Data(contentsOf: executableURL)
-        let binaryDigest = SHA256.hash(data: executableData)
-            .map { String(format: "%02x", $0) }
-            .joined()
+        if let executableURL = resolvedExecutableURL(executionResult.result.provenance) {
+            let executableData = try Data(contentsOf: executableURL)
+            let observedDigest = SHA256.hash(data: executableData)
+                .map { String(format: "%02x", $0) }
+                .joined()
+            guard observedDigest == binaryDigest else {
+                throw LVSError.artifactWriteFailed(
+                    "LVS executable digest differs from execution provenance producer build."
+                )
+            }
+        }
         return LVSImplementationIdentity(
-            implementationID: executionResult.result.backendID == "netgen"
-                ? "netgen-external"
-                : "lvsengine-native",
+            implementationID: executionResult.provenance.producer.identifier,
             binaryDigest: binaryDigest,
-            algorithmVersion: "lvs-graph-v2",
+            algorithmVersion: executionResult.result.backendID == "native"
+                || executionResult.result.backendID == "native-gds"
+                ? LVSExecutionProvenance.nativeAlgorithmVersion
+                : executionResult.provenance.producer.version,
             processProfileID: processProfileID,
             deckDigest: deckDigest
         )
@@ -234,22 +301,7 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
     }
 
     private func normalizedResultDigest(_ executionResult: LVSExecutionResult) throws -> String {
-        let payload = LVSNormalizedResultPayload(
-            backendID: executionResult.result.backendID,
-            executionStatus: executionResult.result.executionStatus,
-            verdict: executionResult.result.verdict,
-            readiness: executionResult.result.readiness,
-            blockingReasons: executionResult.result.blockingReasons.sorted { $0.code < $1.code },
-            diagnostics: executionResult.result.diagnostics.sorted {
-                ($0.ruleID ?? "", $0.rawLine) < ($1.ruleID ?? "", $1.rawLine)
-            },
-            correspondence: executionResult.correspondence,
-            extractionEvidence: executionResult.extractionEvidence
-        )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        let data = try encoder.encode(payload)
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        try LVSNormalizedResultDigester().digest(executionResult)
     }
 
     private func diagnosticSummary(_ diagnostics: [LVSDiagnostic]) -> LVSDiagnosticSummary {
@@ -284,12 +336,35 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
         id: String,
         kind: LVSArtifactRecord.Kind,
         url: URL,
-        baseDirectory: URL
+        baseDirectory: URL,
+        sourceReferences: [ArtifactReference] = [],
+        expectedArtifactKind: ArtifactKind? = nil,
+        derivedReference: ArtifactReference? = nil
     ) throws -> LVSArtifactRecord {
         guard url.isFileURL else {
             throw LVSError.artifactWriteFailed("non-file artifact URL is not supported for \(id): \(url.absoluteString)")
         }
         let data = try Data(contentsOf: url)
+        let sourceReference: ArtifactReference?
+        if let expectedArtifactKind {
+            sourceReference = try uniqueSourceReference(
+                for: url,
+                data: data,
+                expectedKind: expectedArtifactKind,
+                among: sourceReferences,
+                recordID: id
+            )
+        } else {
+            sourceReference = nil
+        }
+        if let derivedReference {
+            try validateDerivedReference(
+                derivedReference,
+                url: url,
+                data: data,
+                recordID: id
+            )
+        }
         let retainedURL = try retainedArtifactURL(
             for: url,
             id: id,
@@ -301,8 +376,69 @@ public struct LVSArtifactStore: LVSArtifactPersisting {
             kind: kind,
             path: relativePath(for: retainedURL, baseDirectory: baseDirectory),
             byteCount: data.count,
-            sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+            sha256: SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined(),
+            sourceReference: sourceReference,
+            derivedReference: derivedReference
         )
+    }
+
+    private func uniqueSourceReference(
+        for url: URL,
+        data: Data,
+        expectedKind: ArtifactKind,
+        among references: [ArtifactReference],
+        recordID: String
+    ) throws -> ArtifactReference {
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let matches = references.filter { reference in
+            reference.locator.kind == expectedKind
+                && reference.digest.algorithm == .sha256
+                && reference.digest.hexadecimalValue == digest
+                && reference.byteCount == UInt64(data.count)
+                && sourceLocation(reference.locator.location, matches: url)
+        }
+        guard matches.count == 1, let match = matches.first else {
+            throw LVSError.artifactWriteFailed(
+                "LVS manifest input \(recordID) requires exactly one matching execution provenance artifact; found \(matches.count)."
+            )
+        }
+        return match
+    }
+
+    private func validateDerivedReference(
+        _ reference: ArtifactReference,
+        url: URL,
+        data: Data,
+        recordID: String
+    ) throws {
+        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        guard reference.locator.role == .output,
+              reference.locator.kind == .netlist,
+              reference.digest.algorithm == .sha256,
+              reference.digest.hexadecimalValue == digest,
+              reference.byteCount == UInt64(data.count),
+              reference.producer != nil,
+              sourceLocation(reference.locator.location, matches: url) else {
+            throw LVSError.artifactWriteFailed(
+                "LVS derived input \(recordID) does not match its producer-bound layout-netlist artifact reference."
+            )
+        }
+    }
+
+    private func sourceLocation(_ location: ArtifactLocation, matches url: URL) -> Bool {
+        let sourcePath = url.standardizedFileURL.path(percentEncoded: false)
+        switch location.storage {
+        case .absoluteFileURL:
+            guard let referenceURL = URL(string: location.value), referenceURL.isFileURL else {
+                return false
+            }
+            return referenceURL.standardizedFileURL.path(percentEncoded: false) == sourcePath
+        case .workspaceRelative:
+            let relativePath = location.value.split(separator: "/", omittingEmptySubsequences: true)
+                .map(String.init)
+                .joined(separator: "/")
+            return sourcePath == "/" + relativePath || sourcePath.hasSuffix("/" + relativePath)
+        }
     }
 
     private func retainedArtifactURL(

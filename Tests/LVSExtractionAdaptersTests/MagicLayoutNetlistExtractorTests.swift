@@ -17,31 +17,33 @@ struct MagicLayoutNetlistExtractorTests {
             echo "EXT_DONE"
             """
         )
-        let extractor = MagicLayoutNetlistExtractor(toolchain: MagicLVSToolchain(
-            magicExecutableURL: executableURL,
-            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
-            pdkRoot: "/tmp/pdk",
-            driverScriptURL: URL(filePath: "/tmp/extract_lvs.tcl")
-        ))
+        let (toolchain, gdsURL) = try makeToolchain(
+            executableURL: executableURL,
+            directory: directory
+        )
+        let extractor = MagicLayoutNetlistExtractor(toolchain: toolchain)
 
         let first = try await extractor.extractLayoutNetlist(
-            gds: URL(filePath: "/tmp/inverter.gds"),
+            gds: gdsURL,
             topCell: "inv",
             into: directory,
             timeoutSeconds: 5
         )
         let second = try await extractor.extractLayoutNetlist(
-            gds: URL(filePath: "/tmp/inverter.gds"),
+            gds: gdsURL,
             topCell: "inv",
             into: directory,
             timeoutSeconds: 5
         )
 
+        let firstURL = try first.netlistFileURL()
+        let secondURL = try second.netlistFileURL()
         #expect(first != second)
-        #expect(first.lastPathComponent.hasPrefix("inv-lvs-"))
-        #expect(second.lastPathComponent.hasPrefix("inv-lvs-"))
-        #expect(FileManager.default.fileExists(atPath: first.path(percentEncoded: false)))
-        #expect(FileManager.default.fileExists(atPath: second.path(percentEncoded: false)))
+        #expect(firstURL.lastPathComponent.hasPrefix("inv-lvs-"))
+        #expect(secondURL.lastPathComponent.hasPrefix("inv-lvs-"))
+        #expect(FileManager.default.fileExists(atPath: firstURL.path(percentEncoded: false)))
+        #expect(FileManager.default.fileExists(atPath: secondURL.path(percentEncoded: false)))
+        #expect(first.netlist.producer == first.provenance.producer)
     }
 
     @Test func extractionOutputFileNameDoesNotUseTopCellPathSegments() async throws {
@@ -55,15 +57,14 @@ struct MagicLayoutNetlistExtractorTests {
             echo "EXT_DONE"
             """
         )
-        let extractor = MagicLayoutNetlistExtractor(toolchain: MagicLVSToolchain(
-            magicExecutableURL: executableURL,
-            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
-            pdkRoot: "/tmp/pdk",
-            driverScriptURL: URL(filePath: "/tmp/extract_lvs.tcl")
-        ))
+        let (toolchain, gdsURL) = try makeToolchain(
+            executableURL: executableURL,
+            directory: directory
+        )
+        let extractor = MagicLayoutNetlistExtractor(toolchain: toolchain)
 
         let output = try await extractor.extractLayoutNetlist(
-            gds: URL(filePath: "/tmp/inverter.gds"),
+            gds: gdsURL,
             topCell: "../escape/cell",
             into: directory,
             timeoutSeconds: 5
@@ -71,9 +72,10 @@ struct MagicLayoutNetlistExtractorTests {
 
         let directoryPath = directory.standardizedFileURL.path(percentEncoded: false)
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let outputPath = output.standardizedFileURL.path(percentEncoded: false)
+        let outputURL = try output.netlistFileURL()
+        let outputPath = outputURL.standardizedFileURL.path(percentEncoded: false)
         #expect(outputPath.hasPrefix("/" + directoryPath + "/"))
-        #expect(output.lastPathComponent.hasPrefix(".._escape_cell-lvs-"))
+        #expect(outputURL.lastPathComponent.hasPrefix(".._escape_cell-lvs-"))
         #expect(FileManager.default.fileExists(atPath: outputPath))
         #expect(!FileManager.default.fileExists(atPath: directory.deletingLastPathComponent().appending(path: "escape").path(percentEncoded: false)))
     }
@@ -99,17 +101,16 @@ struct MagicLayoutNetlistExtractorTests {
             sleep 10
             """
         )
-        let extractor = MagicLayoutNetlistExtractor(toolchain: MagicLVSToolchain(
-            magicExecutableURL: executableURL,
-            rcFileURL: URL(filePath: "/tmp/sky130A.magicrc"),
-            pdkRoot: "/tmp/pdk",
-            driverScriptURL: URL(filePath: "/tmp/extract_lvs.tcl")
-        ))
+        let (toolchain, gdsURL) = try makeToolchain(
+            executableURL: executableURL,
+            directory: directory
+        )
+        let extractor = MagicLayoutNetlistExtractor(toolchain: toolchain)
         let probe = CancellationProbe()
 
         let task = Task {
             try await extractor.extractLayoutNetlist(
-                gds: URL(filePath: "/tmp/inverter.gds"),
+                gds: gdsURL,
                 topCell: "inv",
                 into: directory,
                 timeoutSeconds: 5,
@@ -147,6 +148,28 @@ struct MagicLayoutNetlistExtractorTests {
             .appending(path: "MagicLayoutNetlistExtractorTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
+    }
+
+    private func makeToolchain(
+        executableURL: URL,
+        directory: URL
+    ) throws -> (MagicLVSToolchain, URL) {
+        let gdsURL = directory.appending(path: "inverter.gds")
+        let rcFileURL = directory.appending(path: "sky130A.magicrc")
+        let driverScriptURL = directory.appending(path: "extract_lvs.tcl")
+        try Data([0]).write(to: gdsURL)
+        try Data("tech sky130A\n".utf8).write(to: rcFileURL)
+        try Data("# extraction driver\n".utf8).write(to: driverScriptURL)
+        return (
+            MagicLVSToolchain(
+                toolVersion: "test-magic-1.0",
+                magicExecutableURL: executableURL,
+                rcFileURL: rcFileURL,
+                pdkRoot: directory.path(percentEncoded: false),
+                driverScriptURL: driverScriptURL
+            ),
+            gdsURL
+        )
     }
 
     private func makeExecutableScript(in directory: URL, name: String, body: String) throws -> URL {

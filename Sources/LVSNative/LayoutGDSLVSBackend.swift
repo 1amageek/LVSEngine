@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 import LVSCore
 import LVSGraph
@@ -60,6 +61,8 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
         _ request: LVSRequest,
         cancellationCheck: LVSExecutionCancellationCheck?
     ) async throws -> LVSExecutionResult {
+        let startedAt = Date()
+        let inputArtifacts = try LVSExecutionProvenance.captureInputArtifacts(for: request)
         try await checkCancellation(cancellationCheck)
         guard let layoutGDSURL = request.layoutGDSURL else {
             throw LVSError.invalidInput("The GDS backend needs layoutGDSURL.")
@@ -152,6 +155,7 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
                 extractionReportURL: extractionArtifacts.reportURL,
                 transformLedgerURL: extractionArtifacts.transformLedgerURL,
                 extractionDiagnostics: diagnostics,
+                inputArtifacts: inputArtifacts,
                 cancellationCheck: cancellationCheck
             )
         }
@@ -317,7 +321,17 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
             ),
             extractionReportURL: extractionArtifacts.reportURL,
             transformLedgerURL: extractionArtifacts.transformLedgerURL,
-            extractionEvidence: Self.extractionEvidence(for: extractionIR)
+            extractionEvidence: Self.extractionEvidence(for: extractionIR),
+            provenance: try LVSExecutionProvenance.make(
+                request: request,
+                result: result,
+                inputArtifacts: inputArtifacts,
+                invocation: ExecutionInvocation.inProcess(
+                    entryPoint: "LayoutGDSLVSBackend.run"
+                ),
+                startedAt: startedAt,
+                completedAt: Date()
+            )
         )
     }
 
@@ -331,6 +345,7 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
         extractionReportURL: URL?,
         transformLedgerURL: URL?,
         extractionDiagnostics: [LVSDiagnostic],
+        inputArtifacts: [ArtifactReference],
         cancellationCheck: LVSExecutionCancellationCheck?
     ) async throws -> LVSExecutionResult {
         let schematicTop = try Self.schematicTopCell(in: schematicText, preferredName: request.topCell)
@@ -364,7 +379,8 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
             devicePolicyURL: request.devicePolicyURL,
             workingDirectory: request.workingDirectory,
             backendSelection: LVSBackendSelection(backendID: "native"),
-            options: request.options
+            options: request.options,
+            executionInputArtifacts: request.executionInputArtifacts
         )
         let comparison = try await NativeLVSBackend().run(
             comparisonRequest,
@@ -398,6 +414,25 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
                 timeoutSeconds: request.options.timeoutSeconds
             )
         )
+        let provenance = try LVSExecutionProvenance.make(
+            request: request,
+            result: result,
+            inputArtifacts: inputArtifacts,
+            invocation: ExecutionInvocation.inProcess(
+                entryPoint: "LayoutGDSLVSBackend.runPolicyAwareComparison"
+            ),
+            startedAt: comparison.provenance.startedAt,
+            completedAt: Date()
+        )
+        let extractedNetlist = try LocalArtifactReferencer().reference(
+            ArtifactLocator(
+                location: ArtifactLocation(fileURL: extractedNetlistURL),
+                role: .output,
+                kind: .netlist,
+                format: .spice
+            ),
+            producer: provenance.producer
+        )
         return LVSExecutionResult(
             request: request,
             result: result,
@@ -416,7 +451,12 @@ public struct LayoutGDSLVSBackend: LVSCancellableBackend {
                 blockingReasonCodes: extractionIR.isReady
                     ? []
                     : ["extraction_semantics_incomplete"]
-            )
+            ),
+            layoutNetlistExtraction: LVSLayoutNetlistExtractionResult(
+                netlist: extractedNetlist,
+                provenance: provenance
+            ),
+            provenance: provenance
         )
     }
 

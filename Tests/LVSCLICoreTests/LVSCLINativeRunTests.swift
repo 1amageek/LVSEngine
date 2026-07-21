@@ -593,7 +593,7 @@ extension LVSCLIOptionsTests {
     let reportURL = root.appending(path: "lvs-report.json")
     let waiverURL = root.appending(path: "lvs-waivers.json")
     let reviewURL = root.appending(path: "review/lvs-waiver-review.json")
-    let result = LVSExecutionResult(
+    let result = try LVSExecutionResult.inProcess(
       request: LVSRequest(
         layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
         schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),

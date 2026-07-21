@@ -1,20 +1,24 @@
+import CircuiteFoundation
 import Foundation
 import LVSCore
 import LVSParsers
 import SignoffToolSupport
 
 public struct NetgenLVSToolchain: Sendable, Hashable {
+    public let toolVersion: String
     public let netgenExecutableURL: URL
     public let setupFileURL: URL
     public let pdkRoot: String
     public let driverScriptURL: URL
 
     public init(
+        toolVersion: String,
         netgenExecutableURL: URL,
         setupFileURL: URL,
         pdkRoot: String,
         driverScriptURL: URL
     ) {
+        self.toolVersion = toolVersion
         self.netgenExecutableURL = netgenExecutableURL
         self.setupFileURL = setupFileURL
         self.pdkRoot = pdkRoot
@@ -44,6 +48,13 @@ public struct NetgenLVSAdapter: LVSCancellableBackend {
         self.parser = parser
     }
 
+    public func currentExecutableDigest() throws -> String {
+        try SHA256ContentDigester().digest(
+            fileAt: toolchain.netgenExecutableURL,
+            using: .sha256
+        ).hexadecimalValue
+    }
+
     public static var bundledDriverScriptURL: URL? {
         Bundle.module.url(forResource: "lvs", withExtension: "tcl")
     }
@@ -53,6 +64,10 @@ public struct NetgenLVSAdapter: LVSCancellableBackend {
         fileManager: FileManager = .default
     ) -> NetgenLVSAdapter? {
         guard let driver = bundledDriverScriptURL else { return nil }
+        guard let toolVersion = environment["NETGEN_VERSION"],
+              !toolVersion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
         guard let netgenPath = resolveNetgenExecutablePath(
             environment: environment,
             fileManager: fileManager
@@ -88,6 +103,7 @@ public struct NetgenLVSAdapter: LVSCancellableBackend {
             return nil
         }
         return NetgenLVSAdapter(toolchain: NetgenLVSToolchain(
+            toolVersion: toolVersion,
             netgenExecutableURL: URL(filePath: netgenPath),
             setupFileURL: setupFile,
             pdkRoot: pdkRoot,
@@ -122,6 +138,12 @@ public struct NetgenLVSAdapter: LVSCancellableBackend {
         guard let layoutNetlistURL = request.layoutNetlistURL else {
             throw LVSError.invalidInput("Netgen LVS requires a layout netlist")
         }
+        let startedAt = Date()
+        let inputArtifacts = try LVSExecutionProvenance.captureInputArtifacts(for: request)
+        let executableDigest = try SHA256ContentDigester().digest(
+            fileAt: toolchain.netgenExecutableURL,
+            using: .sha256
+        )
         let artifactDirectory = request.workingDirectory ?? FileManager.default.temporaryDirectory
         try FileManager.default.createDirectory(at: artifactDirectory, withIntermediateDirectories: true)
         let artifactID = UUID().uuidString
@@ -194,7 +216,32 @@ public struct NetgenLVSAdapter: LVSCancellableBackend {
                 timeoutSeconds: request.options.timeoutSeconds
             )
         )
-        return LVSExecutionResult(request: request, result: parsed)
+        let completedDigest = try SHA256ContentDigester().digest(
+            fileAt: toolchain.netgenExecutableURL,
+            using: .sha256
+        )
+        guard completedDigest == executableDigest else {
+            throw LVSError.backendFailed("Netgen executable changed during LVS execution.")
+        }
+        return LVSExecutionResult(
+            request: request,
+            result: parsed,
+            provenance: try LVSExecutionProvenance.make(
+                request: request,
+                result: parsed,
+                implementationID: "netgen-external",
+                implementationVersion: toolchain.toolVersion,
+                implementationBuild: executableDigest.hexadecimalValue,
+                inputArtifacts: inputArtifacts,
+                invocation: ExecutionInvocation.externalProcess(
+                    executable: toolchain.netgenExecutableURL.path(percentEncoded: false),
+                    arguments: process.arguments ?? [],
+                    workingDirectory: artifactDirectory.path(percentEncoded: false)
+                ),
+                startedAt: startedAt,
+                completedAt: Date()
+            )
+        )
     }
 
     private func renderLog(request: LVSRequest, layoutNetlistURL: URL, exitCode: Int32, rawOutput: String) -> String {

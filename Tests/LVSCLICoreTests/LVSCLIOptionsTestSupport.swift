@@ -139,8 +139,8 @@ func writeText(_ text: String, to url: URL) throws {
     try text.write(to: url, atomically: true, encoding: .utf8)
 }
 
-func makeRepairHintExecutionResult() -> LVSExecutionResult {
-    LVSExecutionResult(
+func makeRepairHintExecutionResult() throws -> LVSExecutionResult {
+    try LVSExecutionResult.inProcess(
         request: LVSRequest(
             layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
             schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),

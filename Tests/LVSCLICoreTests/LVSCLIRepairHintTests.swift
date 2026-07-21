@@ -5,7 +5,7 @@ import LVSCLICore
 
 extension LVSCLIOptionsTests {
 @Test func repairHintBuilderMapsActiveDiagnosticsToEngineOwnedOperations() throws {
-    let result = makeRepairHintExecutionResult()
+    let result = try makeRepairHintExecutionResult()
     let report = LVSRepairHintBuilder().build(result: result, reportURL: URL(filePath: "/tmp/lvs-report.json"))
 
     #expect(report.schemaVersion == 1)
@@ -105,7 +105,7 @@ extension LVSCLIOptionsTests {
     let root = try makeTemporaryDirectory()
     defer { removeTemporaryDirectory(root) }
     let reportURL = root.appending(path: "lvs-report.json")
-    try writeJSON(makeRepairHintExecutionResult(), to: reportURL)
+    try writeJSON(try makeRepairHintExecutionResult(), to: reportURL)
 
     let exitCode = await LVSCLI.run(arguments: [
         "--repair-hints-from-report", reportURL.path(percentEncoded: false),

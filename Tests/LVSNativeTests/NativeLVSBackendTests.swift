@@ -20,6 +20,13 @@ struct NativeLVSBackendTests {
 
         #expect(result.result.passed)
         #expect(result.result.provenance?.executablePath == "in-process")
+        #expect(result.provenance.producer.identifier == "lvsengine-native")
+        #expect(result.provenance.producer.version == LVSExecutionProvenance.nativeImplementationVersion)
+        #expect(result.provenance.producer.build?.count == 64)
+        #expect(result.provenance.inputs.count == 2)
+        #expect(result.provenance.inputs.allSatisfy { $0.byteCount > 0 })
+        #expect(result.provenance.invocation?.entryPoint == "NativeLVSBackend.run")
+        #expect(result.provenance.environment != nil)
     }
 
     @Test func includeAndTopLevelParametersMatch() async throws {

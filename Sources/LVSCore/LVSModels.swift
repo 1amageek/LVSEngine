@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 import LVSGraph
 
@@ -100,6 +101,7 @@ public struct LVSRequest: Sendable, Hashable, Codable {
     public let workingDirectory: URL?
     public let backendSelection: LVSBackendSelection
     public let options: LVSOptions
+    public let executionInputArtifacts: [ArtifactReference]
 
     public init(
         layoutNetlistURL: URL? = nil,
@@ -117,7 +119,8 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         devicePolicyURL: URL? = nil,
         workingDirectory: URL? = nil,
         backendSelection: LVSBackendSelection = LVSBackendSelection(backendID: "netgen"),
-        options: LVSOptions = LVSOptions()
+        options: LVSOptions = LVSOptions(),
+        executionInputArtifacts: [ArtifactReference] = []
     ) {
         self.layoutNetlistURL = layoutNetlistURL
         self.layoutGDSURL = layoutGDSURL
@@ -135,6 +138,7 @@ public struct LVSRequest: Sendable, Hashable, Codable {
         self.workingDirectory = workingDirectory
         self.backendSelection = backendSelection
         self.options = options
+        self.executionInputArtifacts = executionInputArtifacts
     }
 }
 
@@ -363,6 +367,7 @@ public struct LVSDiagnostic: Sendable, Hashable, Codable {
 
 public struct LVSExecutionResult: Sendable, Hashable, Codable {
     public let request: LVSRequest
+    public let comparisonRequest: LVSRequest
     public let result: LVSResult
     public let extractedLayoutNetlistURL: URL?
     public let waiverReport: LVSWaiverApplicationReport?
@@ -374,9 +379,12 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
     public let extractionReportURL: URL?
     public let transformLedgerURL: URL?
     public let extractionEvidence: LVSExtractionEvidence?
+    public let layoutNetlistExtraction: LVSLayoutNetlistExtractionResult?
+    public let provenance: ExecutionProvenance
 
     public init(
         request: LVSRequest,
+        comparisonRequest: LVSRequest? = nil,
         result: LVSResult,
         extractedLayoutNetlistURL: URL? = nil,
         waiverReport: LVSWaiverApplicationReport? = nil,
@@ -387,9 +395,12 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
         correspondenceURL: URL? = nil,
         extractionReportURL: URL? = nil,
         transformLedgerURL: URL? = nil,
-        extractionEvidence: LVSExtractionEvidence? = nil
+        extractionEvidence: LVSExtractionEvidence? = nil,
+        layoutNetlistExtraction: LVSLayoutNetlistExtractionResult? = nil,
+        provenance: ExecutionProvenance
     ) {
         self.request = request
+        self.comparisonRequest = comparisonRequest ?? request
         self.result = result
         self.extractedLayoutNetlistURL = extractedLayoutNetlistURL
         self.waiverReport = waiverReport
@@ -401,16 +412,64 @@ public struct LVSExecutionResult: Sendable, Hashable, Codable {
         self.extractionReportURL = extractionReportURL
         self.transformLedgerURL = transformLedgerURL
         self.extractionEvidence = extractionEvidence
+        self.layoutNetlistExtraction = layoutNetlistExtraction
+        self.provenance = provenance
+    }
+
+    public static func inProcess(
+        request: LVSRequest,
+        comparisonRequest: LVSRequest? = nil,
+        result: LVSResult,
+        extractedLayoutNetlistURL: URL? = nil,
+        waiverReport: LVSWaiverApplicationReport? = nil,
+        devicePolicyReport: LVSDevicePolicyApplicationReport? = nil,
+        reportURL: URL? = nil,
+        artifactManifestURL: URL? = nil,
+        correspondence: LVSCorrespondence? = nil,
+        correspondenceURL: URL? = nil,
+        extractionReportURL: URL? = nil,
+        transformLedgerURL: URL? = nil,
+        extractionEvidence: LVSExtractionEvidence? = nil,
+        layoutNetlistExtraction: LVSLayoutNetlistExtractionResult? = nil,
+        entryPoint: String = "LVSExecutionResult.inProcess",
+        startedAt: Date = Date(),
+        completedAt: Date = Date()
+    ) throws -> Self {
+        Self(
+            request: request,
+            comparisonRequest: comparisonRequest,
+            result: result,
+            extractedLayoutNetlistURL: extractedLayoutNetlistURL,
+            waiverReport: waiverReport,
+            devicePolicyReport: devicePolicyReport,
+            reportURL: reportURL,
+            artifactManifestURL: artifactManifestURL,
+            correspondence: correspondence,
+            correspondenceURL: correspondenceURL,
+            extractionReportURL: extractionReportURL,
+            transformLedgerURL: transformLedgerURL,
+            extractionEvidence: extractionEvidence,
+            layoutNetlistExtraction: layoutNetlistExtraction,
+            provenance: try LVSExecutionProvenance.make(
+                request: request,
+                result: result,
+                captureInputFiles: false,
+                invocation: ExecutionInvocation.inProcess(entryPoint: entryPoint),
+                startedAt: startedAt,
+                completedAt: completedAt
+            )
+        )
     }
 }
 
 public struct LVSArtifactManifest: Sendable, Hashable, Codable {
-    public static let currentSchemaVersion = 3
+    public static let currentSchemaVersion = 5
 
     public let schemaVersion: Int
     public let generatedAt: String
     public let backendID: String
     public let toolName: String
+    public let producer: ProducerIdentity
     public let executionStatus: LVSExecutionStatus
     public let verdict: LVSVerificationVerdict
     public let readiness: LVSReadinessStatus
@@ -430,6 +489,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         generatedAt: String,
         backendID: String,
         toolName: String,
+        producer: ProducerIdentity,
         executionStatus: LVSExecutionStatus,
         verdict: LVSVerificationVerdict,
         readiness: LVSReadinessStatus,
@@ -448,6 +508,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         self.generatedAt = generatedAt
         self.backendID = backendID
         self.toolName = toolName
+        self.producer = producer
         self.executionStatus = executionStatus
         self.verdict = verdict
         self.readiness = readiness
@@ -468,6 +529,7 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         case generatedAt
         case backendID
         case toolName
+        case producer
         case executionStatus
         case verdict
         case readiness
@@ -496,6 +558,15 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         generatedAt = try container.decode(String.self, forKey: .generatedAt)
         backendID = try container.decode(String.self, forKey: .backendID)
         toolName = try container.decode(String.self, forKey: .toolName)
+        producer = try container.decode(ProducerIdentity.self, forKey: .producer)
+        guard let producerBuild = producer.build,
+              Self.isSHA256(producerBuild) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .producer,
+                in: container,
+                debugDescription: "LVS artifact manifest producer build must be the measured executable SHA-256."
+            )
+        }
         executionStatus = try container.decode(LVSExecutionStatus.self, forKey: .executionStatus)
         verdict = try container.decode(LVSVerificationVerdict.self, forKey: .verdict)
         readiness = try container.decode(LVSReadinessStatus.self, forKey: .readiness)
@@ -509,6 +580,14 @@ public struct LVSArtifactManifest: Sendable, Hashable, Codable {
         waiverReport = try container.decodeIfPresent(LVSWaiverApplicationReport.self, forKey: .waiverReport)
         devicePolicyReport = try container.decodeIfPresent(LVSDevicePolicyApplicationReport.self, forKey: .devicePolicyReport)
         extractionEvidence = try container.decodeIfPresent(LVSExtractionEvidence.self, forKey: .extractionEvidence)
+    }
+
+    private static func isSHA256(_ value: String) -> Bool {
+        value.utf8.count == 64 && value.utf8.allSatisfy { byte in
+            (byte >= 48 && byte <= 57)
+                || (byte >= 65 && byte <= 70)
+                || (byte >= 97 && byte <= 102)
+        }
     }
 }
 
@@ -537,19 +616,25 @@ public struct LVSArtifactRecord: Sendable, Hashable, Codable {
     public let path: String
     public let byteCount: Int?
     public let sha256: String?
+    public let sourceReference: ArtifactReference?
+    public let derivedReference: ArtifactReference?
 
     public init(
         id: String,
         kind: Kind,
         path: String,
         byteCount: Int?,
-        sha256: String?
+        sha256: String?,
+        sourceReference: ArtifactReference? = nil,
+        derivedReference: ArtifactReference? = nil
     ) {
         self.id = id
         self.kind = kind
         self.path = path
         self.byteCount = byteCount
         self.sha256 = sha256
+        self.sourceReference = sourceReference
+        self.derivedReference = derivedReference
     }
 }
 
@@ -969,7 +1054,7 @@ public protocol LVSLayoutNetlistExtracting: Sendable {
         topCell: String,
         into directory: URL,
         timeoutSeconds: Double
-    ) async throws -> URL
+    ) async throws -> LVSLayoutNetlistExtractionResult
 
     func extractLayoutNetlist(
         gds: URL,
@@ -977,7 +1062,7 @@ public protocol LVSLayoutNetlistExtracting: Sendable {
         into directory: URL,
         timeoutSeconds: Double,
         cancellationCheck: LVSExecutionCancellationCheck?
-    ) async throws -> URL
+    ) async throws -> LVSLayoutNetlistExtractionResult
 }
 
 public extension LVSLayoutNetlistExtracting {
@@ -987,7 +1072,7 @@ public extension LVSLayoutNetlistExtracting {
         into directory: URL,
         timeoutSeconds: Double,
         cancellationCheck: LVSExecutionCancellationCheck?
-    ) async throws -> URL {
+    ) async throws -> LVSLayoutNetlistExtractionResult {
         try await extractLayoutNetlist(
             gds: gds,
             topCell: topCell,
@@ -1008,6 +1093,10 @@ public enum LVSError: Error, LocalizedError, Equatable {
     case cancelled(String)
     case timedOut(String)
     case resourceLimitExceeded(String)
+    case executionAndEvidencePersistenceFailed(
+        execution: String,
+        evidencePersistence: String
+    )
 
     public var errorDescription: String? {
         switch self {
@@ -1031,6 +1120,8 @@ public enum LVSError: Error, LocalizedError, Equatable {
             return "LVS timed out: \(message)"
         case .resourceLimitExceeded(let message):
             return "LVS resource limit exceeded: \(message)"
+        case .executionAndEvidencePersistenceFailed(let execution, let evidencePersistence):
+            return "LVS execution failed: \(execution). Failure evidence persistence also failed: \(evidencePersistence)"
         }
     }
 }

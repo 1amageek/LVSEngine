@@ -8,6 +8,7 @@ import LVSCore
 struct NetgenLVSAdapterTests {
     @Test func additionalEnvironmentCannotOverrideReservedKeys() async throws {
         let adapter = NetgenLVSAdapter(toolchain: NetgenLVSToolchain(
+            toolVersion: "test-netgen-1.0",
             netgenExecutableURL: URL(filePath: "/bin/true"),
             setupFileURL: URL(filePath: "/tmp/sky130A_setup.tcl"),
             pdkRoot: "/tmp/pdk",
@@ -45,14 +46,19 @@ struct NetgenLVSAdapterTests {
             """
         )
         let adapter = NetgenLVSAdapter(toolchain: NetgenLVSToolchain(
+            toolVersion: "test-netgen-1.0",
             netgenExecutableURL: executableURL,
             setupFileURL: URL(filePath: "/tmp/sky130A_setup.tcl"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/lvs.tcl")
         ))
+        let layoutNetlistURL = directory.appending(path: "layout.spice")
+        let schematicNetlistURL = directory.appending(path: "schematic.spice")
+        try Data(".subckt inv\n.ends inv\n".utf8).write(to: layoutNetlistURL)
+        try Data(".subckt inv\n.ends inv\n".utf8).write(to: schematicNetlistURL)
         let request = LVSRequest(
-            layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
-            schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),
+            layoutNetlistURL: layoutNetlistURL,
+            schematicNetlistURL: schematicNetlistURL,
             topCell: "   ",
             workingDirectory: directory,
             options: LVSOptions(timeoutSeconds: .nan)
@@ -119,14 +125,27 @@ struct NetgenLVSAdapterTests {
             """
         )
         let adapter = NetgenLVSAdapter(toolchain: NetgenLVSToolchain(
+            toolVersion: "test-netgen-1.0",
             netgenExecutableURL: executableURL,
             setupFileURL: URL(filePath: "/tmp/sky130A_setup.tcl"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/lvs.tcl")
         ))
+        let layoutURL = directory.appending(path: "layout.spice")
+        let schematicURL = directory.appending(path: "schematic.spice")
+        try ".subckt inv in out\n.ends inv\n".write(
+            to: layoutURL,
+            atomically: true,
+            encoding: .utf8
+        )
+        try ".subckt inv in out\n.ends inv\n".write(
+            to: schematicURL,
+            atomically: true,
+            encoding: .utf8
+        )
         let request = LVSRequest(
-            layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
-            schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),
+            layoutNetlistURL: layoutURL,
+            schematicNetlistURL: schematicURL,
             topCell: "inv",
             workingDirectory: directory
         )
@@ -140,6 +159,10 @@ struct NetgenLVSAdapterTests {
         #expect(FileManager.default.fileExists(atPath: first.result.logPath))
         #expect(FileManager.default.fileExists(atPath: second.result.logPath))
         #expect(first.result.provenance?.executablePath == executableURL.path(percentEncoded: false))
+        #expect(first.provenance.producer.identifier == "netgen-external")
+        #expect(first.provenance.producer.version == "test-netgen-1.0")
+        #expect(first.provenance.producer.build?.count == 64)
+        #expect(first.provenance.inputs.count == 2)
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -164,14 +187,19 @@ struct NetgenLVSAdapterTests {
             """
         )
         let adapter = NetgenLVSAdapter(toolchain: NetgenLVSToolchain(
+            toolVersion: "test-netgen-1.0",
             netgenExecutableURL: executableURL,
             setupFileURL: URL(filePath: "/tmp/sky130A_setup.tcl"),
             pdkRoot: "/tmp/pdk",
             driverScriptURL: URL(filePath: "/tmp/lvs.tcl")
         ))
+        let layoutNetlistURL = directory.appending(path: "cancel-layout.spice")
+        let schematicNetlistURL = directory.appending(path: "cancel-schematic.spice")
+        try Data(".subckt inv\n.ends inv\n".utf8).write(to: layoutNetlistURL)
+        try Data(".subckt inv\n.ends inv\n".utf8).write(to: schematicNetlistURL)
         let request = LVSRequest(
-            layoutNetlistURL: URL(filePath: "/tmp/layout.spice"),
-            schematicNetlistURL: URL(filePath: "/tmp/schematic.spice"),
+            layoutNetlistURL: layoutNetlistURL,
+            schematicNetlistURL: schematicNetlistURL,
             topCell: "inv",
             workingDirectory: directory,
             options: LVSOptions(timeoutSeconds: 5)

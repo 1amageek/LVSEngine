@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 import CryptoKit
 import Testing
@@ -74,10 +75,17 @@ struct DefaultLVSEngineTests {
             LVSArtifactManifest.self,
             from: Data(contentsOf: manifestURL)
         )
-        #expect(manifest.schemaVersion == 3)
+        #expect(manifest.schemaVersion == LVSArtifactManifest.currentSchemaVersion)
+        #expect(manifest.producer == execution.provenance.producer)
+        #expect(manifest.producer.build?.count == 64)
         #expect(manifest.executionStatus == .completed)
         #expect(manifest.verdict == .match)
         #expect(manifest.readiness == .ready)
+        #expect(Set(manifest.inputs.compactMap(\.sourceReference)) == Set(execution.provenance.inputs))
+        #expect(manifest.inputs.allSatisfy { $0.derivedReference == nil })
+        #expect(manifest.outputs.allSatisfy {
+            $0.sourceReference == nil && $0.derivedReference == nil
+        })
         #expect(manifest.outputs.contains {
             $0.id == "lvs-correspondence" && $0.kind == .correspondence && $0.sha256 != nil
         })
@@ -131,7 +139,12 @@ struct DefaultLVSEngineTests {
         #expect(result.result.passed)
         #expect(result.result.verdict == .match)
         #expect(result.extractedLayoutNetlistURL?.lastPathComponent.hasPrefix("inv.extracted") == true)
-        #expect(result.request.layoutNetlistURL == directory.appending(path: "inv.extracted.spice"))
+        #expect(result.request == request)
+        #expect(result.comparisonRequest.layoutNetlistURL == directory.appending(path: "inv.extracted.spice"))
+        #expect(result.layoutNetlistExtraction?.netlist.producer != nil)
+        #expect(result.layoutNetlistExtraction?.provenance.inputs.contains(where: {
+            $0.locator.location.value == layoutGDSURL.standardizedFileURL.absoluteString
+        }) == true)
         #expect(result.reportURL?.lastPathComponent.hasPrefix("lvs-report-") == true)
         #expect(result.reportURL?.pathExtension == "json")
         #expect(result.artifactManifestURL?.lastPathComponent.hasPrefix("lvs-artifact-manifest-") == true)
@@ -152,6 +165,13 @@ struct DefaultLVSEngineTests {
         #expect(inputLayout.sha256 == expectedInputLayoutSHA256)
         #expect(inputLayout.byteCount == 3)
         #expect(inputLayoutNetlist.sha256 == expectedInputLayoutNetlistSHA256)
+        #expect(inputLayout.sourceReference != nil)
+        #expect(inputLayout.derivedReference == nil)
+        #expect(inputLayoutNetlist.sourceReference == nil)
+        #expect(inputLayoutNetlist.derivedReference == result.layoutNetlistExtraction?.netlist)
+        #expect(inputSchematic.sourceReference != nil)
+        #expect(inputSchematic.derivedReference == nil)
+        #expect(Set(manifest.inputs.compactMap { $0.sourceReference ?? $0.derivedReference }) == Set(result.provenance.inputs))
         #expect(inputSchematic.sha256 == expectedInputSchematicSHA256)
         #expect(report.sha256 == expectedReportSHA256)
         #expect(report.byteCount == data.count)
@@ -208,7 +228,7 @@ struct DefaultLVSEngineTests {
         #expect(schematicNetlist.sha256 == (try sha256(schematicNetlistURL)))
     }
 
-    @Test func artifactManifestRetainsSymlinkedInputTargetInsideRunDirectory() async throws {
+    @Test func symlinkedInputIsRejectedBeforeExecution() async throws {
         let externalDirectory = try makeTemporaryDirectory()
         let outputDirectory = try makeTemporaryDirectory()
         defer {
@@ -240,22 +260,20 @@ struct DefaultLVSEngineTests {
             backendSelection: LVSBackendSelection(backendID: "stub")
         )
 
-        let result = try await DefaultLVSEngine(
-            backend: StubLVSBackend(),
-            layoutNetlistExtractor: FailingLayoutNetlistExtractor()
-        ).run(request)
-
-        let manifestURL = try #require(result.artifactManifestURL)
-        let manifest = try JSONDecoder().decode(
-            LVSArtifactManifest.self,
-            from: Data(contentsOf: manifestURL)
-        )
-        let schematicNetlist = try artifact("input-schematic-netlist", in: manifest.inputs)
-        #expect(schematicNetlist.path.hasPrefix("retained-artifacts/input-schematic-netlist/"))
-        let retainedURL = outputDirectory.appending(path: schematicNetlist.path)
-        #expect(FileManager.default.fileExists(atPath: retainedURL.path(percentEncoded: false)))
-        #expect(try Data(contentsOf: retainedURL) == Data(contentsOf: externalSchematicURL))
-        #expect(schematicNetlist.sha256 == (try sha256(externalSchematicURL)))
+        do {
+            _ = try await DefaultLVSEngine(
+                backend: StubLVSBackend(),
+                layoutNetlistExtractor: FailingLayoutNetlistExtractor()
+            ).run(request)
+            Issue.record("Expected a symbolic-link input to be rejected")
+        } catch let error as LVSError {
+            guard case .invalidInput(let message) = error else {
+                Issue.record("Unexpected LVS error: \(error)")
+                return
+            }
+            #expect(message.contains("could not be captured immutably"))
+            #expect(message.contains("linked-schematic.spice"))
+        }
     }
 
     @Test func artifactStoreRejectsRetainedDirectorySymlinkEscape() async throws {
@@ -1234,7 +1252,7 @@ struct DefaultLVSEngineTests {
             guard request.layoutNetlistURL != nil else {
                 throw LVSError.invalidInput("Stub LVS backend requires a layout netlist")
             }
-            return LVSExecutionResult(
+            return try LVSExecutionResult.inProcess(
                 request: request,
                 result: LVSResult(
                     backendID: backendID,
@@ -1259,7 +1277,7 @@ struct DefaultLVSEngineTests {
         let backendID = "clean-stub"
 
         func run(_ request: LVSRequest) async throws -> LVSExecutionResult {
-            LVSExecutionResult(
+            try LVSExecutionResult.inProcess(
                 request: request,
                 result: LVSResult(
                     backendID: backendID,
@@ -1277,7 +1295,7 @@ struct DefaultLVSEngineTests {
         let backendID = "warning-stub"
 
         func run(_ request: LVSRequest) async throws -> LVSExecutionResult {
-            LVSExecutionResult(
+            try LVSExecutionResult.inProcess(
                 request: request,
                 result: LVSResult(
                     backendID: backendID,
@@ -1304,7 +1322,7 @@ struct DefaultLVSEngineTests {
         let backendID = "violation-stub"
 
         func run(_ request: LVSRequest) async throws -> LVSExecutionResult {
-            LVSExecutionResult(
+            try LVSExecutionResult.inProcess(
                 request: request,
                 result: LVSResult(
                     backendID: backendID,
@@ -1345,7 +1363,7 @@ struct DefaultLVSEngineTests {
             guard request.technologyURL != nil else {
                 throw LVSError.invalidInput("Stub GDS LVS backend requires technology")
             }
-            return LVSExecutionResult(
+            return try LVSExecutionResult.inProcess(
                 request: request,
                 result: LVSResult(
                     backendID: backendID,
@@ -1373,7 +1391,7 @@ struct DefaultLVSEngineTests {
             guard request.layoutNetlistURL != nil else {
                 throw LVSError.invalidInput("Waiver stub LVS backend requires a layout netlist")
             }
-            return LVSExecutionResult(
+            return try LVSExecutionResult.inProcess(
                 request: request,
                 result: LVSResult(
                     backendID: backendID,
@@ -1414,7 +1432,7 @@ struct DefaultLVSEngineTests {
             if try await cancellationCheck?() == true {
                 throw LVSError.cancelled("Slow backend cancellation requested.")
             }
-            return LVSExecutionResult(
+            return try LVSExecutionResult.inProcess(
                 request: request,
                 result: LVSResult(
                     backendID: backendID,
@@ -1434,10 +1452,51 @@ struct DefaultLVSEngineTests {
             topCell: String,
             into directory: URL,
             timeoutSeconds: Double
-        ) async throws -> URL {
+        ) async throws -> LVSLayoutNetlistExtractionResult {
             let outputURL = directory.appending(path: "\(topCell).extracted.spice")
             try Data().write(to: outputURL)
-            return outputURL
+            let build = try LVSExecutionProvenance.currentExecutableDigest()
+            let producer = try ProducerIdentity(
+                kind: .tool,
+                identifier: "stub-layout-netlist-extractor",
+                version: "1.0.0",
+                build: build
+            )
+            let input = try LocalArtifactReferencer().reference(
+                ArtifactLocator(
+                    location: try ArtifactLocation(fileURL: gds),
+                    role: .input,
+                    kind: .layout,
+                    format: .gdsii
+                )
+            )
+            let output = try LocalArtifactReferencer().reference(
+                ArtifactLocator(
+                    location: try ArtifactLocation(fileURL: outputURL),
+                    role: .output,
+                    kind: .netlist,
+                    format: .spice
+                ),
+                producer: producer
+            )
+            return LVSLayoutNetlistExtractionResult(
+                netlist: output,
+                provenance: try ExecutionProvenance(
+                    producer: producer,
+                    inputs: [input],
+                    invocation: ExecutionInvocation.inProcess(
+                        entryPoint: "LVSRuntimeTests.StubLayoutNetlistExtractor.extractLayoutNetlist"
+                    ),
+                    environment: try ExecutionEnvironmentFingerprint(
+                        platform: "test",
+                        architecture: "test",
+                        toolchain: "stub-layout-netlist-extractor-1.0.0",
+                        environmentDigest: SHA256ContentDigester().digest(data: Data("test".utf8))
+                    ),
+                    startedAt: Date(timeIntervalSince1970: 1),
+                    completedAt: Date(timeIntervalSince1970: 2)
+                )
+            )
         }
     }
 
@@ -1447,7 +1506,7 @@ struct DefaultLVSEngineTests {
             topCell: String,
             into directory: URL,
             timeoutSeconds: Double
-        ) async throws -> URL {
+        ) async throws -> LVSLayoutNetlistExtractionResult {
             throw LVSError.backendFailed("Extractor should not be called")
         }
     }

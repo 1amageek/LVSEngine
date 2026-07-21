@@ -1,4 +1,5 @@
 import Foundation
+import CircuiteFoundation
 import LVSCore
 import LVSPersistence
 import Testing
@@ -52,11 +53,17 @@ struct LVSArtifactContractTests {
         }
     }
 
-    @Test func artifactManifestV2OmitsLegacyAliasesAndRejectsIncompleteContract() throws {
+    @Test func artifactManifestUsesCurrentIdentitySchemaAndRejectsIncompleteContract() throws {
         let manifest = LVSArtifactManifest(
             generatedAt: "2026-07-12T00:00:00Z",
             backendID: "native",
             toolName: "native",
+            producer: try ProducerIdentity(
+                kind: .engine,
+                identifier: "lvsengine-native",
+                version: LVSExecutionProvenance.nativeImplementationVersion,
+                build: LVSExecutionProvenance.currentExecutableDigest()
+            ),
             executionStatus: .completed,
             verdict: .match,
             readiness: .ready,
@@ -76,7 +83,7 @@ struct LVSArtifactContractTests {
         #expect(object["passed"] == nil)
         #expect(object["completed"] == nil)
 
-        let incomplete = Data(#"{"schemaVersion":2,"generatedAt":"2026-07-12T00:00:00Z","backendID":"native","toolName":"native","inputs":[],"outputs":[],"diagnosticSummary":{"infoCount":0,"warningCount":0,"errorCount":0,"waivedErrorCount":0}}"#.utf8)
+        let incomplete = Data(#"{"schemaVersion":4,"generatedAt":"2026-07-12T00:00:00Z","backendID":"native","toolName":"native","inputs":[],"outputs":[],"diagnosticSummary":{"infoCount":0,"warningCount":0,"errorCount":0,"waivedErrorCount":0}}"#.utf8)
         #expect(throws: DecodingError.self) {
             _ = try JSONDecoder().decode(LVSArtifactManifest.self, from: incomplete)
         }

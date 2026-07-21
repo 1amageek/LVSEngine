@@ -1,19 +1,23 @@
+import CircuiteFoundation
 import Foundation
 import LVSCore
 import SignoffToolSupport
 
 public struct MagicLVSToolchain: Sendable, Hashable {
+    public let toolVersion: String
     public let magicExecutableURL: URL
     public let rcFileURL: URL
     public let pdkRoot: String
     public let driverScriptURL: URL
 
     public init(
+        toolVersion: String,
         magicExecutableURL: URL,
         rcFileURL: URL,
         pdkRoot: String,
         driverScriptURL: URL
     ) {
+        self.toolVersion = toolVersion
         self.magicExecutableURL = magicExecutableURL
         self.rcFileURL = rcFileURL
         self.pdkRoot = pdkRoot
@@ -37,6 +41,10 @@ public struct MagicLayoutNetlistExtractor: LVSLayoutNetlistExtracting {
         fileManager: FileManager = .default
     ) -> MagicLayoutNetlistExtractor? {
         guard let driver = bundledDriverScriptURL else { return nil }
+        guard let toolVersion = environment["MAGIC_VERSION"],
+              !toolVersion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
         let magicPath = environment["MAGIC_BIN"]
             ?? NSString(string: "~/.local/magic/bin/magic").expandingTildeInPath
         guard fileManager.isExecutableFile(atPath: magicPath) else { return nil }
@@ -68,6 +76,7 @@ public struct MagicLayoutNetlistExtractor: LVSLayoutNetlistExtracting {
             return nil
         }
         return MagicLayoutNetlistExtractor(toolchain: MagicLVSToolchain(
+            toolVersion: toolVersion,
             magicExecutableURL: URL(filePath: magicPath),
             rcFileURL: rcFile,
             pdkRoot: pdkRoot,
@@ -80,7 +89,7 @@ public struct MagicLayoutNetlistExtractor: LVSLayoutNetlistExtracting {
         topCell: String,
         into directory: URL,
         timeoutSeconds: Double
-    ) async throws -> URL {
+    ) async throws -> LVSLayoutNetlistExtractionResult {
         try await extractLayoutNetlist(
             gds: gds,
             topCell: topCell,
@@ -96,7 +105,36 @@ public struct MagicLayoutNetlistExtractor: LVSLayoutNetlistExtracting {
         into directory: URL,
         timeoutSeconds: Double,
         cancellationCheck: LVSExecutionCancellationCheck?
-    ) async throws -> URL {
+    ) async throws -> LVSLayoutNetlistExtractionResult {
+        let startedAt = Date()
+        let digester = SHA256ContentDigester()
+        let executableDigest = try digester.digest(
+            fileAt: toolchain.magicExecutableURL,
+            using: .sha256
+        )
+        let inputArtifacts = try [
+            artifactReference(
+                at: gds,
+                role: .input,
+                kind: .layout,
+                format: .gdsii,
+                producer: nil
+            ),
+            artifactReference(
+                at: toolchain.rcFileURL,
+                role: .input,
+                kind: .technology,
+                format: .unknown,
+                producer: nil
+            ),
+            artifactReference(
+                at: toolchain.driverScriptURL,
+                role: .input,
+                kind: .ruleDeck,
+                format: .unknown,
+                producer: nil
+            ),
+        ]
         let outputStem = try Self.outputFileStem(for: topCell)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let outputURL = directory.appending(path: "\(outputStem)-lvs-\(UUID().uuidString).spice")
@@ -152,7 +190,110 @@ public struct MagicLayoutNetlistExtractor: LVSLayoutNetlistExtracting {
         guard FileManager.default.fileExists(atPath: outputURL.path(percentEncoded: false)) else {
             throw LVSError.backendFailed("Magic LVS extraction did not produce \(outputURL.path(percentEncoded: false))")
         }
-        return outputURL
+        let completedExecutableDigest = try digester.digest(
+            fileAt: toolchain.magicExecutableURL,
+            using: .sha256
+        )
+        guard completedExecutableDigest == executableDigest else {
+            throw LVSError.backendFailed("Magic executable changed during LVS layout extraction.")
+        }
+        let producer = try ProducerIdentity(
+            kind: .tool,
+            identifier: "magic-layout-extractor",
+            version: toolchain.toolVersion,
+            build: executableDigest.hexadecimalValue
+        )
+        let netlist = try artifactReference(
+            at: outputURL,
+            role: .output,
+            kind: .netlist,
+            format: .spice,
+            producer: producer
+        )
+        let provenance = try ExecutionProvenance(
+            producer: producer,
+            inputs: inputArtifacts,
+            invocation: ExecutionInvocation.externalProcess(
+                executable: toolchain.magicExecutableURL.path(percentEncoded: false),
+                arguments: process.arguments ?? [],
+                workingDirectory: directory.path(percentEncoded: false)
+            ),
+            environment: try environmentFingerprint(topCell: topCell),
+            startedAt: startedAt,
+            completedAt: Date()
+        )
+        return LVSLayoutNetlistExtractionResult(
+            netlist: netlist,
+            provenance: provenance
+        )
+    }
+
+    private func artifactReference(
+        at url: URL,
+        role: ArtifactRole,
+        kind: ArtifactKind,
+        format: ArtifactFormat,
+        producer: ProducerIdentity?
+    ) throws -> ArtifactReference {
+        try LocalArtifactReferencer().reference(
+            ArtifactLocator(
+                location: try ArtifactLocation(fileURL: url),
+                role: role,
+                kind: kind,
+                format: format
+            ),
+            producer: producer
+        )
+    }
+
+    private func environmentFingerprint(
+        topCell: String
+    ) throws -> ExecutionEnvironmentFingerprint {
+        let values = [
+            "EXT_CELL": topCell,
+            "MAGTYPE": "mag",
+            "PDK_ROOT": toolchain.pdkRoot,
+        ]
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let environmentDigest = try SHA256ContentDigester().digest(
+            data: encoder.encode(values),
+            using: .sha256
+        )
+        return try ExecutionEnvironmentFingerprint(
+            platform: Self.platform,
+            architecture: Self.architecture,
+            toolchain: "magic-layout-extractor-\(toolchain.toolVersion)",
+            environmentDigest: environmentDigest
+        )
+    }
+
+    private static var platform: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        #if os(macOS)
+        let name = "macOS"
+        #elseif os(Linux)
+        let name = "Linux"
+        #elseif os(Windows)
+        let name = "Windows"
+        #else
+        let name = "unknown-platform"
+        #endif
+        return "\(name)-\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+    }
+
+    private static var architecture: String {
+        #if arch(arm64)
+        "arm64"
+        #elseif arch(x86_64)
+        "x86_64"
+        #elseif arch(arm)
+        "arm"
+        #elseif arch(i386)
+        "i386"
+        #else
+        "unknown-architecture"
+        #endif
     }
 
     private static func outputFileStem(for topCell: String) throws -> String {

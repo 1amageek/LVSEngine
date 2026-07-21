@@ -1,3 +1,4 @@
+import CircuiteFoundation
 import Foundation
 import LVSCore
 import LVSGraph
@@ -20,6 +21,8 @@ public struct NativeLVSBackend: LVSCancellableBackend {
         _ request: LVSRequest,
         cancellationCheck: LVSExecutionCancellationCheck?
     ) async throws -> LVSExecutionResult {
+        let startedAt = Date()
+        let inputArtifacts = try LVSExecutionProvenance.captureInputArtifacts(for: request)
         try await checkCancellation(cancellationCheck)
         guard let layoutNetlistURL = request.layoutNetlistURL else {
             throw LVSError.invalidInput("Native LVS requires a layout netlist")
@@ -202,7 +205,17 @@ public struct NativeLVSBackend: LVSCancellableBackend {
             request: request,
             result: result,
             devicePolicyReport: devicePolicy.report,
-            correspondence: correspondence
+            correspondence: correspondence,
+            provenance: try LVSExecutionProvenance.make(
+                request: request,
+                result: result,
+                inputArtifacts: inputArtifacts,
+                invocation: ExecutionInvocation.inProcess(
+                    entryPoint: "NativeLVSBackend.run"
+                ),
+                startedAt: startedAt,
+                completedAt: Date()
+            )
         )
     }
 
